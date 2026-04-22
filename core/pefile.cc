@@ -38,25 +38,25 @@
 #include "netcore_runtime32.dll.inc"
 #include "netcore_runtime64.dll.inc"
 
-/**
- * PESegment
- */
+ /**
+  * PESegment
+  */
 
-PESegment::PESegment(PESegmentList *owner)
+PESegment::PESegment(PESegmentList* owner)
 	: BaseSection(owner), address_(0), size_(0), physical_offset_(0), physical_size_(0), flags_(0)
 {
 
 }
 
-PESegment::PESegment(PESegmentList *owner, uint64_t address, uint32_t size, uint32_t physical_offset, 
-		uint32_t physical_size, uint32_t flags, const std::string &name)
+PESegment::PESegment(PESegmentList* owner, uint64_t address, uint32_t size, uint32_t physical_offset,
+	uint32_t physical_size, uint32_t flags, const std::string& name)
 	: BaseSection(owner), name_(name), address_(address), size_(size), physical_offset_(physical_offset), physical_size_(physical_size), flags_(flags)
 {
 
 }
 
-PESegment::PESegment(PESegmentList *owner, const PESegment &src)
-	: BaseSection(owner, src) 
+PESegment::PESegment(PESegmentList* owner, const PESegment& src)
+	: BaseSection(owner, src)
 {
 	address_ = src.address_;
 	size_ = src.size_;
@@ -66,18 +66,18 @@ PESegment::PESegment(PESegmentList *owner, const PESegment &src)
 	name_ = src.name_;
 }
 
-PESegment *PESegment::Clone(ISectionList *owner) const
+PESegment* PESegment::Clone(ISectionList* owner) const
 {
-	PESegment *section = new PESegment(reinterpret_cast<PESegmentList *>(owner), *this);
+	PESegment* section = new PESegment(reinterpret_cast<PESegmentList*>(owner), *this);
 	return section;
 }
 
-void PESegment::ReadFromFile(PEArchitecture &file)
+void PESegment::ReadFromFile(PEArchitecture& file)
 {
 	IMAGE_SECTION_HEADER section_header;
 
 	file.Read(&section_header, sizeof(section_header));
-	name_ = std::string(reinterpret_cast<char *>(&section_header.Name), strnlen(reinterpret_cast<char *>(&section_header.Name), sizeof(section_header.Name)));
+	name_ = std::string(reinterpret_cast<char*>(&section_header.Name), strnlen(reinterpret_cast<char*>(&section_header.Name), sizeof(section_header.Name)));
 	size_ = section_header.Misc.VirtualSize;
 	address_ = section_header.VirtualAddress + file.image_base();
 	physical_offset_ = section_header.PointerToRawData;
@@ -85,7 +85,7 @@ void PESegment::ReadFromFile(PEArchitecture &file)
 	flags_ = section_header.Characteristics;
 }
 
-void PESegment::WriteToFile(PEArchitecture &file) const
+void PESegment::WriteToFile(PEArchitecture& file) const
 {
 	IMAGE_SECTION_HEADER section_header = IMAGE_SECTION_HEADER();
 
@@ -147,13 +147,13 @@ void PESegment::Rebase(uint64_t delta_base)
  * PESegmentList
  */
 
-PESegmentList::PESegmentList(PEArchitecture *owner)
+PESegmentList::PESegmentList(PEArchitecture* owner)
 	: BaseSectionList(owner), header_segment_(NULL)
 {
 
 }
 
-PESegmentList::PESegmentList(PEArchitecture *owner, const PESegmentList &src)
+PESegmentList::PESegmentList(PEArchitecture* owner, const PESegmentList& src)
 	: BaseSectionList(owner, src), header_segment_(NULL)
 {
 	if (src.header_segment_)
@@ -165,45 +165,45 @@ PESegmentList::~PESegmentList()
 	delete header_segment_;
 }
 
-PESegmentList *PESegmentList::Clone(PEArchitecture *owner) const
+PESegmentList* PESegmentList::Clone(PEArchitecture* owner) const
 {
-	PESegmentList *section_list = new PESegmentList(owner, *this);
+	PESegmentList* section_list = new PESegmentList(owner, *this);
 	return section_list;
 }
 
-PESegment *PESegmentList::Add()
+PESegment* PESegmentList::Add()
 {
-	PESegment *section = new PESegment(this);
+	PESegment* section = new PESegment(this);
 	AddObject(section);
 	return section;
 }
 
-PESegment *PESegmentList::Add(uint64_t address, uint32_t size, uint32_t physical_offset, uint32_t physical_size, uint32_t flags, const std::string &name)
+PESegment* PESegmentList::Add(uint64_t address, uint32_t size, uint32_t physical_offset, uint32_t physical_size, uint32_t flags, const std::string& name)
 {
-	PESegment *section = new PESegment(this, address, size, physical_offset, physical_size, flags, name);
+	PESegment* section = new PESegment(this, address, size, physical_offset, physical_size, flags, name);
 	AddObject(section);
 	return section;
 }
 
-PESegment *PESegmentList::item(size_t index) const
-{ 
-	return reinterpret_cast<PESegment *>(BaseSectionList::item(index));
+PESegment* PESegmentList::item(size_t index) const
+{
+	return reinterpret_cast<PESegment*>(BaseSectionList::item(index));
 }
 
-PESegment *PESegmentList::GetSectionByAddress(uint64_t address) const
+PESegment* PESegmentList::GetSectionByAddress(uint64_t address) const
 {
-	PESegment *res = reinterpret_cast<PESegment *>(BaseSectionList::GetSectionByAddress(address));
+	PESegment* res = reinterpret_cast<PESegment*>(BaseSectionList::GetSectionByAddress(address));
 	if (!res && header_segment_ && address >= header_segment_->address() && address < header_segment_->address() + header_segment_->size())
 		res = header_segment_;
 	return res;
 }
 
-PESegment *PESegmentList::last() const
+PESegment* PESegmentList::last() const
 {
-	return reinterpret_cast<PESegment *>(BaseSectionList::last());
+	return reinterpret_cast<PESegment*>(BaseSectionList::last());
 }
 
-void PESegmentList::ReadFromFile(PEArchitecture &file, uint32_t count)
+void PESegmentList::ReadFromFile(PEArchitecture& file, uint32_t count)
 {
 	Reserve(count);
 	for (size_t i = 0; i < count; i++) {
@@ -214,12 +214,12 @@ void PESegmentList::ReadFromFile(PEArchitecture &file, uint32_t count)
 		header_segment_ = NULL;
 	}
 	if (this->count()) {
-		PESegment *first_segment = item(0);
+		PESegment* first_segment = item(0);
 		header_segment_ = new PESegment(NULL, file.image_base(), static_cast<uint32_t>(first_segment->address() - file.image_base()), 0, first_segment->physical_offset(), 0, ".header");
 	}
 }
 
-void PESegmentList::WriteToFile(PEArchitecture &file) const
+void PESegmentList::WriteToFile(PEArchitecture& file) const
 {
 	for (size_t i = 0; i < count(); i++) {
 		item(i)->WriteToFile(file);
@@ -230,14 +230,14 @@ void PESegmentList::WriteToFile(PEArchitecture &file) const
  * PESection
  */
 
-PESection::PESection(PESectionList *owner, PESegment *parent, uint64_t address, uint64_t size, const std::string &name)
+PESection::PESection(PESectionList* owner, PESegment* parent, uint64_t address, uint64_t size, const std::string& name)
 	: BaseSection(owner), name_(name), address_(address), size_(size), parent_(parent)
 {
 
 }
 
-PESection::PESection(PESectionList *owner, const PESection &src)
-	: BaseSection(owner, src) 
+PESection::PESection(PESectionList* owner, const PESection& src)
+	: BaseSection(owner, src)
 {
 	address_ = src.address_;
 	size_ = src.size_;
@@ -245,9 +245,9 @@ PESection::PESection(PESectionList *owner, const PESection &src)
 	parent_ = src.parent_;
 }
 
-PESection *PESection::Clone(ISectionList *owner) const
+PESection* PESection::Clone(ISectionList* owner) const
 {
-	PESection *section = new PESection(reinterpret_cast<PESectionList *>(owner), *this);
+	PESection* section = new PESection(reinterpret_cast<PESectionList*>(owner), *this);
 	return section;
 }
 
@@ -260,32 +260,32 @@ void PESection::Rebase(uint64_t delta_base)
  * PESectionList
  */
 
-PESectionList::PESectionList(PEArchitecture *owner)
+PESectionList::PESectionList(PEArchitecture* owner)
 	: BaseSectionList(owner)
 {
 
 }
 
-PESectionList::PESectionList(PEArchitecture *owner, const PESectionList &src)
+PESectionList::PESectionList(PEArchitecture* owner, const PESectionList& src)
 	: BaseSectionList(owner, src)
 {
 
 }
 
-PESectionList *PESectionList::Clone(PEArchitecture *owner) const
+PESectionList* PESectionList::Clone(PEArchitecture* owner) const
 {
-	PESectionList *section_list = new PESectionList(owner, *this);
+	PESectionList* section_list = new PESectionList(owner, *this);
 	return section_list;
 }
 
-PESection *PESectionList::item(size_t index) const
-{ 
-	return reinterpret_cast<PESection *>(BaseSectionList::item(index));
+PESection* PESectionList::item(size_t index) const
+{
+	return reinterpret_cast<PESection*>(BaseSectionList::item(index));
 }
 
-PESection *PESectionList::Add(PESegment *parent, uint64_t address, uint64_t size, const std::string &name)
+PESection* PESectionList::Add(PESegment* parent, uint64_t address, uint64_t size, const std::string& name)
 {
-	PESection *section = new PESection(this, parent, address, size, name);
+	PESection* section = new PESection(this, parent, address, size, name);
 	AddObject(section);
 	return section;
 }
@@ -294,13 +294,13 @@ PESection *PESectionList::Add(PESegment *parent, uint64_t address, uint64_t size
  * PEDirectory
  */
 
-PEDirectory::PEDirectory(PEDirectoryList *owner, uint32_t type)
+PEDirectory::PEDirectory(PEDirectoryList* owner, uint32_t type)
 	: BaseLoadCommand(owner), address_(0), size_(0), type_(type), physical_size_(0)
 {
 
 }
 
-PEDirectory::PEDirectory(PEDirectoryList *owner, const PEDirectory &src)
+PEDirectory::PEDirectory(PEDirectoryList* owner, const PEDirectory& src)
 	: BaseLoadCommand(owner, src)
 {
 	address_ = src.address_;
@@ -309,9 +309,9 @@ PEDirectory::PEDirectory(PEDirectoryList *owner, const PEDirectory &src)
 	physical_size_ = src.physical_size_;
 }
 
-PEDirectory *PEDirectory::Clone(ILoadCommandList *owner) const
+PEDirectory* PEDirectory::Clone(ILoadCommandList* owner) const
 {
-	PEDirectory *dir = new PEDirectory(reinterpret_cast<PEDirectoryList *>(owner), *this);
+	PEDirectory* dir = new PEDirectory(reinterpret_cast<PEDirectoryList*>(owner), *this);
 	return dir;
 }
 
@@ -322,7 +322,7 @@ void PEDirectory::clear()
 	physical_size_ = 0;
 }
 
-void PEDirectory::ReadFromFile(PEArchitecture &file)
+void PEDirectory::ReadFromFile(PEArchitecture& file)
 {
 	IMAGE_DATA_DIRECTORY dir;
 
@@ -332,7 +332,7 @@ void PEDirectory::ReadFromFile(PEArchitecture &file)
 	size_ = dir.Size;
 }
 
-void PEDirectory::WriteToFile(PEArchitecture &file) const
+void PEDirectory::WriteToFile(PEArchitecture& file) const
 {
 	IMAGE_DATA_DIRECTORY dir;
 
@@ -386,16 +386,16 @@ void PEDirectory::Rebase(uint64_t delta_base)
 		address_ += delta_base;
 }
 
-void PEDirectory::FreeByManager(MemoryManager &manager)
+void PEDirectory::FreeByManager(MemoryManager& manager)
 {
 	if (!address() || !physical_size())
 		return;
 
 	size_t size = physical_size();
 	manager.Add(address_, size);
-	IArchitecture *file = manager.owner();
+	IArchitecture* file = manager.owner();
 	for (size_t i = 0; i < size; i++) {
-		IFixup *fixup = file->fixup_list()->GetFixupByAddress(address_ + i);
+		IFixup* fixup = file->fixup_list()->GetFixupByAddress(address_ + i);
 		if (fixup)
 			fixup->set_deleted(true);
 	}
@@ -405,45 +405,45 @@ void PEDirectory::FreeByManager(MemoryManager &manager)
  * PEDirectoryList
  */
 
-PEDirectoryList::PEDirectoryList(PEArchitecture *owner)
+PEDirectoryList::PEDirectoryList(PEArchitecture* owner)
 	: BaseCommandList(owner)
 {
 
 }
 
-PEDirectoryList::PEDirectoryList(PEArchitecture *owner, const PEDirectoryList &src)
+PEDirectoryList::PEDirectoryList(PEArchitecture* owner, const PEDirectoryList& src)
 	: BaseCommandList(owner, src)
 {
 
 }
 
-PEDirectory *PEDirectoryList::item(size_t index) const 
-{ 
-	return reinterpret_cast<PEDirectory *>(BaseCommandList::item(index));
+PEDirectory* PEDirectoryList::item(size_t index) const
+{
+	return reinterpret_cast<PEDirectory*>(BaseCommandList::item(index));
 }
 
-PEDirectoryList *PEDirectoryList::Clone(PEArchitecture *owner) const
+PEDirectoryList* PEDirectoryList::Clone(PEArchitecture* owner) const
 {
-	PEDirectoryList *directory_list = new PEDirectoryList(owner, *this);
+	PEDirectoryList* directory_list = new PEDirectoryList(owner, *this);
 	return directory_list;
 }
 
-PEDirectory *PEDirectoryList::Add(uint32_t type)
+PEDirectory* PEDirectoryList::Add(uint32_t type)
 {
-	PEDirectory *dir = new PEDirectory(this, type);
+	PEDirectory* dir = new PEDirectory(this, type);
 	AddObject(dir);
 	return dir;
 }
 
-PEDirectory *PEDirectoryList::GetCommandByType(uint32_t type) const
+PEDirectory* PEDirectoryList::GetCommandByType(uint32_t type) const
 {
-	return reinterpret_cast<PEDirectory *>(BaseCommandList::GetCommandByType(type));
+	return reinterpret_cast<PEDirectory*>(BaseCommandList::GetCommandByType(type));
 }
 
-PEDirectory *PEDirectoryList::GetCommandByAddress(uint64_t address) const
+PEDirectory* PEDirectoryList::GetCommandByAddress(uint64_t address) const
 {
 	for (size_t i = 0; i < count(); i++) {
-		PEDirectory *dir = item(i);
+		PEDirectory* dir = item(i);
 		if (dir->address() == address)
 			return dir;
 	}
@@ -451,14 +451,14 @@ PEDirectory *PEDirectoryList::GetCommandByAddress(uint64_t address) const
 	return NULL;
 }
 
-void PEDirectoryList::ReadFromFile(PEArchitecture &file, uint32_t count)
+void PEDirectoryList::ReadFromFile(PEArchitecture& file, uint32_t count)
 {
 	for (uint32_t i = 0; i < count; i++) {
 		Add(i)->ReadFromFile(file);
 	}
 }
 
-void PEDirectoryList::WriteToFile(PEArchitecture &file) const
+void PEDirectoryList::WriteToFile(PEArchitecture& file) const
 {
 	for (size_t i = 0; i < count(); i++) {
 		item(i)->WriteToFile(file);
@@ -469,26 +469,26 @@ void PEDirectoryList::WriteToFile(PEArchitecture &file) const
  * PEImportFunction
  */
 
-PEImportFunction::PEImportFunction(PEImport *owner)
+PEImportFunction::PEImportFunction(PEImport* owner)
 	: BaseImportFunction(owner), name_address_(0), address_(0), is_ordinal_(false), ordinal_(0)
 {
 
 }
 
-PEImportFunction::PEImportFunction(PEImport *owner, const std::string &name)
+PEImportFunction::PEImportFunction(PEImport* owner, const std::string& name)
 	: BaseImportFunction(owner), name_(name), name_address_(0), address_(0), is_ordinal_(false), ordinal_(0)
 {
 
 }
 
-PEImportFunction::PEImportFunction(PEImport *owner, uint64_t address, APIType type, MapFunction *map_function)
+PEImportFunction::PEImportFunction(PEImport* owner, uint64_t address, APIType type, MapFunction* map_function)
 	: BaseImportFunction(owner), name_address_(0), address_(address), ordinal_(0), is_ordinal_(false)
 {
 	set_type(type);
 	set_map_function(map_function);
 }
 
-PEImportFunction::PEImportFunction(PEImport *owner, const PEImportFunction &src)
+PEImportFunction::PEImportFunction(PEImport* owner, const PEImportFunction& src)
 	: BaseImportFunction(owner, src)
 {
 	name_ = src.name_;
@@ -498,13 +498,13 @@ PEImportFunction::PEImportFunction(PEImport *owner, const PEImportFunction &src)
 	ordinal_ = src.ordinal_;
 }
 
-PEImportFunction *PEImportFunction::Clone(IImport *owner) const
+PEImportFunction* PEImportFunction::Clone(IImport* owner) const
 {
-	PEImportFunction *func = new PEImportFunction(reinterpret_cast<PEImport *>(owner), *this);
+	PEImportFunction* func = new PEImportFunction(reinterpret_cast<PEImport*>(owner), *this);
 	return func;
 }
 
-bool PEImportFunction::ReadFromFile(PEArchitecture &file, uint32_t &rva)
+bool PEImportFunction::ReadFromFile(PEArchitecture& file, uint32_t& rva)
 {
 	address_ = rva + file.image_base();
 	if (file.cpu_address_size() == osDWord) {
@@ -516,7 +516,8 @@ bool PEImportFunction::ReadFromFile(PEArchitecture &file, uint32_t &rva)
 			return false;
 		is_ordinal_ = IMAGE_SNAP_BY_ORDINAL32(name_address_);
 		rva += sizeof(uint32_t);
-	} else {
+	}
+	else {
 		IMAGE_THUNK_DATA64 thunk;
 
 		file.Read(&thunk, sizeof(thunk));
@@ -531,7 +532,8 @@ bool PEImportFunction::ReadFromFile(PEArchitecture &file, uint32_t &rva)
 		ordinal_ = IMAGE_ORDINAL32(name_address_);
 		name_address_ = 0;
 		name_ = string_format("Ordinal: %.4X", ordinal_);
-	} else {
+	}
+	else {
 		name_address_ += file.image_base();
 		uint64_t pos = file.Tell();
 		if (!file.AddressSeek(name_address_ + sizeof(WORD)))
@@ -543,7 +545,7 @@ bool PEImportFunction::ReadFromFile(PEArchitecture &file, uint32_t &rva)
 	return true;
 }
 
-void PEImportFunction::FreeByManager(MemoryManager &manager, bool free_iat)
+void PEImportFunction::FreeByManager(MemoryManager& manager, bool free_iat)
 {
 	if (name_address_)
 		manager.Add(name_address_, sizeof(uint16_t) + name_.size() + 1);
@@ -560,7 +562,7 @@ void PEImportFunction::Rebase(uint64_t delta_base)
 		address_ += delta_base;
 }
 
-bool PEImportFunction::IsInternal(const CompileContext &ctx) const
+bool PEImportFunction::IsInternal(const CompileContext& ctx) const
 {
 	if ((options() & ioFromRuntime) == 0) {
 		if (ctx.options.flags & cpResourceProtection) {
@@ -580,25 +582,25 @@ std::string PEImportFunction::display_name(bool show_ret) const
  * PEImport
  */
 
-PEImport::PEImport(PEImportList *owner)
+PEImport::PEImport(PEImportList* owner)
 	: BaseImport(owner), name_address_(0), is_sdk_(false), original_first_thunk_address_(0), first_thunk_address_(0), time_stamp_(0), forwarder_chain_(0)
 {
 
 }
 
-PEImport::PEImport(PEImportList *owner, bool is_sdk)
+PEImport::PEImport(PEImportList* owner, bool is_sdk)
 	: BaseImport(owner), name_address_(0), is_sdk_(is_sdk), original_first_thunk_address_(0), first_thunk_address_(0), time_stamp_(0), forwarder_chain_(0)
 {
 
 }
 
-PEImport::PEImport(PEImportList *owner, const std::string &name)
+PEImport::PEImport(PEImportList* owner, const std::string& name)
 	: BaseImport(owner), name_(name), name_address_(0), is_sdk_(false), original_first_thunk_address_(0), first_thunk_address_(0), time_stamp_(0), forwarder_chain_(0)
 {
 
 }
 
-PEImport::PEImport(PEImportList *owner, const PEImport &src)
+PEImport::PEImport(PEImportList* owner, const PEImport& src)
 	: BaseImport(owner, src)
 {
 	name_ = src.name_;
@@ -610,18 +612,18 @@ PEImport::PEImport(PEImportList *owner, const PEImport &src)
 	forwarder_chain_ = src.forwarder_chain_;
 }
 
-PEImport *PEImport::Clone(IImportList *owner) const
+PEImport* PEImport::Clone(IImportList* owner) const
 {
-	PEImport *import = new PEImport(reinterpret_cast<PEImportList *>(owner), *this);
+	PEImport* import = new PEImport(reinterpret_cast<PEImportList*>(owner), *this);
 	return import;
 }
 
-PEImportFunction *PEImport::item(size_t index) const 
-{ 
-	return reinterpret_cast<PEImportFunction *>(IImport::item(index));
+PEImportFunction* PEImport::item(size_t index) const
+{
+	return reinterpret_cast<PEImportFunction*>(IImport::item(index));
 }
 
-bool PEImport::ReadFromFile(PEArchitecture &file)
+bool PEImport::ReadFromFile(PEArchitecture& file)
 {
 	static const ImportInfo kernel32_info[] = {
 		{atLoadResource, "LoadResource", ioNone, ctNone},
@@ -673,10 +675,10 @@ bool PEImport::ReadFromFile(PEArchitecture &file)
 
 	IMAGE_IMPORT_DESCRIPTOR import_descriptor;
 	uint64_t pos;
-	PEImportFunction *func;
+	PEImportFunction* func;
 	size_t i, j;
 	std::string dll_name;
-	
+
 	file.Read(&import_descriptor, sizeof(import_descriptor));
 	if (!import_descriptor.FirstThunk)
 		return false;
@@ -720,7 +722,8 @@ bool PEImport::ReadFromFile(PEArchitecture &file)
 		if (dll_name.find('.') == (size_t)-1)
 			dll_name += ".sys";
 		sdk_name = string_format("vmprotectddk%d.sys", (file.cpu_address_size() == osDWord) ? 32 : 64);
-	} else {
+	}
+	else {
 		if (dll_name.find('.') == (size_t)-1)
 			dll_name += ".dll";
 		sdk_name = string_format("vmprotectsdk%d.dll", (file.cpu_address_size() == osDWord) ? 32 : 64);
@@ -730,7 +733,7 @@ bool PEImport::ReadFromFile(PEArchitecture &file)
 		is_sdk_ = true;
 		for (i = 0; i < count(); i++) {
 			func = item(i);
-			const ImportInfo *import_info = owner()->GetSDKInfo(func->name());
+			const ImportInfo* import_info = owner()->GetSDKInfo(func->name());
 			if (import_info) {
 				func->set_type(import_info->type);
 				if (import_info->options & ioHasCompilationType) {
@@ -741,19 +744,23 @@ bool PEImport::ReadFromFile(PEArchitecture &file)
 				}
 			}
 		}
-	} else {
+	}
+	else {
 		size_t c;
-		const ImportInfo *import_info;
+		const ImportInfo* import_info;
 		if (dll_name.compare("kernel32.dll") == 0) {
 			import_info = kernel32_info;
 			c = _countof(kernel32_info);
-		} else if (dll_name.compare("user32.dll") == 0) {
+		}
+		else if (dll_name.compare("user32.dll") == 0) {
 			import_info = user32_info;
 			c = _countof(user32_info);
-		} else if (dll_name.compare("msvbvm50.dll") == 0 || dll_name.compare("msvbvm60.dll") == 0) {
+		}
+		else if (dll_name.compare("msvbvm50.dll") == 0 || dll_name.compare("msvbvm60.dll") == 0) {
 			import_info = msvbvm_info;
 			c = _countof(msvbvm_info);
-		} else {
+		}
+		else {
 			import_info = default_info;
 			c = _countof(default_info);
 		}
@@ -778,7 +785,7 @@ bool PEImport::ReadFromFile(PEArchitecture &file)
 	return true;
 }
 
-bool PEImport::FreeByManager(MemoryManager &manager, bool free_iat)
+bool PEImport::FreeByManager(MemoryManager& manager, bool free_iat)
 {
 	if (!name_address_)
 		return false;
@@ -807,14 +814,14 @@ void PEImport::Rebase(uint64_t delta_base)
 		first_thunk_address_ += delta_base;
 }
 
-PEImportFunction *PEImport::Add(uint64_t address, APIType type, MapFunction *map_function)
+PEImportFunction* PEImport::Add(uint64_t address, APIType type, MapFunction* map_function)
 {
-	PEImportFunction *import_function = new PEImportFunction(this, address, type, map_function);
+	PEImportFunction* import_function = new PEImportFunction(this, address, type, map_function);
 	AddObject(import_function);
 	return import_function;
 }
 
-void PEImport::WriteToFile(PEArchitecture &file) const
+void PEImport::WriteToFile(PEArchitecture& file) const
 {
 	IMAGE_IMPORT_DESCRIPTOR import_descriptor;
 
@@ -830,35 +837,35 @@ void PEImport::WriteToFile(PEArchitecture &file) const
  * PEImportList
  */
 
-PEImportList::PEImportList(PEArchitecture *owner)
+PEImportList::PEImportList(PEArchitecture* owner)
 	: BaseImportList(owner), address_(0)
 {
 
 }
 
-PEImportList::PEImportList(PEArchitecture *owner, const PEImportList &src)
-	: BaseImportList(owner, src) 
+PEImportList::PEImportList(PEArchitecture* owner, const PEImportList& src)
+	: BaseImportList(owner, src)
 {
 	address_ = src.address_;
 }
 
-PEImportList *PEImportList::Clone(PEArchitecture *owner) const
+PEImportList* PEImportList::Clone(PEArchitecture* owner) const
 {
-	PEImportList *import_list = new PEImportList(owner, *this);
+	PEImportList* import_list = new PEImportList(owner, *this);
 	return import_list;
 }
 
-PEImport *PEImportList::item(size_t index) const 
-{ 
-	return reinterpret_cast<PEImport *>(BaseImportList::item(index));
+PEImport* PEImportList::item(size_t index) const
+{
+	return reinterpret_cast<PEImport*>(BaseImportList::item(index));
 }
 
-PEImportFunction *PEImportList::GetFunctionByAddress(uint64_t address) const
+PEImportFunction* PEImportList::GetFunctionByAddress(uint64_t address) const
 {
 	return reinterpret_cast<PEImportFunction*>(BaseImportList::GetFunctionByAddress(address));
 }
 
-void PEImportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
+void PEImportList::ReadFromFile(PEArchitecture& file, PEDirectory& dir)
 {
 	if (!dir.address())
 		return;
@@ -868,7 +875,7 @@ void PEImportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 		throw std::runtime_error("Format error");
 
 	while (true) {
-		PEImport *imp = new PEImport(this);
+		PEImport* imp = new PEImport(this);
 		if (!imp->ReadFromFile(file)) {
 			delete imp;
 			break;
@@ -877,9 +884,9 @@ void PEImportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 	}
 }
 
-void PEImportList::WriteToFile(PEArchitecture &file, bool skip_sdk) const
+void PEImportList::WriteToFile(PEArchitecture& file, bool skip_sdk) const
 {
-	PEDirectory *dir = file.command_list()->GetCommandByType(IMAGE_DIRECTORY_ENTRY_IMPORT);
+	PEDirectory* dir = file.command_list()->GetCommandByType(IMAGE_DIRECTORY_ENTRY_IMPORT);
 	if (!dir)
 		return;
 
@@ -887,18 +894,18 @@ void PEImportList::WriteToFile(PEArchitecture &file, bool skip_sdk) const
 		return;
 
 	for (size_t i = 0; i < count(); i++) {
-		PEImport *import = item(i);
+		PEImport* import = item(i);
 		if (skip_sdk && import->is_sdk())
 			continue;
 
-		import->WriteToFile(file);
+import->WriteToFile(file);
 	}
 
 	IMAGE_IMPORT_DESCRIPTOR import_descriptor = IMAGE_IMPORT_DESCRIPTOR();
 	file.Write(&import_descriptor, sizeof(import_descriptor));
 }
 
-void PEImportList::FreeByManager(MemoryManager &manager, bool free_iat)
+void PEImportList::FreeByManager(MemoryManager& manager, bool free_iat)
 {
 	if (!address_)
 		return;
@@ -922,9 +929,9 @@ void PEImportList::Rebase(uint64_t delta_base)
 	address_ += delta_base;
 }
 
-PEImport *PEImportList::AddSDK()
+PEImport* PEImportList::AddSDK()
 {
-	PEImport *sdk = new PEImport(this, true);
+	PEImport* sdk = new PEImport(this, true);
 	AddObject(sdk);
 	return sdk;
 }
@@ -933,13 +940,13 @@ PEImport *PEImportList::AddSDK()
  * PEDelayImportFunction
  */
 
-PEDelayImportFunction::PEDelayImportFunction(PEDelayImport *owner)
+PEDelayImportFunction::PEDelayImportFunction(PEDelayImport* owner)
 	: IObject(), owner_(owner), is_ordinal_(false), ordinal_(0)
 {
 
 }
 
-PEDelayImportFunction::PEDelayImportFunction(PEDelayImport *owner, const PEDelayImportFunction &src)
+PEDelayImportFunction::PEDelayImportFunction(PEDelayImport* owner, const PEDelayImportFunction& src)
 	: IObject(), owner_(owner)
 {
 	name_ = src.name_;
@@ -953,13 +960,13 @@ PEDelayImportFunction::~PEDelayImportFunction()
 		owner_->RemoveObject(this);
 }
 
-PEDelayImportFunction *PEDelayImportFunction::Clone(PEDelayImport *owner) const
+PEDelayImportFunction* PEDelayImportFunction::Clone(PEDelayImport* owner) const
 {
-	PEDelayImportFunction *func = new PEDelayImportFunction(owner, *this);
+	PEDelayImportFunction* func = new PEDelayImportFunction(owner, *this);
 	return func;
 }
 
-bool PEDelayImportFunction::ReadFromFile(PEArchitecture &file, uint64_t add_value)
+bool PEDelayImportFunction::ReadFromFile(PEArchitecture& file, uint64_t add_value)
 {
 	uint64_t name_address;
 	if (file.cpu_address_size() == osDWord) {
@@ -970,7 +977,8 @@ bool PEDelayImportFunction::ReadFromFile(PEArchitecture &file, uint64_t add_valu
 		if (!name_address)
 			return false;
 		is_ordinal_ = IMAGE_SNAP_BY_ORDINAL32(name_address);
-	} else {
+	}
+	else {
 		IMAGE_THUNK_DATA64 thunk;
 
 		file.Read(&thunk, sizeof(thunk));
@@ -984,7 +992,8 @@ bool PEDelayImportFunction::ReadFromFile(PEArchitecture &file, uint64_t add_valu
 		ordinal_ = IMAGE_ORDINAL32(name_address);
 		name_address = 0;
 		name_ = string_format("Ordinal: %.4X", ordinal_);
-	} else {
+	}
+	else {
 		name_address += add_value;
 		uint64_t pos = file.Tell();
 		if (!file.AddressSeek(name_address + sizeof(uint16_t)))
@@ -1000,13 +1009,13 @@ bool PEDelayImportFunction::ReadFromFile(PEArchitecture &file, uint64_t add_valu
  * PEDelayImport
  */
 
-PEDelayImport::PEDelayImport(PEDelayImportList *owner)
+PEDelayImport::PEDelayImport(PEDelayImportList* owner)
 	: ObjectList<PEDelayImportFunction>(), owner_(owner)
 {
 
 }
 
-PEDelayImport::PEDelayImport(PEDelayImportList *owner, const PEDelayImport &src)
+PEDelayImport::PEDelayImport(PEDelayImportList* owner, const PEDelayImport& src)
 	: ObjectList<PEDelayImportFunction>(), owner_(owner)
 {
 	for (size_t i = 0; i < src.count(); i++) {
@@ -1027,13 +1036,13 @@ PEDelayImport::~PEDelayImport()
 		owner_->RemoveObject(this);
 }
 
-PEDelayImport *PEDelayImport::Clone(PEDelayImportList *owner) const
+PEDelayImport* PEDelayImport::Clone(PEDelayImportList* owner) const
 {
-	PEDelayImport *imp = new PEDelayImport(owner, *this);
+	PEDelayImport* imp = new PEDelayImport(owner, *this);
 	return imp;
 }
 
-bool PEDelayImport::ReadFromFile(PEArchitecture &file)
+bool PEDelayImport::ReadFromFile(PEArchitecture& file)
 {
 	IMAGE_DELAY_IMPORT_DESCRIPTOR import_descriptor;
 	file.Read(&import_descriptor, sizeof(import_descriptor));
@@ -1065,7 +1074,8 @@ bool PEDelayImport::ReadFromFile(PEArchitecture &file)
 			bound_iat_ += add_value;
 		if (unload_iat_)
 			unload_iat_ += add_value;
-	} else {
+	}
+	else {
 		if (file.cpu_address_size() != osDWord)
 			throw std::runtime_error("Format error");
 		add_value = 0;
@@ -1079,7 +1089,7 @@ bool PEDelayImport::ReadFromFile(PEArchitecture &file)
 	if (!file.AddressSeek(address))
 		throw std::runtime_error("Format error");
 	while (true) {
-		PEDelayImportFunction *func = new PEDelayImportFunction(this);
+		PEDelayImportFunction* func = new PEDelayImportFunction(this);
 		if (!func->ReadFromFile(file, add_value)) {
 			delete func;
 			break;
@@ -1102,21 +1112,21 @@ PEDelayImportList::PEDelayImportList()
 
 }
 
-PEDelayImportList::PEDelayImportList(const PEDelayImportList &src)
-	: ObjectList<PEDelayImport>() 
+PEDelayImportList::PEDelayImportList(const PEDelayImportList& src)
+	: ObjectList<PEDelayImport>()
 {
 	for (size_t i = 0; i < src.count(); i++) {
 		AddObject(src.item(i)->Clone(this));
 	}
 }
 
-PEDelayImportList *PEDelayImportList::Clone() const
+PEDelayImportList* PEDelayImportList::Clone() const
 {
-	PEDelayImportList *import_list = new PEDelayImportList(*this);
+	PEDelayImportList* import_list = new PEDelayImportList(*this);
 	return import_list;
 }
 
-void PEDelayImportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
+void PEDelayImportList::ReadFromFile(PEArchitecture& file, PEDirectory& dir)
 {
 	if (!dir.address())
 		return;
@@ -1125,7 +1135,7 @@ void PEDelayImportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 		throw std::runtime_error("Format error");
 
 	for (size_t i = 0; i < dir.size(); i += sizeof(IMAGE_DELAY_IMPORT_DESCRIPTOR)) {
-		PEDelayImport *imp = new PEDelayImport(this);
+		PEDelayImport* imp = new PEDelayImport(this);
 		if (!imp->ReadFromFile(file)) {
 			delete imp;
 			break;
@@ -1138,13 +1148,13 @@ void PEDelayImportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
  * PEExport
  */
 
-PEExport::PEExport(PEExportList *owner, uint64_t address, uint32_t ordinal)
+PEExport::PEExport(PEExportList* owner, uint64_t address, uint32_t ordinal)
 	: BaseExport(owner), address_(address), ordinal_(ordinal), address_of_name_(0)
 {
 
 }
 
-PEExport::PEExport(PEExportList *owner, const PEExport &src)
+PEExport::PEExport(PEExportList* owner, const PEExport& src)
 	: BaseExport(owner, src)
 {
 	address_ = src.address_;
@@ -1154,15 +1164,15 @@ PEExport::PEExport(PEExportList *owner, const PEExport &src)
 	address_of_name_ = src.address_of_name_;
 }
 
-PEExport *PEExport::Clone(IExportList *owner) const
+PEExport* PEExport::Clone(IExportList* owner) const
 {
-	PEExport *exp = new PEExport(reinterpret_cast<PEExportList *>(owner), *this);
+	PEExport* exp = new PEExport(reinterpret_cast<PEExportList*>(owner), *this);
 	return exp;
 }
 
-int PEExport::CompareWith(const IObject &obj) const
+int PEExport::CompareWith(const IObject& obj) const
 {
-	const PEExport &exp = reinterpret_cast<const PEExport &>(obj);
+	const PEExport& exp = reinterpret_cast<const PEExport&>(obj);
 	if (ordinal() < exp.ordinal())
 		return -1;
 	if (ordinal() > exp.ordinal())
@@ -1170,9 +1180,9 @@ int PEExport::CompareWith(const IObject &obj) const
 	return 0;
 }
 
-void PEExport::ReadFromFile(PEArchitecture &file, uint64_t address_of_name, bool is_forwarded)
+void PEExport::ReadFromFile(PEArchitecture& file, uint64_t address_of_name, bool is_forwarded)
 {
-	address_of_name_  = address_of_name;
+	address_of_name_ = address_of_name;
 	if (address_of_name_) {
 		if (!file.AddressSeek(address_of_name_))
 			throw std::runtime_error("Format error");
@@ -1186,7 +1196,7 @@ void PEExport::ReadFromFile(PEArchitecture &file, uint64_t address_of_name, bool
 	}
 }
 
-void PEExport::FreeByManager(MemoryManager &manager)
+void PEExport::FreeByManager(MemoryManager& manager)
 {
 	if (!forwarded_name_.empty())
 		manager.Add(address_, forwarded_name_.size() + 1);
@@ -1212,14 +1222,14 @@ std::string PEExport::display_name(bool show_ret) const
  * PEExportList
  */
 
-PEExportList::PEExportList(PEArchitecture *owner)
+PEExportList::PEExportList(PEArchitecture* owner)
 	: BaseExportList(owner), address_(0), name_address_(0), characteristics_(0), time_date_stamp_(0), major_version_(0), minor_version_(0),
 	number_of_functions_(0), address_of_functions_(0), number_of_names_(0), address_of_names_(0), address_of_name_ordinals_(0)
 {
 
 }
 
-PEExportList::PEExportList(PEArchitecture *owner, const PEExportList &src)
+PEExportList::PEExportList(PEArchitecture* owner, const PEExportList& src)
 	: BaseExportList(owner, src)
 {
 	address_ = src.address_;
@@ -1236,20 +1246,20 @@ PEExportList::PEExportList(PEArchitecture *owner, const PEExportList &src)
 	address_of_name_ordinals_ = src.address_of_name_ordinals_;
 }
 
-PEExportList *PEExportList::Clone(PEArchitecture *owner) const
+PEExportList* PEExportList::Clone(PEArchitecture* owner) const
 {
-	PEExportList *export_list = new PEExportList(owner, *this);
+	PEExportList* export_list = new PEExportList(owner, *this);
 	return export_list;
 }
 
-PEExport *PEExportList::item(size_t index) const 
-{ 
-	return reinterpret_cast<PEExport *>(IExportList::item(index));
+PEExport* PEExportList::item(size_t index) const
+{
+	return reinterpret_cast<PEExport*>(IExportList::item(index));
 }
 
-PEExport *PEExportList::Add(uint64_t address, uint32_t ordinal)
+PEExport* PEExportList::Add(uint64_t address, uint32_t ordinal)
 {
-	PEExport *exp = new PEExport(this, address, ordinal);
+	PEExport* exp = new PEExport(this, address, ordinal);
 	AddObject(exp);
 	return exp;
 }
@@ -1257,8 +1267,8 @@ PEExport *PEExportList::Add(uint64_t address, uint32_t ordinal)
 void PEExportList::AddAntidebug()
 {
 	size_t i;
-	PEExport *exp;
-	std::map<uint32_t, PEExport *> map;
+	PEExport* exp;
+	std::map<uint32_t, PEExport*> map;
 	for (i = 0; i < count(); i++) {
 		exp = item(i);
 		map[exp->ordinal()] = exp;
@@ -1282,10 +1292,10 @@ void PEExportList::AddAntidebug()
 	exp->set_name(name);
 }
 
-PEExport *PEExportList::GetExportByOrdinal(uint32_t ordinal)
+PEExport* PEExportList::GetExportByOrdinal(uint32_t ordinal)
 {
 	for (size_t i = 0; i < count(); i++) {
-		PEExport *exp = item(i);
+		PEExport* exp = item(i);
 		if (exp->ordinal() == ordinal)
 			return exp;
 	}
@@ -1293,12 +1303,12 @@ PEExport *PEExportList::GetExportByOrdinal(uint32_t ordinal)
 	return NULL;
 }
 
-void PEExportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
+void PEExportList::ReadFromFile(PEArchitecture& file, PEDirectory& dir)
 {
 	IMAGE_EXPORT_DIRECTORY export_directory;
 	uint32_t i;
 	uint32_t rva;
-	PEExport *export_function;
+	PEExport* export_function;
 	std::vector<NameInfo> name_info_list;
 
 	if (!dir.address())
@@ -1309,10 +1319,10 @@ void PEExportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 		throw std::runtime_error("Format error");
 
 	file.Read(&export_directory, sizeof(export_directory));
-	characteristics_ =  export_directory.Characteristics;
-	time_date_stamp_ =  export_directory.TimeDateStamp;
-	major_version_ =  export_directory.MajorVersion;
-	minor_version_ =  export_directory.MinorVersion;
+	characteristics_ = export_directory.Characteristics;
+	time_date_stamp_ = export_directory.TimeDateStamp;
+	major_version_ = export_directory.MajorVersion;
+	minor_version_ = export_directory.MinorVersion;
 
 	name_address_ = export_directory.Name;
 	if (name_address_) {
@@ -1359,12 +1369,12 @@ void PEExportList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 		export_function = item(i);
 
 		std::vector<NameInfo>::iterator it = std::find(name_info_list.begin(), name_info_list.end(), export_function->ordinal());
-		export_function->ReadFromFile(file, (it == name_info_list.end()) ? 0 : it->address_of_name + file.image_base(), 
-										(export_function->address() >= dir.address() && export_function->address() < dir.address() + dir.size()));
+		export_function->ReadFromFile(file, (it == name_info_list.end()) ? 0 : it->address_of_name + file.image_base(),
+			(export_function->address() >= dir.address() && export_function->address() < dir.address() + dir.size()));
 	}
 }
 
-void PEExportList::FreeByManager(MemoryManager &manager)
+void PEExportList::FreeByManager(MemoryManager& manager)
 {
 	if (!address_)
 		return;
@@ -1387,7 +1397,7 @@ void PEExportList::FreeByManager(MemoryManager &manager)
 	}
 }
 
-void PEExportList::ReadFromBuffer(Buffer &buffer, IArchitecture &file)
+void PEExportList::ReadFromBuffer(Buffer& buffer, IArchitecture& file)
 {
 	static const APIType export_function_types[] = {
 		atSetupImage,
@@ -1433,48 +1443,48 @@ void PEExportList::ReadFromBuffer(Buffer &buffer, IArchitecture &file)
 	}
 }
 
-uint32_t PEExportList::WriteToData(IFunction &data, uint64_t image_base)
+uint32_t PEExportList::WriteToData(IFunction& data, uint64_t image_base)
 {
 	if (!count())
 		return 0;
 
-	IntelFunction &func = reinterpret_cast<IntelFunction &>(data);
+	IntelFunction& func = reinterpret_cast<IntelFunction&>(data);
 
 	// export functions must be sorted by ordinals
 	Sort();
 	size_t start_index = func.count();
 	uint32_t ordinal_base = item(0)->ordinal();
 
-	func.AddCommand(osDWord, characteristics_); 
-	func.AddCommand(osDWord, time_date_stamp_); 
-	func.AddCommand(osWord, major_version_); 
+	func.AddCommand(osDWord, characteristics_);
+	func.AddCommand(osDWord, time_date_stamp_);
+	func.AddCommand(osWord, major_version_);
 	func.AddCommand(osWord, minor_version_);
 
-	IntelCommand *name_command = func.AddCommand(osDWord, 0);
+	IntelCommand* name_command = func.AddCommand(osDWord, 0);
 
-	func.AddCommand(osDWord, ordinal_base); 
+	func.AddCommand(osDWord, ordinal_base);
 
-	IntelCommand *functions_count = func.AddCommand(osDWord, 0);
+	IntelCommand* functions_count = func.AddCommand(osDWord, 0);
 	functions_count->AddLink(0, ltOffset);
 
-	IntelCommand *name_pointers_count = func.AddCommand(osDWord, 0);
+	IntelCommand* name_pointers_count = func.AddCommand(osDWord, 0);
 	name_pointers_count->AddLink(0, ltOffset);
 
-	IntelCommand *address_table = func.AddCommand(osDWord, 0);
+	IntelCommand* address_table = func.AddCommand(osDWord, 0);
 	address_table->AddLink(0, ltOffset);
 
-	IntelCommand *name_pointers = func.AddCommand(osDWord, 0);
+	IntelCommand* name_pointers = func.AddCommand(osDWord, 0);
 	name_pointers->AddLink(0, ltOffset);
 
-	IntelCommand *ordinal_table = func.AddCommand(osDWord, 0);
+	IntelCommand* ordinal_table = func.AddCommand(osDWord, 0);
 	ordinal_table->AddLink(0, ltOffset);
 
 	// create ordinals
 	size_t index = func.count();
 	uint32_t last_ordinal = ordinal_base;
 	std::vector<ExportInfo> export_name_list;
-	PEExport *export_function;
-	IntelCommand *command;
+	PEExport* export_function;
+	IntelCommand* command;
 	size_t i, j;
 	for (i = 0; i < count(); i++) {
 		export_function = item(i);
@@ -1553,22 +1563,22 @@ uint32_t PEExportList::WriteToData(IFunction &data, uint64_t image_base)
  * PEFixup
  */
 
-PEFixup::PEFixup(PEFixupList *owner, uint64_t address, uint8_t type)
+PEFixup::PEFixup(PEFixupList* owner, uint64_t address, uint8_t type)
 	: BaseFixup(owner), address_(address), type_(type)
 {
 
 }
 
-PEFixup::PEFixup(PEFixupList *owner, const PEFixup &src)
+PEFixup::PEFixup(PEFixupList* owner, const PEFixup& src)
 	: BaseFixup(owner, src)
 {
 	address_ = src.address_;
 	type_ = src.type_;
 }
 
-PEFixup *PEFixup::Clone(IFixupList *owner) const
+PEFixup* PEFixup::Clone(IFixupList* owner) const
 {
-	PEFixup *fixup = new PEFixup(reinterpret_cast<PEFixupList *>(owner), *this);
+	PEFixup* fixup = new PEFixup(reinterpret_cast<PEFixupList*>(owner), *this);
 	return fixup;
 }
 
@@ -1592,7 +1602,7 @@ OperandSize PEFixup::size() const
 	return type_ == IMAGE_REL_BASED_DIR64 ? osQWord : osDWord;
 }
 
-void PEFixup::Rebase(IArchitecture &file, uint64_t delta_base)
+void PEFixup::Rebase(IArchitecture& file, uint64_t delta_base)
 {
 	if (!file.AddressSeek(address_))
 		return;
@@ -1638,36 +1648,36 @@ PEFixupList::PEFixupList()
 
 }
 
-PEFixupList::PEFixupList(const PEFixupList &src)
+PEFixupList::PEFixupList(const PEFixupList& src)
 	: BaseFixupList(src)
 {
 
 }
 
-PEFixup *PEFixupList::item(size_t index) const
+PEFixup* PEFixupList::item(size_t index) const
 {
-	return reinterpret_cast<PEFixup *>(BaseFixupList::item(index));
+	return reinterpret_cast<PEFixup*>(BaseFixupList::item(index));
 }
 
-PEFixupList *PEFixupList::Clone() const
+PEFixupList* PEFixupList::Clone() const
 {
-	PEFixupList *fixup_list = new PEFixupList(*this);
+	PEFixupList* fixup_list = new PEFixupList(*this);
 	return fixup_list;
 }
 
-PEFixup *PEFixupList::Add(uint64_t address, uint8_t type)
+PEFixup* PEFixupList::Add(uint64_t address, uint8_t type)
 {
-	PEFixup *fixup = new PEFixup(this, address, type);
+	PEFixup* fixup = new PEFixup(this, address, type);
 	AddObject(fixup);
 	return fixup;
 }
 
-IFixup *PEFixupList::AddDefault(OperandSize cpu_address_size, bool is_code)
+IFixup* PEFixupList::AddDefault(OperandSize cpu_address_size, bool is_code)
 {
 	return Add(0, (cpu_address_size == osDWord) ? IMAGE_REL_BASED_HIGHLOW : IMAGE_REL_BASED_DIR64);
 }
 
-void PEFixupList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
+void PEFixupList::ReadFromFile(PEArchitecture& file, PEDirectory& dir)
 {
 	if (!dir.address())
 		return;
@@ -1691,14 +1701,14 @@ void PEFixupList::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 			if (type == IMAGE_REL_BASED_ABSOLUTE)
 				continue;
 
-			PEFixup *fixup = Add(reloc.VirtualAddress + file.image_base() + (type_offset & 0xfff), type);
+			PEFixup* fixup = Add(reloc.VirtualAddress + file.image_base() + (type_offset & 0xfff), type);
 			if (fixup->type() == ftUnknown)
 				throw std::runtime_error("Invalid base relocation type");
 		}
 	}
 }
 
-void PEFixupList::WriteToData(Data &data, uint64_t image_base)
+void PEFixupList::WriteToData(Data& data, uint64_t image_base)
 {
 	Sort();
 
@@ -1706,7 +1716,7 @@ void PEFixupList::WriteToData(Data &data, uint64_t image_base)
 	IMAGE_BASE_RELOCATION reloc = IMAGE_BASE_RELOCATION();
 	uint16_t empty_offset = 0;
 	for (size_t i = 0; i < count(); i++) {
-		PEFixup *fixup = item(i);
+		PEFixup* fixup = item(i);
 		uint32_t rva = static_cast<uint32_t>(fixup->address() - image_base);
 		uint32_t block_rva = rva & 0xfffff000;
 		if (reloc.SizeOfBlock == 0 || block_rva != reloc.VirtualAddress) {
@@ -1728,7 +1738,7 @@ void PEFixupList::WriteToData(Data &data, uint64_t image_base)
 		reloc.SizeOfBlock += sizeof(type_offset);
 	}
 
-	if (reloc.SizeOfBlock)  {
+	if (reloc.SizeOfBlock) {
 		if (reloc.SizeOfBlock & 3) {
 			data.PushWord(empty_offset);
 			reloc.SizeOfBlock += sizeof(empty_offset);
@@ -1737,7 +1747,7 @@ void PEFixupList::WriteToData(Data &data, uint64_t image_base)
 	}
 }
 
-size_t PEFixupList::WriteToFile(PEArchitecture &file)
+size_t PEFixupList::WriteToFile(PEArchitecture& file)
 {
 	Sort();
 
@@ -1746,7 +1756,7 @@ size_t PEFixupList::WriteToFile(PEArchitecture &file)
 	IMAGE_BASE_RELOCATION reloc = IMAGE_BASE_RELOCATION();
 	uint16_t empty_offset = 0;
 	for (size_t i = 0; i < count(); i++) {
-		PEFixup *fixup = item(i);
+		PEFixup* fixup = item(i);
 		uint32_t rva = static_cast<uint32_t>(fixup->address() - file.image_base());
 		uint32_t block_rva = rva & 0xfffff000;
 		if (reloc.SizeOfBlock == 0 || block_rva != reloc.VirtualAddress) {
@@ -1784,22 +1794,22 @@ size_t PEFixupList::WriteToFile(PEArchitecture &file)
  */
 
 
-PERelocation::PERelocation(PERelocationList *owner, uint64_t address, uint64_t source, OperandSize size, uint32_t addend)
+PERelocation::PERelocation(PERelocationList* owner, uint64_t address, uint64_t source, OperandSize size, uint32_t addend)
 	: BaseRelocation(owner, address, size), source_(source), addend_(addend)
 {
 
 }
 
-PERelocation::PERelocation(PERelocationList *owner, const PERelocation &src)
+PERelocation::PERelocation(PERelocationList* owner, const PERelocation& src)
 	: BaseRelocation(owner, src)
 {
 	source_ = src.source_;
 	addend_ = src.addend_;
 }
 
-PERelocation *PERelocation::Clone(IRelocationList *owner) const
+PERelocation* PERelocation::Clone(IRelocationList* owner) const
 {
-	PERelocation *relocation = new PERelocation(reinterpret_cast<PERelocationList *>(owner), *this);
+	PERelocation* relocation = new PERelocation(reinterpret_cast<PERelocationList*>(owner), *this);
 	return relocation;
 }
 
@@ -1813,32 +1823,32 @@ PERelocationList::PERelocationList()
 
 }
 
-PERelocationList::PERelocationList(const PERelocationList &src)
+PERelocationList::PERelocationList(const PERelocationList& src)
 	: BaseRelocationList(src)
 {
 	address_ = src.address_;
 	mem_address_ = src.mem_address_;
 }
 
-PERelocationList *PERelocationList::Clone() const
+PERelocationList* PERelocationList::Clone() const
 {
-	PERelocationList *list = new PERelocationList(*this);
+	PERelocationList* list = new PERelocationList(*this);
 	return list;
 }
 
-PERelocation *PERelocationList::item(size_t index) const
+PERelocation* PERelocationList::item(size_t index) const
 {
-	return reinterpret_cast<PERelocation *>(IRelocationList::item(index));
+	return reinterpret_cast<PERelocation*>(IRelocationList::item(index));
 }
 
-PERelocation *PERelocationList::Add(uint64_t address, uint64_t target, OperandSize size, uint32_t addend)
+PERelocation* PERelocationList::Add(uint64_t address, uint64_t target, OperandSize size, uint32_t addend)
 {
-	PERelocation *relocation = new PERelocation(this, address, target, size, addend);
+	PERelocation* relocation = new PERelocation(this, address, target, size, addend);
 	AddObject(relocation);
 	return relocation;
 }
 
-void PERelocationList::ParseMinGW(PEArchitecture &file, uint64_t address, uint64_t start, uint64_t end)
+void PERelocationList::ParseMinGW(PEArchitecture& file, uint64_t address, uint64_t start, uint64_t end)
 {
 	if ((end < start) || (end - start < 8) ||
 		((file.segment_list()->GetMemoryTypeByAddress(address) & mtWritable) == 0) ||
@@ -1873,7 +1883,8 @@ void PERelocationList::ParseMinGW(PEArchitecture &file, uint64_t address, uint64
 		file.Read(&header, sizeof(header));
 		if (header.magic1 == 0 && header.magic2 == 0) {
 			start += sizeof(header);
-		} else {
+		}
+		else {
 			file.Seek(pos);
 			header.version = 0;
 		}
@@ -1925,19 +1936,19 @@ void PERelocationList::ParseMinGW(PEArchitecture &file, uint64_t address, uint64
 	}
 }
 
-void PERelocationList::ReadFromFile(PEArchitecture &file)
+void PERelocationList::ReadFromFile(PEArchitecture& file)
 {
 	for (size_t i = 0; i < file.compiler_function_list()->count(); i++) {
-		CompilerFunction *compiler_function = file.compiler_function_list()->item(i);
+		CompilerFunction* compiler_function = file.compiler_function_list()->item(i);
 		if (compiler_function->type() == cfRelocatorMinGW)
 			ParseMinGW(file, compiler_function->value(0), compiler_function->value(1), compiler_function->value(2));
 	}
 
 	for (size_t i = 0; i < count(); i++) {
-		PERelocation *relocation = item(i);
+		PERelocation* relocation = item(i);
 
 		if (relocation->source()) {
-			IImportFunction *import_function = file.import_list()->GetFunctionByAddress(relocation->source());
+			IImportFunction* import_function = file.import_list()->GetFunctionByAddress(relocation->source());
 			if (import_function) {
 				import_function->exclude_option(ioNoReferences);
 				import_function->include_option(ioHasDataReference);
@@ -1946,16 +1957,17 @@ void PERelocationList::ReadFromFile(PEArchitecture &file)
 	}
 }
 
-void PERelocationList::WriteToData(Data &data, uint64_t image_base)
+void PERelocationList::WriteToData(Data& data, uint64_t image_base)
 {
 	for (size_t i = 0; i < count(); i++) {
-		PERelocation *relocation = item(i);
+		PERelocation* relocation = item(i);
 
 		data.PushDWord(static_cast<uint32_t>(relocation->address() - image_base));
 		if (!relocation->source()) {
 			data.PushDWord(relocation->addend());
 			data.PushDWord(0);
-		} else {
+		}
+		else {
 			data.PushDWord(static_cast<uint32_t>(relocation->source() - image_base));
 			data.PushDWord(relocation->size() + 1);
 		}
@@ -1972,22 +1984,22 @@ void PERelocationList::WriteToData(Data &data, uint64_t image_base)
  * PESEHandler
  */
 
-PESEHandler::PESEHandler(ISEHandlerList *owner, uint64_t address)
+PESEHandler::PESEHandler(ISEHandlerList* owner, uint64_t address)
 	: BaseSEHandler(owner), address_(address), deleted_(false)
 {
 
 }
 
-PESEHandler::PESEHandler(ISEHandlerList *owner, const PESEHandler &src)
+PESEHandler::PESEHandler(ISEHandlerList* owner, const PESEHandler& src)
 	: BaseSEHandler(owner)
 {
 	address_ = src.address_;
 	deleted_ = src.deleted_;
 }
 
-PESEHandler *PESEHandler::Clone(ISEHandlerList *owner) const
+PESEHandler* PESEHandler::Clone(ISEHandlerList* owner) const
 {
-	PESEHandler *handler = new PESEHandler(owner, *this);
+	PESEHandler* handler = new PESEHandler(owner, *this);
 	return handler;
 }
 
@@ -2006,26 +2018,26 @@ PESEHandlerList::PESEHandlerList()
 
 }
 
-PESEHandlerList::PESEHandlerList(const PESEHandlerList &src)
+PESEHandlerList::PESEHandlerList(const PESEHandlerList& src)
 	: BaseSEHandlerList(src)
 {
 
 }
 
-PESEHandlerList *PESEHandlerList::Clone() const
+PESEHandlerList* PESEHandlerList::Clone() const
 {
-	PESEHandlerList *list = new PESEHandlerList(*this);
+	PESEHandlerList* list = new PESEHandlerList(*this);
 	return list;
 }
 
-PESEHandler *PESEHandlerList::item(size_t index) const
+PESEHandler* PESEHandlerList::item(size_t index) const
 {
 	return reinterpret_cast<PESEHandler*>(BaseSEHandlerList::item(index));
 }
 
-PESEHandler *PESEHandlerList::Add(uint64_t address)
+PESEHandler* PESEHandlerList::Add(uint64_t address)
 {
-	PESEHandler *handler = new PESEHandler(this, address);
+	PESEHandler* handler = new PESEHandler(this, address);
 	AddObject(handler);
 	return handler;
 }
@@ -2040,7 +2052,7 @@ void PESEHandlerList::Rebase(uint64_t delta_base)
 void PESEHandlerList::Pack()
 {
 	for (size_t i = count(); i > 0; i--) {
-		PESEHandler *handler = item(i - 1);
+		PESEHandler* handler = item(i - 1);
 		if (handler->is_deleted())
 			delete handler;
 	}
@@ -2057,7 +2069,7 @@ PELoadConfigDirectory::PELoadConfigDirectory()
 	cfg_address_list_ = new PECFGAddressTable();
 }
 
-PELoadConfigDirectory::PELoadConfigDirectory(const PELoadConfigDirectory &src)
+PELoadConfigDirectory::PELoadConfigDirectory(const PELoadConfigDirectory& src)
 	: IObject(src)
 {
 	seh_table_address_ = src.seh_table_address_;
@@ -2075,13 +2087,13 @@ PELoadConfigDirectory::~PELoadConfigDirectory()
 	delete cfg_address_list_;
 }
 
-PELoadConfigDirectory *PELoadConfigDirectory::Clone() const
+PELoadConfigDirectory* PELoadConfigDirectory::Clone() const
 {
-	PELoadConfigDirectory *list = new PELoadConfigDirectory(*this);
+	PELoadConfigDirectory* list = new PELoadConfigDirectory(*this);
 	return list;
 }
 
-void PELoadConfigDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
+void PELoadConfigDirectory::ReadFromFile(PEArchitecture& file, PEDirectory& dir)
 {
 	if (!dir.address())
 		return;
@@ -2106,7 +2118,8 @@ void PELoadConfigDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 		cfg_table_address_ = load_config_directory.GuardCFFunctionTable;
 		cfg_table_count = static_cast<size_t>(load_config_directory.GuardCFFunctionCount);
 		guard_flags_ = load_config_directory.GuardFlags;
-	} else {
+	}
+	else {
 		IMAGE_LOAD_CONFIG_DIRECTORYEX32 load_config_directory = IMAGE_LOAD_CONFIG_DIRECTORYEX32();
 		file.Read(&load_config_directory, std::min(sizeof(load_config_directory), size));
 		security_cookie_ = load_config_directory.SecurityCookie;
@@ -2135,7 +2148,7 @@ void PELoadConfigDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 		std::vector<uint8_t> data;
 		data.resize(data_size);
 		for (size_t i = 0; i < cfg_table_count; i++) {
-			PECFGAddress *cfg_address = cfg_address_list_->Add(file.ReadDWord() + file.image_base());
+			PECFGAddress* cfg_address = cfg_address_list_->Add(file.ReadDWord() + file.image_base());
 			if (data_size) {
 				file.Read(data.data(), data.size());
 				cfg_address->set_data(data);
@@ -2144,14 +2157,14 @@ void PELoadConfigDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &dir)
 	}
 }
 
-size_t PELoadConfigDirectory::WriteToFile(PEArchitecture &file)
+size_t PELoadConfigDirectory::WriteToFile(PEArchitecture& file)
 {
-	PEDirectory *dir = file.command_list()->GetCommandByType(IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG);
+	PEDirectory* dir = file.command_list()->GetCommandByType(IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG);
 	if (!dir || !dir->address())
 		return 0;
 
 	size_t res = 0;
-	PESegment *last_section = file.segment_list()->last();
+	PESegment* last_section = file.segment_list()->last();
 	if (seh_table_address_) {
 		seh_handler_list_->Pack();
 		seh_handler_list_->Sort();
@@ -2160,12 +2173,12 @@ size_t PELoadConfigDirectory::WriteToFile(PEArchitecture &file)
 			res += file.WriteDWord(static_cast<uint32_t>(seh_handler_list_->item(i)->address() - file.image_base()));
 		}
 	}
-	
+
 	if (cfg_table_address_) {
 		cfg_table_address_ = last_section->address() + file.Resize(AlignValue(file.size(), 0x10)) - last_section->physical_offset();
 		size_t data_size = (guard_flags_ & IMAGE_GUARD_CF_FUNCTION_TABLE_SIZE_MASK) >> IMAGE_GUARD_CF_FUNCTION_TABLE_SIZE_SHIFT;
 		for (size_t i = 0; i < cfg_address_list_->count(); i++) {
-			PECFGAddress *cfg_address = cfg_address_list_->item(i);
+			PECFGAddress* cfg_address = cfg_address_list_->item(i);
 			res += file.WriteDWord(static_cast<uint32_t>(cfg_address->address() - file.image_base()));
 			if (data_size) {
 				std::vector<uint8_t> data = cfg_address->data();
@@ -2213,7 +2226,7 @@ size_t PELoadConfigDirectory::WriteToFile(PEArchitecture &file)
 	return res;
 }
 
-void PELoadConfigDirectory::FreeByManager(MemoryManager &manager)
+void PELoadConfigDirectory::FreeByManager(MemoryManager& manager)
 {
 	if (seh_table_address_ && seh_handler_list_->count())
 		manager.Add(seh_table_address_, OperandSizeToValue(osDWord) * seh_handler_list_->count());
@@ -2238,13 +2251,13 @@ void PELoadConfigDirectory::Rebase(uint64_t delta_base)
 * PECFGAddress
 */
 
-PECFGAddress::PECFGAddress(PECFGAddressTable *owner, uint64_t address)
+PECFGAddress::PECFGAddress(PECFGAddressTable* owner, uint64_t address)
 	: IObject(), owner_(owner), address_(address)
 {
 
 }
 
-PECFGAddress::PECFGAddress(PECFGAddressTable *owner, const PECFGAddress &src)
+PECFGAddress::PECFGAddress(PECFGAddressTable* owner, const PECFGAddress& src)
 	: IObject(), owner_(owner)
 {
 	address_ = src.address_;
@@ -2257,9 +2270,9 @@ PECFGAddress::~PECFGAddress()
 		owner_->RemoveObject(this);
 }
 
-PECFGAddress *PECFGAddress::Clone(PECFGAddressTable *owner) const
+PECFGAddress* PECFGAddress::Clone(PECFGAddressTable* owner) const
 {
-	PECFGAddress *res = new PECFGAddress(owner, *this);
+	PECFGAddress* res = new PECFGAddress(owner, *this);
 	return res;
 }
 
@@ -2278,7 +2291,7 @@ PECFGAddressTable::PECFGAddressTable()
 
 }
 
-PECFGAddressTable::PECFGAddressTable(const PECFGAddressTable &src)
+PECFGAddressTable::PECFGAddressTable(const PECFGAddressTable& src)
 	: ObjectList<PECFGAddress>()
 {
 	for (size_t i = 0; i < src.count(); i++) {
@@ -2286,14 +2299,14 @@ PECFGAddressTable::PECFGAddressTable(const PECFGAddressTable &src)
 	}
 }
 
-PECFGAddressTable *PECFGAddressTable::Clone() const
+PECFGAddressTable* PECFGAddressTable::Clone() const
 {
 	return new PECFGAddressTable(*this);
 }
 
-PECFGAddress *PECFGAddressTable::Add(uint64_t address)
+PECFGAddress* PECFGAddressTable::Add(uint64_t address)
 {
-	PECFGAddress *res = new PECFGAddress(this, address);
+	PECFGAddress* res = new PECFGAddress(this, address);
 	AddObject(res);
 	return res;
 }
@@ -2309,14 +2322,14 @@ void PECFGAddressTable::Rebase(uint64_t delta_base)
  * PEResource
  */
 
-PEResource::PEResource(IResource *owner, PEResourceType type, uint32_t name_offset, uint32_t data_offset)
-	: BaseResource(owner), type_(type), name_offset_(name_offset), data_offset_(data_offset), 
-		address_(0), entry_offset_(0), data_entry_offset_(0)
+PEResource::PEResource(IResource* owner, PEResourceType type, uint32_t name_offset, uint32_t data_offset)
+	: BaseResource(owner), type_(type), name_offset_(name_offset), data_offset_(data_offset),
+	address_(0), entry_offset_(0), data_entry_offset_(0)
 {
 	memset(&data_, 0, sizeof(data_));
 }
 
-PEResource::PEResource(IResource *owner, const PEResource &src)
+PEResource::PEResource(IResource* owner, const PEResource& src)
 	: BaseResource(owner, src)
 {
 	type_ = src.type_;
@@ -2329,35 +2342,35 @@ PEResource::PEResource(IResource *owner, const PEResource &src)
 	data_entry_offset_ = src.data_entry_offset_;
 }
 
-PEResource *PEResource::Clone(IResource *owner) const
+PEResource* PEResource::Clone(IResource* owner) const
 {
-	PEResource *resource = new PEResource(owner, *this);
+	PEResource* resource = new PEResource(owner, *this);
 	return resource;
 }
 
-PEResource *PEResource::item(size_t index) const 
-{ 
-	return reinterpret_cast<PEResource *>(IResource::item(index));
+PEResource* PEResource::item(size_t index) const
+{
+	return reinterpret_cast<PEResource*>(IResource::item(index));
 }
 
-PEResource *PEResource::GetResourceByName(const std::string &name) const
+PEResource* PEResource::GetResourceByName(const std::string& name) const
 {
 	for (size_t i = 0; i < count(); i++) {
-		PEResource *resource = item(i);
+		PEResource* resource = item(i);
 		if (resource->has_name() && resource->name_ == name)
 			return resource;
 	}
 	return NULL;
 }
 
-PEResource *PEResource::Add(PEResourceType type, uint32_t name_offset, uint32_t data_offset)
+PEResource* PEResource::Add(PEResourceType type, uint32_t name_offset, uint32_t data_offset)
 {
-	PEResource *resource = new PEResource(this, type, name_offset, data_offset);
+	PEResource* resource = new PEResource(this, type, name_offset, data_offset);
 	AddObject(resource);
 	return resource;
 }
 
-void PEResource::ReadFromFile(PEArchitecture &file, uint64_t root_address)
+void PEResource::ReadFromFile(PEArchitecture& file, uint64_t root_address)
 {
 	if (has_name()) {
 		// name_offset is a string
@@ -2370,11 +2383,12 @@ void PEResource::ReadFromFile(PEArchitecture &file, uint64_t root_address)
 		if (!wname.empty())
 			file.Read(&wname[0], wname.size() * sizeof(os::unicode_char));
 		name_ = os::ToUTF8(wname);
-	} else {
+	}
+	else {
 		// name_offset is an Id
 		name_ = string_format("%d", name_offset_);
 	}
-	
+
 	if (!file.AddressSeek(root_address + (data_offset_ & ~IMAGE_RESOURCE_DATA_IS_DIRECTORY)))
 		throw std::runtime_error("Format error");
 
@@ -2390,14 +2404,15 @@ void PEResource::ReadFromFile(PEArchitecture &file, uint64_t root_address)
 		for (i = 0; i < count(); i++) {
 			item(i)->ReadFromFile(file, root_address);
 		}
-	} else {
+	}
+	else {
 		// read resource item
 		file.Read(&data_.item, sizeof(data_.item));
 		address_ = file.image_base() + data_.item.OffsetToData;
 	}
 }
 
-void PEResource::WriteHeader(Data &data)
+void PEResource::WriteHeader(Data& data)
 {
 	size_t i;
 
@@ -2411,7 +2426,8 @@ void PEResource::WriteHeader(Data &data)
 		for (i = 0; i < count(); i++) {
 			if (item(i)->has_name()) {
 				data_.dir.NumberOfNamedEntries++;
-			} else {
+			}
+			else {
 				data_.dir.NumberOfIdEntries++;
 			}
 		}
@@ -2420,7 +2436,8 @@ void PEResource::WriteHeader(Data &data)
 		for (i = 0; i < static_cast<size_t>(data_.dir.NumberOfIdEntries + data_.dir.NumberOfNamedEntries); i++) {
 			item(i)->WriteEntry(data);
 		}
-	} else {
+	}
+	else {
 		// write resource item
 		data_entry_offset_ = data.size();
 		data.WriteDWord(entry_offset_ + sizeof(uint32_t), (uint32_t)data_entry_offset_);
@@ -2429,14 +2446,14 @@ void PEResource::WriteHeader(Data &data)
 	}
 }
 
-void PEResource::WriteHeader(IFunction &data)
+void PEResource::WriteHeader(IFunction& data)
 {
 	size_t i, size;
-	IntelFunction &func = reinterpret_cast<IntelFunction &>(data);
+	IntelFunction& func = reinterpret_cast<IntelFunction&>(data);
 
 	size = 0;
 	for (i = 0; i < func.count(); i++) {
-		IntelCommand *command = func.item(i);
+		IntelCommand* command = func.item(i);
 		size += OperandSizeToValue(command->operand(0).size);
 	}
 
@@ -2449,7 +2466,8 @@ void PEResource::WriteHeader(IFunction &data)
 		for (i = 0; i < count(); i++) {
 			if (item(i)->has_name()) {
 				data_.dir.NumberOfNamedEntries++;
-			} else {
+			}
+			else {
 				data_.dir.NumberOfIdEntries++;
 			}
 		}
@@ -2459,7 +2477,8 @@ void PEResource::WriteHeader(IFunction &data)
 		for (i = 0; i < static_cast<size_t>(data_.dir.NumberOfIdEntries + data_.dir.NumberOfNamedEntries); i++) {
 			item(i)->WriteEntry(data);
 		}
-	} else {
+	}
+	else {
 		// write resource item
 		func.item(entry_offset_ + 1)->set_operand_value(0, size);
 
@@ -2471,7 +2490,7 @@ void PEResource::WriteHeader(IFunction &data)
 	}
 }
 
-void PEResource::WriteEntry(Data &data)
+void PEResource::WriteEntry(Data& data)
 {
 	IMAGE_RESOURCE_DIRECTORY_ENTRY dir_entry;
 
@@ -2481,16 +2500,16 @@ void PEResource::WriteEntry(Data &data)
 	data.PushBuff(&dir_entry, sizeof(dir_entry));
 }
 
-void PEResource::WriteEntry(IFunction &data)
+void PEResource::WriteEntry(IFunction& data)
 {
-	IntelFunction &func = reinterpret_cast<IntelFunction &>(data);
+	IntelFunction& func = reinterpret_cast<IntelFunction&>(data);
 
 	entry_offset_ = func.count();
 	func.AddCommand(osDWord, name_offset_);
 	func.AddCommand(osDWord, 0);
 }
 
-void PEResource::WriteName(Data &data)
+void PEResource::WriteName(Data& data)
 {
 	if (!has_name())
 		return;
@@ -2503,23 +2522,23 @@ void PEResource::WriteName(Data &data)
 	data.PushBuff(wname.c_str(), wname.size() * sizeof(os::unicode_char));
 }
 
-void PEResource::WriteName(IFunction &data, size_t root_index, uint32_t key)
+void PEResource::WriteName(IFunction& data, size_t root_index, uint32_t key)
 {
 	if (!has_name())
 		return;
 
-	IntelFunction &func = reinterpret_cast<IntelFunction &>(data);
+	IntelFunction& func = reinterpret_cast<IntelFunction&>(data);
 
 	size_t i, size;
 	size = 0;
 	for (i = root_index; i < func.count(); i++) {
-		IntelCommand *command = func.item(i);
+		IntelCommand* command = func.item(i);
 		size += (command->type() == cmDB) ? command->dump_size() : OperandSizeToValue(command->operand(0).size);
 	}
 	func.item(entry_offset_)->set_operand_value(0, size | IMAGE_RESOURCE_NAME_IS_STRING);
 
 	os::unicode_string unicode_name = os::FromUTF8(name_);
-	const os::unicode_char *p = unicode_name.c_str();
+	const os::unicode_char* p = unicode_name.c_str();
 	Data str;
 	for (size_t i = 0; i < unicode_name.size() + 1; i++) {
 		str.PushWord(static_cast<uint16_t>(p[i] ^ (_rotl32(key, static_cast<int>(i)) + i)));
@@ -2527,7 +2546,7 @@ void PEResource::WriteName(IFunction &data, size_t root_index, uint32_t key)
 	func.AddCommand(str);
 }
 
-size_t PEResource::WriteData(Data &data, PEArchitecture &file)
+size_t PEResource::WriteData(Data& data, PEArchitecture& file)
 {
 	if (is_directory())
 		return -1;
@@ -2552,7 +2571,7 @@ size_t PEResource::WriteData(Data &data, PEArchitecture &file)
 	return data_entry_offset_;
 }
 
-void PEResource::WriteData(IFunction &func, PEArchitecture &file, uint32_t key)
+void PEResource::WriteData(IFunction& func, PEArchitecture& file, uint32_t key)
 {
 	if (is_directory() || !data_.item.Size)
 		return;
@@ -2569,29 +2588,29 @@ void PEResource::WriteData(IFunction &func, PEArchitecture &file, uint32_t key)
 		d.PushByte(buf[i] ^ static_cast<uint8_t>(_rotl32(key, static_cast<int>(i)) + i));
 	}
 
-	ICommand *command = func.AddCommand(d);
+	ICommand* command = func.AddCommand(d);
 	command->include_option(roCreateNewBlock);
 
-	CommandLink *link = func.item(data_entry_offset_)->AddLink(0, ltOffset, command);
+	CommandLink* link = func.item(data_entry_offset_)->AddLink(0, ltOffset, command);
 	link->set_sub_value(file.image_base());
 }
 
 bool PEResource::need_store() const
 {
 	switch (type_) {
-	case rtIcon: case rtGroupIcon: case rtVersionInfo: 
+	case rtIcon: case rtGroupIcon: case rtVersionInfo:
 	case rtManifest: case rtMessageTable: case rtHTML:
 		return true;
 	case rtUnknown:
-		const IResource *resource = this;
+		const IResource* resource = this;
 		while (resource->owner() && resource->owner()->type() != (uint32_t)-1) {
 			resource = resource->owner();
 		}
 		std::string tmp = resource->name();
 		std::transform(tmp.begin(), tmp.end(), tmp.begin(), toupper);
-		return (tmp.compare("\"TYPELIB\"") == 0 
-				|| tmp.compare("\"REGISTRY\"") == 0 
-				|| tmp.compare("\"MUI\"") == 0);
+		return (tmp.compare("\"TYPELIB\"") == 0
+			|| tmp.compare("\"REGISTRY\"") == 0
+			|| tmp.compare("\"MUI\"") == 0);
 	}
 	return false;
 }
@@ -2599,7 +2618,7 @@ bool PEResource::need_store() const
 std::string PEResource::id() const
 {
 	std::string res;
-	const PEResource *resource = this;
+	const PEResource* resource = this;
 	while (resource->owner()) {
 		res = resource->name() + (res.empty() ? "" : "\\") + res;
 		resource = reinterpret_cast<PEResource*>(resource->owner());
@@ -2611,38 +2630,38 @@ std::string PEResource::id() const
  * PEResourceList
  */
 
-PEResourceList::PEResourceList(PEArchitecture *owner)
+PEResourceList::PEResourceList(PEArchitecture* owner)
 	: BaseResourceList(owner), store_size_(0)
 {
 	memset(&dir_, 0, sizeof(dir_));
 }
 
-PEResourceList::PEResourceList(PEArchitecture *owner, const PEResourceList &src)
+PEResourceList::PEResourceList(PEArchitecture* owner, const PEResourceList& src)
 	: BaseResourceList(owner, src)
 {
 	dir_ = src.dir_;
 	store_size_ = src.store_size_;
 }
 
-PEResource *PEResourceList::item(size_t index) const 
-{ 
-	return reinterpret_cast<PEResource *>(IResourceList::item(index));
+PEResource* PEResourceList::item(size_t index) const
+{
+	return reinterpret_cast<PEResource*>(IResourceList::item(index));
 }
 
-PEResourceList *PEResourceList::Clone(PEArchitecture *owner) const
+PEResourceList* PEResourceList::Clone(PEArchitecture* owner) const
 {
-	PEResourceList *list = new PEResourceList(owner, *this);
+	PEResourceList* list = new PEResourceList(owner, *this);
 	return list;
 }
 
-PEResource *PEResourceList::Add(PEResourceType type, uint32_t name_offset, uint32_t data_offset)
+PEResource* PEResourceList::Add(PEResourceType type, uint32_t name_offset, uint32_t data_offset)
 {
-	PEResource *resource = new PEResource(this, type, name_offset, data_offset);
+	PEResource* resource = new PEResource(this, type, name_offset, data_offset);
 	AddObject(resource);
 	return resource;
 }
 
-void PEResourceList::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
+void PEResourceList::ReadFromFile(PEArchitecture& file, PEDirectory& directory)
 {
 	if (!directory.address())
 		return;
@@ -2659,7 +2678,7 @@ void PEResourceList::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
 	}
 
 	for (i = 0; i < count(); i++) {
-		PEResource *resource = item(i);
+		PEResource* resource = item(i);
 		resource->ReadFromFile(file, directory.address());
 		switch (resource->type()) {
 		case rtCursor:
@@ -2735,11 +2754,11 @@ void PEResourceList::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
 	}
 }
 
-void PEResourceList::Compile(PEArchitecture &file, bool for_packing)
+void PEResourceList::Compile(PEArchitecture& file, bool for_packing)
 {
-	std::vector<PEResource *> list;
+	std::vector<PEResource*> list;
 	size_t i, j, c, pos;
-	PEResource *resource;
+	PEResource* resource;
 
 	data_.clear();
 	link_list_.clear();
@@ -2762,7 +2781,8 @@ void PEResourceList::Compile(PEArchitecture &file, bool for_packing)
 	for (i = 0; i < count(); i++) {
 		if (item(i)->has_name()) {
 			dir_.NumberOfNamedEntries++;
-		} else {
+		}
+		else {
 			dir_.NumberOfIdEntries++;
 		}
 	}
@@ -2789,7 +2809,8 @@ void PEResourceList::Compile(PEArchitecture &file, bool for_packing)
 				if (resource->excluded_from_packing() || resource->need_store()) {
 					if (j != 0)
 						continue;
-				} else {
+				}
+				else {
 					if (j == 0)
 						continue;
 				}
@@ -2797,7 +2818,7 @@ void PEResourceList::Compile(PEArchitecture &file, bool for_packing)
 
 			pos = resource->WriteData(data_, file);
 			if (pos != (size_t)-1)
-				link_list_.push_back(pos);		
+				link_list_.push_back(pos);
 		}
 
 		if (j == 0)
@@ -2805,7 +2826,7 @@ void PEResourceList::Compile(PEArchitecture &file, bool for_packing)
 	}
 }
 
-size_t PEResourceList::WriteToFile(PEArchitecture &file, uint64_t address)
+size_t PEResourceList::WriteToFile(PEArchitecture& file, uint64_t address)
 {
 	size_t i, pos;
 	Data out = data_;
@@ -2819,7 +2840,7 @@ size_t PEResourceList::WriteToFile(PEArchitecture &file, uint64_t address)
 	return file.Write(out.data(), (store_size_) ? store_size_ : out.size());
 }
 
-void PEResourceList::WritePackData(Data &data)
+void PEResourceList::WritePackData(Data& data)
 {
 	data.PushBuff(data_.data() + store_size_, data_.size() - store_size_);
 }
@@ -2828,13 +2849,13 @@ void PEResourceList::WritePackData(Data &data)
  * PERuntimeFunction
  */
 
-PERuntimeFunction::PERuntimeFunction(PERuntimeFunctionList *owner, uint64_t address, uint64_t begin, uint64_t end, uint64_t unwind_address)
+PERuntimeFunction::PERuntimeFunction(PERuntimeFunctionList* owner, uint64_t address, uint64_t begin, uint64_t end, uint64_t unwind_address)
 	: BaseRuntimeFunction(owner), address_(address), begin_(begin), end_(end), unwind_address_(unwind_address)
 {
 
 }
 
-PERuntimeFunction::PERuntimeFunction(PERuntimeFunctionList *owner, const PERuntimeFunction &src)
+PERuntimeFunction::PERuntimeFunction(PERuntimeFunctionList* owner, const PERuntimeFunction& src)
 	: BaseRuntimeFunction(owner)
 {
 	address_ = src.address_;
@@ -2843,9 +2864,9 @@ PERuntimeFunction::PERuntimeFunction(PERuntimeFunctionList *owner, const PERunti
 	unwind_address_ = src.unwind_address_;
 }
 
-PERuntimeFunction *PERuntimeFunction::Clone(IRuntimeFunctionList *owner) const
+PERuntimeFunction* PERuntimeFunction::Clone(IRuntimeFunctionList* owner) const
 {
-	PERuntimeFunction *func = new PERuntimeFunction(reinterpret_cast<PERuntimeFunctionList *>(owner), *this);
+	PERuntimeFunction* func = new PERuntimeFunction(reinterpret_cast<PERuntimeFunctionList*>(owner), *this);
 	return func;
 }
 
@@ -2857,14 +2878,14 @@ void PERuntimeFunction::Rebase(uint64_t delta_base)
 	unwind_address_ += delta_base;
 }
 
-void PERuntimeFunction::Parse(IArchitecture &file, IFunction &dest)
+void PERuntimeFunction::Parse(IArchitecture& file, IFunction& dest)
 {
 	union UNWIND_INFO_HELPER {
 		UNWIND_INFO info;
 		uint32_t value;
 	};
 
-	IntelFunction &func = reinterpret_cast<IntelFunction &>(dest);
+	IntelFunction& func = reinterpret_cast<IntelFunction&>(dest);
 
 	uint64_t address = address_;
 	if (!file.AddressSeek(address) || func.GetCommandByAddress(address))
@@ -2872,8 +2893,8 @@ void PERuntimeFunction::Parse(IArchitecture &file, IFunction &dest)
 
 	size_t i;
 	size_t c = func.count();
-	IntelCommand *command;
-	CommandLink *link;
+	IntelCommand* command;
+	CommandLink* link;
 	uint64_t image_base = file.image_base();
 
 	command = func.Add(address);
@@ -2909,7 +2930,8 @@ void PERuntimeFunction::Parse(IArchitecture &file, IFunction &dest)
 			UNWIND_INFO unwind_info = unwind_info_helper.info;
 
 			func.function_info_list()->Add(begin(), end(), btImageBase, 0, unwind_info.SizeOfProlog, unwind_info.FrameRegister ? unwind_info.FrameRegister : 0xff, this, command);
-		} else if (file.AddressSeek(address)) {
+		}
+		else if (file.AddressSeek(address)) {
 			UNWIND_INFO_HELPER unwind_info_helper;
 			command = func.Add(address);
 			unwind_info_helper.value = static_cast<uint32_t>(command->ReadValueFromFile(file, osDWord));
@@ -3016,7 +3038,7 @@ void PERuntimeFunction::Parse(IArchitecture &file, IFunction &dest)
 				address = command->next_address();
 			}
 
-			IntelCommand *handler_data_command = NULL;
+			IntelCommand* handler_data_command = NULL;
 			if (unwind_info.Flags & UNW_FLAG_CHAININFO) {
 				command = func.Add(address);
 				command->set_comment(CommentInfo(ttComment, "Begin"));
@@ -3045,7 +3067,7 @@ void PERuntimeFunction::Parse(IArchitecture &file, IFunction &dest)
 					address += image_base;
 					CommentInfo res;
 					res.type = ttNone;
-					MapFunction *map_function = file.map_function_list()->GetFunctionByAddress(address);
+					MapFunction* map_function = file.map_function_list()->GetFunctionByAddress(address);
 					if (map_function) {
 						res.value = string_format("%c %s", 3, map_function->name().c_str());
 						switch (map_function->type()) {
@@ -3092,7 +3114,8 @@ void PERuntimeFunction::Parse(IArchitecture &file, IFunction &dest)
 					link = handler_data_command->AddLink(0, ltOffset, handler_data + image_base);
 					link->set_sub_value(image_base);
 					address = handler_data_command->next_address();
-				} else
+				}
+				else
 					address = 0;
 
 				if (address) {
@@ -3130,26 +3153,26 @@ PERuntimeFunctionList::PERuntimeFunctionList()
 
 }
 
-PERuntimeFunctionList::PERuntimeFunctionList(const PERuntimeFunctionList &src)
+PERuntimeFunctionList::PERuntimeFunctionList(const PERuntimeFunctionList& src)
 	: BaseRuntimeFunctionList(src), address_(0)
 {
 	address_ = src.address_;
 }
 
-PERuntimeFunctionList *PERuntimeFunctionList::Clone() const
+PERuntimeFunctionList* PERuntimeFunctionList::Clone() const
 {
-	PERuntimeFunctionList *list = new PERuntimeFunctionList(*this);
+	PERuntimeFunctionList* list = new PERuntimeFunctionList(*this);
 	return list;
 }
 
-PERuntimeFunction *PERuntimeFunctionList::Add(uint64_t address, uint64_t begin, uint64_t end, uint64_t unwind_address, IRuntimeFunction *source, const std::vector<uint8_t> &call_frame_instructions)
+PERuntimeFunction* PERuntimeFunctionList::Add(uint64_t address, uint64_t begin, uint64_t end, uint64_t unwind_address, IRuntimeFunction* source, const std::vector<uint8_t>& call_frame_instructions)
 {
-	PERuntimeFunction *func = new PERuntimeFunction(this, address, begin, end, unwind_address);
+	PERuntimeFunction* func = new PERuntimeFunction(this, address, begin, end, unwind_address);
 	AddObject(func);
 	return func;
 }
 
-void PERuntimeFunctionList::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
+void PERuntimeFunctionList::ReadFromFile(PEArchitecture& file, PEDirectory& directory)
 {
 	if (!directory.address())
 		return;
@@ -3163,11 +3186,11 @@ void PERuntimeFunctionList::ReadFromFile(PEArchitecture &file, PEDirectory &dire
 	std::vector<uint8_t> call_frame_instructions;
 	for (size_t i = 0; i < directory.size(); i += sizeof(data)) {
 		file.Read(&data, sizeof(data));
-		Add(address_ + i, data.BeginAddress + image_base, data.EndAddress + image_base, data.UnwindData + image_base, 0, call_frame_instructions);
+		Add(address_ + i, data.BeginAddress + image_base, data.EndAddress + image_base, data.u.UnwindInfoAddress + image_base, 0, call_frame_instructions);
 	}
 }
 
-size_t PERuntimeFunctionList::WriteToFile(PEArchitecture &file)
+size_t PERuntimeFunctionList::WriteToFile(PEArchitecture& file)
 {
 	Sort();
 
@@ -3175,33 +3198,33 @@ size_t PERuntimeFunctionList::WriteToFile(PEArchitecture &file)
 	uint64_t image_base = file.image_base();
 	RUNTIME_FUNCTION data;
 	for (size_t i = 0; i < count(); i++) {
-		PERuntimeFunction *runtime_function = item(i);
+		PERuntimeFunction* runtime_function = item(i);
 		data.BeginAddress = static_cast<uint32_t>(runtime_function->begin() - image_base);
 		data.EndAddress = static_cast<uint32_t>(runtime_function->end() - image_base);
-		data.UnwindData = static_cast<uint32_t>(runtime_function->unwind_address() - image_base);
+		data.u.UnwindInfoAddress = static_cast<uint32_t>(runtime_function->unwind_address() - image_base);
 		res += file.Write(&data, sizeof(data));
 	}
 
 	return res;
 }
 
-PERuntimeFunction *PERuntimeFunctionList::GetFunctionByAddress(uint64_t address) const
+PERuntimeFunction* PERuntimeFunctionList::GetFunctionByAddress(uint64_t address) const
 {
-	return reinterpret_cast<PERuntimeFunction *>(BaseRuntimeFunctionList::GetFunctionByAddress(address));
+	return reinterpret_cast<PERuntimeFunction*>(BaseRuntimeFunctionList::GetFunctionByAddress(address));
 }
 
-PERuntimeFunction *PERuntimeFunctionList::item(size_t index) const
+PERuntimeFunction* PERuntimeFunctionList::item(size_t index) const
 {
-	return reinterpret_cast<PERuntimeFunction *>(BaseRuntimeFunctionList::item(index));
+	return reinterpret_cast<PERuntimeFunction*>(BaseRuntimeFunctionList::item(index));
 }
 
-uint64_t PERuntimeFunctionList::RebaseDWord(IArchitecture &file, uint32_t delta_rva)
+uint64_t PERuntimeFunctionList::RebaseDWord(IArchitecture& file, uint32_t delta_rva)
 {
 	uint64_t pos = file.Tell();
 	uint64_t value = file.ReadDWord();
 	if (value > 1) {
 		uint64_t address = file.AddressTell() - sizeof(uint32_t);
-		IntelCommand *command = reinterpret_cast<IntelCommand *>(file.function_list()->GetCommandByAddress(address, false));
+		IntelCommand* command = reinterpret_cast<IntelCommand*>(file.function_list()->GetCommandByAddress(address, false));
 		if (command && command->type() == cmDD) {
 			command->set_operand_value(0, command->operand(0).value + delta_rva);
 			if (command->link())
@@ -3214,7 +3237,7 @@ uint64_t PERuntimeFunctionList::RebaseDWord(IArchitecture &file, uint32_t delta_
 	return value;
 }
 
-void PERuntimeFunctionList::RebaseByFile(IArchitecture &file, uint64_t target_image_base, uint64_t delta_base)
+void PERuntimeFunctionList::RebaseByFile(IArchitecture& file, uint64_t target_image_base, uint64_t delta_base)
 {
 	if (!address_)
 		return;
@@ -3224,13 +3247,13 @@ void PERuntimeFunctionList::RebaseByFile(IArchitecture &file, uint64_t target_im
 	std::set<uint64_t> handler_list;
 	size_t i, j, k;
 	for (i = 0; i < count(); i++) {
-		PERuntimeFunction *func = item(i);
+		PERuntimeFunction* func = item(i);
 
 		if (!file.AddressSeek(func->unwind_address()) || address_list.find(func->unwind_address()) != address_list.end())
 			continue;
 
 		address_list.insert(func->unwind_address());
-		
+
 		union UNWIND_INFO_HELPER {
 			UNWIND_INFO info;
 			uint32_t value;
@@ -3252,7 +3275,8 @@ void PERuntimeFunctionList::RebaseByFile(IArchitecture &file, uint64_t target_im
 			RebaseDWord(file, delta_rva);
 			RebaseDWord(file, delta_rva);
 			RebaseDWord(file, delta_rva);
-		} else if (unwind_info.Flags & (UNW_FLAG_EHANDLER | UNW_FLAG_UHANDLER)) {
+		}
+		else if (unwind_info.Flags & (UNW_FLAG_EHANDLER | UNW_FLAG_UHANDLER)) {
 			RebaseDWord(file, delta_rva);
 			uint64_t handler_data_address = file.AddressTell();
 			uint32_t handler_data = file.ReadDWord();
@@ -3332,7 +3356,8 @@ void PERuntimeFunctionList::RebaseByFile(IArchitecture &file, uint64_t target_im
 						file.ReadDWord();
 					}
 				}
-			} else if (is_scope_table) {
+			}
+			else if (is_scope_table) {
 				file.AddressSeek(handler_data_address + sizeof(handler_data));
 				for (j = 0; j < handler_data; j++) {
 					RebaseDWord(file, delta_rva);
@@ -3349,7 +3374,7 @@ void PERuntimeFunctionList::RebaseByFile(IArchitecture &file, uint64_t target_im
 	BaseRuntimeFunctionList::Rebase(delta_base);
 }
 
-void PERuntimeFunctionList::FreeByManager(MemoryManager &manager)
+void PERuntimeFunctionList::FreeByManager(MemoryManager& manager)
 {
 	if (!address_)
 		return;
@@ -3369,13 +3394,13 @@ PETLSDirectory::PETLSDirectory()
 
 }
 
-PETLSDirectory *PETLSDirectory::Clone() const
+PETLSDirectory* PETLSDirectory::Clone() const
 {
-	PETLSDirectory *dir = new PETLSDirectory(*this);
+	PETLSDirectory* dir = new PETLSDirectory(*this);
 	return dir;
 }
 
-PETLSDirectory::PETLSDirectory(const PETLSDirectory &src)
+PETLSDirectory::PETLSDirectory(const PETLSDirectory& src)
 	: ReferenceList(src)
 {
 	address_ = src.address_;
@@ -3387,7 +3412,7 @@ PETLSDirectory::PETLSDirectory(const PETLSDirectory &src)
 	characteristics_ = src.characteristics_;
 }
 
-void PETLSDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
+void PETLSDirectory::ReadFromFile(PEArchitecture& file, PEDirectory& directory)
 {
 	if (!directory.address())
 		return;
@@ -3405,8 +3430,13 @@ void PETLSDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
 		address_of_index_ = tls.AddressOfIndex;
 		address_of_call_backs_ = tls.AddressOfCallBacks;
 		size_of_zero_fill_ = tls.SizeOfZeroFill;
+#if (NTDDI_VERSION < NTDDI_WIN10_NI)
 		characteristics_ = tls.Characteristics;
-	} else {
+#else
+		characteristics_ = 0;
+#endif
+	}
+	else {
 		IMAGE_TLS_DIRECTORY64 tls;
 		file.Read(&tls, sizeof(tls));
 		start_address_of_raw_data_ = tls.StartAddressOfRawData;
@@ -3414,7 +3444,11 @@ void PETLSDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
 		address_of_index_ = tls.AddressOfIndex;
 		address_of_call_backs_ = tls.AddressOfCallBacks;
 		size_of_zero_fill_ = tls.SizeOfZeroFill;
+#if (NTDDI_VERSION < NTDDI_WIN10_NI)
 		characteristics_ = tls.Characteristics;
+#else
+		characteristics_ = 0;
+#endif
 	}
 
 	if (!address_of_call_backs_)
@@ -3422,7 +3456,7 @@ void PETLSDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
 
 	if (!file.AddressSeek(address_of_call_backs_))
 		throw std::runtime_error("Format error");
-	
+
 	size_t value_size = OperandSizeToValue(file.cpu_address_size());
 	uint64_t call_back = 0;
 	while (true) {
@@ -3433,17 +3467,17 @@ void PETLSDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
 	}
 }
 
-void PETLSDirectory::FreeByManager(MemoryManager &manager)
+void PETLSDirectory::FreeByManager(MemoryManager& manager)
 {
 	if (!address_)
 		return;
 
-	PEArchitecture *file = reinterpret_cast<PEArchitecture *>(manager.owner());
+	PEArchitecture* file = reinterpret_cast<PEArchitecture*>(manager.owner());
 	size_t value_size = OperandSizeToValue(file->cpu_address_size());
 	manager.Add(address_, value_size * 4 + sizeof(uint32_t) * 2);
 
 	for (size_t i = 0; i < 4; i++) {
-		IFixup *fixup = file->fixup_list()->GetFixupByAddress(address_ + value_size * i);
+		IFixup* fixup = file->fixup_list()->GetFixupByAddress(address_ + value_size * i);
 		if (fixup)
 			fixup->set_deleted(true);
 	}
@@ -3451,7 +3485,7 @@ void PETLSDirectory::FreeByManager(MemoryManager &manager)
 	if (address_of_call_backs_) {
 		manager.Add(address_of_call_backs_, value_size * (count() + 1));
 		for (size_t i = 0; i < count(); i++) {
-			IFixup *fixup = file->fixup_list()->GetFixupByAddress(address_of_call_backs_ + value_size * i);
+			IFixup* fixup = file->fixup_list()->GetFixupByAddress(address_of_call_backs_ + value_size * i);
 			if (fixup)
 				fixup->set_deleted(true);
 		}
@@ -3462,7 +3496,7 @@ void PETLSDirectory::FreeByManager(MemoryManager &manager)
  * PEDebugData
  */
 
-PEDebugData::PEDebugData(PEDebugDirectory *owner)
+PEDebugData::PEDebugData(PEDebugDirectory* owner)
 	: IObject(), owner_(owner), characteristics_(0), time_date_stamp_(0),
 	major_version_(0), minor_version_(0), type_(0), size_(0), address_(0),
 	offset_(0)
@@ -3470,7 +3504,7 @@ PEDebugData::PEDebugData(PEDebugDirectory *owner)
 
 }
 
-PEDebugData::PEDebugData(PEDebugDirectory *owner, const PEDebugData &src)
+PEDebugData::PEDebugData(PEDebugDirectory* owner, const PEDebugData& src)
 	: IObject(), owner_(owner)
 {
 	characteristics_ = src.characteristics_;
@@ -3489,13 +3523,13 @@ PEDebugData::~PEDebugData()
 		owner_->RemoveObject(this);
 }
 
-PEDebugData *PEDebugData::Clone(PEDebugDirectory *owner) const
+PEDebugData* PEDebugData::Clone(PEDebugDirectory* owner) const
 {
-	PEDebugData *data = new PEDebugData(owner, *this);
+	PEDebugData* data = new PEDebugData(owner, *this);
 	return data;
 }
 
-void PEDebugData::ReadFromFile(PEArchitecture &file)
+void PEDebugData::ReadFromFile(PEArchitecture& file)
 {
 	IMAGE_DEBUG_DIRECTORY data;
 	file.Read(&data, sizeof(data));
@@ -3509,7 +3543,7 @@ void PEDebugData::ReadFromFile(PEArchitecture &file)
 	offset_ = data.PointerToRawData;
 }
 
-void PEDebugData::WriteToFile(PEArchitecture &file)
+void PEDebugData::WriteToFile(PEArchitecture& file)
 {
 	IMAGE_DEBUG_DIRECTORY data;
 	data.Characteristics = characteristics_;
@@ -3533,7 +3567,7 @@ PEDebugDirectory::PEDebugDirectory()
 
 }
 
-PEDebugDirectory::PEDebugDirectory(const PEDebugDirectory &src)
+PEDebugDirectory::PEDebugDirectory(const PEDebugDirectory& src)
 	: ObjectList<PEDebugData>(src)
 {
 	address_ = src.address_;
@@ -3542,20 +3576,20 @@ PEDebugDirectory::PEDebugDirectory(const PEDebugDirectory &src)
 	}
 }
 
-PEDebugDirectory *PEDebugDirectory::Clone() const
+PEDebugDirectory* PEDebugDirectory::Clone() const
 {
-	PEDebugDirectory *res = new PEDebugDirectory(*this);
+	PEDebugDirectory* res = new PEDebugDirectory(*this);
 	return res;
 }
 
-PEDebugData *PEDebugDirectory::Add()
+PEDebugData* PEDebugDirectory::Add()
 {
-	PEDebugData *data = new PEDebugData(this);
+	PEDebugData* data = new PEDebugData(this);
 	AddObject(data);
 	return data;
 }
 
-void PEDebugDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &directory)
+void PEDebugDirectory::ReadFromFile(PEArchitecture& file, PEDirectory& directory)
 {
 	if (!directory.address())
 		return;
@@ -3567,26 +3601,26 @@ void PEDebugDirectory::ReadFromFile(PEArchitecture &file, PEDirectory &directory
 
 	size_t c = directory.size() / sizeof(IMAGE_DEBUG_DIRECTORY);
 	for (size_t i = 0; i < c; i++) {
-		PEDebugData *data = Add();
+		PEDebugData* data = Add();
 		data->ReadFromFile(file);
 	}
 }
 
-void PEDebugDirectory::WriteToFile(PEArchitecture &file)
+void PEDebugDirectory::WriteToFile(PEArchitecture& file)
 {
 	for (size_t i = 0; i < count(); i++) {
 		item(i)->WriteToFile(file);
 	}
 }
 
-void PEDebugDirectory::FreeByManager(MemoryManager &manager) const
+void PEDebugDirectory::FreeByManager(MemoryManager& manager) const
 {
 	if (!address_)
 		return;
 
 	manager.Add(address_, count() * sizeof(IMAGE_DEBUG_DIRECTORY));
 	for (size_t i = 0; i < count(); i++) {
-		PEDebugData *data = item(i);
+		PEDebugData* data = item(i);
 		if (data->address() && data->size())
 			manager.Add(data->address(), data->size());
 	}
@@ -3596,13 +3630,13 @@ void PEDebugDirectory::FreeByManager(MemoryManager &manager) const
  * PEFile
  */
 
-PEFile::PEFile(ILog *log) 
+PEFile::PEFile(ILog* log)
 	: IFile(log), runtime_(NULL)
 {
 
 }
 
-PEFile::PEFile(const PEFile &src, const char *file_name)
+PEFile::PEFile(const PEFile& src, const char* file_name)
 	: IFile(src, file_name), runtime_(NULL)
 {
 	for (size_t i = 0; i < src.count(); i++)
@@ -3616,7 +3650,7 @@ PEFile::~PEFile()
 
 OpenStatus PEFile::ReadHeader(uint32_t open_mode)
 {
-	PEArchitecture *arch = new PEArchitecture(this, 0, size());
+	PEArchitecture* arch = new PEArchitecture(this, 0, size());
 	AddObject(arch);
 	return arch->ReadFromFile(open_mode);
 }
@@ -3628,20 +3662,20 @@ std::string PEFile::format_name() const
 
 bool PEFile::WriteHeader()
 {
-	for (size_t i = 0 ; i < count(); i++) {
+	for (size_t i = 0; i < count(); i++) {
 		if (!item(i)->WriteToFile())
 			return false;
 	}
 	return true;
 }
 
-PEFile *PEFile::Clone(const char *file_name) const
+PEFile* PEFile::Clone(const char* file_name) const
 {
-	PEFile *file = new PEFile(*this, file_name);
+	PEFile* file = new PEFile(*this, file_name);
 	return file;
 }
 
-bool PEFile::Compile(CompileOptions &options)
+bool PEFile::Compile(CompileOptions& options)
 {
 	const ResourceInfo runtime_info[] = {
 		{win_runtime32_dll_file, sizeof(win_runtime32_dll_file), win_runtime32_dll_code},
@@ -3660,7 +3694,7 @@ bool PEFile::Compile(CompileOptions &options)
 
 	size_t index;
 	if (count() > 1) {
-		FrameworkInfo info = reinterpret_cast<NETArchitecture *>(item(1))->command_list()->framework();
+		FrameworkInfo info = reinterpret_cast<NETArchitecture*>(item(1))->command_list()->framework();
 		switch (info.type) {
 		case fwFramework:
 			index = (info.version.major >= 4) ? 6 : 4;
@@ -3675,7 +3709,7 @@ bool PEFile::Compile(CompileOptions &options)
 	}
 	else
 		index = (arch_pe()->image_type() == itDriver) ? 2 : 0;
-	
+
 	ResourceInfo info = runtime_info[index + (arch_pe()->cpu_address_size() == osDWord ? 0 : 1)];
 	if (info.size > 1) {
 		runtime_ = new PEFile(NULL);
@@ -3683,15 +3717,15 @@ bool PEFile::Compile(CompileOptions &options)
 			throw std::runtime_error("Runtime error at OpenResource");
 
 		Buffer buffer(info.code);
-		IArchitecture *arch = runtime_->item(runtime_->count() - 1);
+		IArchitecture* arch = runtime_->item(runtime_->count() - 1);
 		arch->ReadFromBuffer(buffer);
 		for (size_t i = 0; i < arch->function_list()->count(); i++) {
 			arch->function_list()->item(i)->set_from_runtime(true);
 		}
 		for (size_t i = 0; i < arch->import_list()->count(); i++) {
-			IImport *import = arch->import_list()->item(i);
+			IImport* import = arch->import_list()->item(i);
 			for (size_t j = 0; j < import->count(); j++) {
-				import->item(j)->include_option(ioFromRuntime);
+import->item(j)->include_option(ioFromRuntime);
 			}
 		}
 	}
@@ -3709,22 +3743,22 @@ std::string PEFile::version() const
 	};
 
 	if (count() == 1) {
-		IArchitecture *file = item(0);
-		IResource *resource = file->resource_list()->GetResourceByType(rtVersionInfo);
+		IArchitecture* file = item(0);
+		IResource* resource = file->resource_list()->GetResourceByType(rtVersionInfo);
 		if (resource)
 			resource = resource->GetResourceByName("1");
 		if (resource && resource->count()) {
 			resource = resource->item(0);
 			if (resource->size() && file->AddressSeek(resource->address())) {
-				uint8_t *data = new uint8_t[resource->size()];
+				uint8_t* data = new uint8_t[resource->size()];
 				file->Read(data, resource->size());
 
 				size_t len = 0;
 				while (reinterpret_cast<VERSION_INFO*>(data)->szKey[len])
 					len++;
-				VS_FIXEDFILEINFO *file_info = reinterpret_cast<VS_FIXEDFILEINFO *>(data + AlignValue(offsetof(VERSION_INFO, szKey) + (len + 1) * sizeof(uint16_t), sizeof(uint32_t)));
+				VS_FIXEDFILEINFO* file_info = reinterpret_cast<VS_FIXEDFILEINFO*>(data + AlignValue(offsetof(VERSION_INFO, szKey) + (len + 1) * sizeof(uint16_t), sizeof(uint32_t)));
 				std::string res = string_format("%d.%d.%d.%d", static_cast<uint16_t>(file_info->dwFileVersionMS >> 16), static_cast<uint16_t>(file_info->dwFileVersionMS), static_cast<uint16_t>(file_info->dwFileVersionLS >> 16), static_cast<uint16_t>(file_info->dwFileVersionLS));
-				delete [] data;
+				delete[] data;
 
 				return res;
 			}
@@ -3753,7 +3787,7 @@ uint32_t PEFile::disable_options() const
 {
 	uint32_t res = 0;
 	if (count() == 1) {
-		PEArchitecture *arch = arch_pe();
+		PEArchitecture* arch = arch_pe();
 		if (arch->segment_alignment() < 0x1000)
 			res |= cpPack;
 		if (arch->image_type() != itExe)
@@ -3762,13 +3796,14 @@ uint32_t PEFile::disable_options() const
 			res |= cpResourceProtection;
 			res |= cpVirtualFiles;
 		}
-	} else {
+	}
+	else {
 		res |= cpStripFixups;
 	}
 	return res;
 }
 
-bool PEFile::GetCheckSum(uint32_t *check_sum)
+bool PEFile::GetCheckSum(uint32_t* check_sum)
 {
 	Flush();
 	return os::FileGetCheckSum(file_name(true).c_str(), check_sum);
@@ -3776,7 +3811,7 @@ bool PEFile::GetCheckSum(uint32_t *check_sum)
 
 std::string PEFile::exec_command() const
 {
-	if (count() > 1 && reinterpret_cast<NETArchitecture *>(item(1))->command_list()->framework().type == fwCore)
+	if (count() > 1 && reinterpret_cast<NETArchitecture*>(item(1))->command_list()->framework().type == fwCore)
 		return "dotnet.exe";
 	return std::string();
 }
@@ -3785,14 +3820,14 @@ std::string PEFile::exec_command() const
  * PEArchitecture
  */
 
-PEArchitecture::PEArchitecture(PEFile *owner, uint64_t offset, uint64_t size)
-	: BaseArchitecture(owner, offset, size), function_list_(NULL), virtual_machine_list_(NULL), 
-		cpu_(0), cpu_address_size_(osDWord), time_stamp_(0), entry_point_(0),
-		image_base_(0), header_offset_(0), header_size_(0), segment_alignment_(0),
-		file_alignment_(0),	resource_section_(NULL), fixup_section_(NULL), 
-		optimized_section_count_(0), image_type_(itExe), characterictics_(0), check_sum_(0),
-		low_resize_header_(0), resize_header_(0), operating_system_version_(0), subsystem_version_(0),
-		dll_characteristics_(0)
+PEArchitecture::PEArchitecture(PEFile* owner, uint64_t offset, uint64_t size)
+	: BaseArchitecture(owner, offset, size), function_list_(NULL), virtual_machine_list_(NULL),
+	cpu_(0), cpu_address_size_(osDWord), time_stamp_(0), entry_point_(0),
+	image_base_(0), header_offset_(0), header_size_(0), segment_alignment_(0),
+	file_alignment_(0), resource_section_(NULL), fixup_section_(NULL),
+	optimized_section_count_(0), image_type_(itExe), characterictics_(0), check_sum_(0),
+	low_resize_header_(0), resize_header_(0), operating_system_version_(0), subsystem_version_(0),
+	dll_characteristics_(0)
 {
 	directory_list_ = new PEDirectoryList(this);
 	segment_list_ = new PESegmentList(this);
@@ -3809,7 +3844,7 @@ PEArchitecture::PEArchitecture(PEFile *owner, uint64_t offset, uint64_t size)
 	delay_import_list_ = new PEDelayImportList();
 }
 
-PEArchitecture::PEArchitecture(PEFile *owner, const PEArchitecture &src)
+PEArchitecture::PEArchitecture(PEFile* owner, const PEArchitecture& src)
 	: BaseArchitecture(owner, src), function_list_(NULL), virtual_machine_list_(NULL),
 	resource_section_(NULL), fixup_section_(NULL)
 {
@@ -3857,15 +3892,15 @@ PEArchitecture::PEArchitecture(PEFile *owner, const PEArchitecture &src)
 		fixup_section_ = segment_list_->item(src.segment_list_->IndexOf(src.fixup_section_));
 
 	for (i = 0; i < src.section_list()->count(); i++) {
-		PESegment *segment = src.section_list()->item(i)->parent();
+		PESegment* segment = src.section_list()->item(i)->parent();
 		if (segment)
 			section_list_->item(i)->set_parent(segment_list_->item(src.segment_list_->IndexOf(segment)));
 	}
 
 	for (i = 0; i < src.import_list_->count(); i++) {
-		PEImport *import = src.import_list_->item(i);
+		PEImport* import = src.import_list_->item(i);
 		for (j = 0; j < import->count(); j++) {
-			MapFunction *map_function = import->item(j)->map_function();
+			MapFunction* map_function = import->item(j)->map_function();
 			if (map_function)
 				import_list_->item(i)->item(j)->set_map_function(map_function_list()->item(src.map_function_list()->IndexOf(map_function)));
 		}
@@ -3873,9 +3908,9 @@ PEArchitecture::PEArchitecture(PEFile *owner, const PEArchitecture &src)
 
 	if (function_list_) {
 		for (i = 0; i < function_list_->count(); i++) {
-			IntelFunction *func = reinterpret_cast<IntelFunction *>(function_list_->item(i));
+			IntelFunction* func = reinterpret_cast<IntelFunction*>(function_list_->item(i));
 			for (j = 0; j < func->count(); j++) {
-				IntelCommand *command = func->item(j);
+				IntelCommand* command = func->item(j);
 
 				if (command->seh_handler())
 					command->set_seh_handler(seh_handler_list()->GetHandlerByAddress(command->address()));
@@ -3892,7 +3927,7 @@ PEArchitecture::PEArchitecture(PEFile *owner, const PEArchitecture &src)
 				}
 			}
 			for (j = 0; j < func->function_info_list()->count(); j++) {
-				FunctionInfo *info = func->function_info_list()->item(j);
+				FunctionInfo* info = func->function_info_list()->item(j);
 				if (info->source())
 					info->set_source(runtime_function_list_->GetFunctionByAddress(info->source()->begin()));
 			}
@@ -3901,7 +3936,7 @@ PEArchitecture::PEArchitecture(PEFile *owner, const PEArchitecture &src)
 }
 
 PEArchitecture::~PEArchitecture()
-{ 
+{
 	delete export_list_;
 	delete import_list_;
 	delete segment_list_;
@@ -3919,9 +3954,9 @@ PEArchitecture::~PEArchitecture()
 	delete delay_import_list_;
 }
 
-PEArchitecture *PEArchitecture::Clone(IFile *file) const
+PEArchitecture* PEArchitecture::Clone(IFile* file) const
 {
-	PEArchitecture *arch = new PEArchitecture(dynamic_cast<PEFile *>(file), *this);
+	PEArchitecture* arch = new PEArchitecture(dynamic_cast<PEFile*>(file), *this);
 	return arch;
 }
 
@@ -4011,40 +4046,40 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 	uint32_t dir_count;
 	switch (magic) {
 	case IMAGE_NT_OPTIONAL_HDR32_MAGIC:
-		{
-			IMAGE_OPTIONAL_HEADER32 pe_header = IMAGE_OPTIONAL_HEADER32();
-			Read(&pe_header.MajorLinkerVersion, sizeof(pe_header) - sizeof(magic) - sizeof(pe_header.DataDirectory));
-			dir_count = pe_header.NumberOfRvaAndSizes;
-			entry_point_ = pe_header.AddressOfEntryPoint;
-			image_base_ = pe_header.ImageBase;
-			segment_alignment_ = pe_header.SectionAlignment;
-			file_alignment_ = pe_header.FileAlignment;
-			cpu_address_size_ = osDWord;
-			subsystem = pe_header.Subsystem;
-			check_sum_ = pe_header.CheckSum;
-			operating_system_version_ = (pe_header.MajorOperatingSystemVersion << 16) | pe_header.MinorOperatingSystemVersion;
-			subsystem_version_= (pe_header.MajorSubsystemVersion << 16) | pe_header.MinorSubsystemVersion;
-			dll_characteristics_ = pe_header.DllCharacteristics;
-		}
-		break;
+	{
+		IMAGE_OPTIONAL_HEADER32 pe_header = IMAGE_OPTIONAL_HEADER32();
+		Read(&pe_header.MajorLinkerVersion, sizeof(pe_header) - sizeof(magic) - sizeof(pe_header.DataDirectory));
+		dir_count = pe_header.NumberOfRvaAndSizes;
+		entry_point_ = pe_header.AddressOfEntryPoint;
+		image_base_ = pe_header.ImageBase;
+		segment_alignment_ = pe_header.SectionAlignment;
+		file_alignment_ = pe_header.FileAlignment;
+		cpu_address_size_ = osDWord;
+		subsystem = pe_header.Subsystem;
+		check_sum_ = pe_header.CheckSum;
+		operating_system_version_ = (pe_header.MajorOperatingSystemVersion << 16) | pe_header.MinorOperatingSystemVersion;
+		subsystem_version_ = (pe_header.MajorSubsystemVersion << 16) | pe_header.MinorSubsystemVersion;
+		dll_characteristics_ = pe_header.DllCharacteristics;
+	}
+	break;
 
 	case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
-		{
-			IMAGE_OPTIONAL_HEADER64 pe_header = IMAGE_OPTIONAL_HEADER64();
-			Read(&pe_header.MajorLinkerVersion, sizeof(pe_header) - sizeof(magic) - sizeof(pe_header.DataDirectory));
-			dir_count = pe_header.NumberOfRvaAndSizes;
-			entry_point_ = pe_header.AddressOfEntryPoint;
-			image_base_ = pe_header.ImageBase;
-			segment_alignment_ = pe_header.SectionAlignment;
-			file_alignment_ = pe_header.FileAlignment;
-			cpu_address_size_ = osQWord;
-			subsystem = pe_header.Subsystem;
-			check_sum_ = pe_header.CheckSum;
-			operating_system_version_ = (pe_header.MajorOperatingSystemVersion << 16) | pe_header.MinorOperatingSystemVersion;
-			subsystem_version_= (pe_header.MajorSubsystemVersion << 16) | pe_header.MinorSubsystemVersion;
-			dll_characteristics_ = pe_header.DllCharacteristics;
-		}
-		break;
+	{
+		IMAGE_OPTIONAL_HEADER64 pe_header = IMAGE_OPTIONAL_HEADER64();
+		Read(&pe_header.MajorLinkerVersion, sizeof(pe_header) - sizeof(magic) - sizeof(pe_header.DataDirectory));
+		dir_count = pe_header.NumberOfRvaAndSizes;
+		entry_point_ = pe_header.AddressOfEntryPoint;
+		image_base_ = pe_header.ImageBase;
+		segment_alignment_ = pe_header.SectionAlignment;
+		file_alignment_ = pe_header.FileAlignment;
+		cpu_address_size_ = osQWord;
+		subsystem = pe_header.Subsystem;
+		check_sum_ = pe_header.CheckSum;
+		operating_system_version_ = (pe_header.MajorOperatingSystemVersion << 16) | pe_header.MinorOperatingSystemVersion;
+		subsystem_version_ = (pe_header.MajorSubsystemVersion << 16) | pe_header.MinorSubsystemVersion;
+		dll_characteristics_ = pe_header.DllCharacteristics;
+	}
+	break;
 
 	default:
 		return osInvalidFormat;
@@ -4082,10 +4117,10 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 		COFFStringTable string_table;
 		string_table.ReadFromFile(*this);
 		for (size_t i = 0; i < segment_list_->count(); i++) {
-			PESegment *segment = segment_list_->item(i);
-			const std::string &segment_name = segment->name();
+			PESegment* segment = segment_list_->item(i);
+			const std::string& segment_name = segment->name();
 			if (segment_name.length() && segment_name[0] == '/') {
-				char *endptr = NULL;
+				char* endptr = NULL;
 				uint32_t name_offset = strtoul(segment_name.c_str() + 1, &endptr, 10);
 				if (endptr && *endptr == 0)
 					segment->set_name(string_table.GetString(name_offset));
@@ -4096,7 +4131,7 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 	resource_section_ = NULL;
 	fixup_section_ = NULL;
 	for (size_t i = 0; i < directory_list_->count(); i++) {
-		PEDirectory *dir = directory_list_->item(i);
+		PEDirectory* dir = directory_list_->item(i);
 		switch (dir->type()) {
 		case IMAGE_DIRECTORY_ENTRY_EXPORT:
 			export_list_->ReadFromFile(*this, *dir);
@@ -4143,7 +4178,7 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 			break;
 		case IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR:
 			if (dir->address()) {
-				NETArchitecture *net = new NETArchitecture(reinterpret_cast<PEFile *>(owner()));
+				NETArchitecture* net = new NETArchitecture(reinterpret_cast<PEFile*>(owner()));
 				owner()->AddObject(net);
 				OpenStatus res = net->ReadFromFile(mode);
 				return res;
@@ -4196,13 +4231,14 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 						ReadMapFile(map_file);
 						break;
 					}
-				} else if (i == 1) {
+				}
+				else if (i == 1) {
 					PDBFile pdb_file;
 					if (pdb_file.Parse(pdb_file_name().c_str(), segments)) {
 						std::vector<uint8_t> guid;
 						if (pdb_file.guid().size()) {
 							for (size_t j = 0; j < debug_directory_->count(); j++) {
-								PEDebugData *data = debug_directory_->item(j);
+								PEDebugData* data = debug_directory_->item(j);
 								if (data->type() == IMAGE_DEBUG_TYPE_CODEVIEW) {
 									if (AddressSeek(data->address())) {
 										struct PdbInfo
@@ -4214,7 +4250,7 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 										} pi;
 										Read(&pi, sizeof(pi));
 										if (pi.Signature == 0x53445352) // RSDS
-											guid.insert(guid.begin(), reinterpret_cast<const uint8_t *>(&pi.Guid), reinterpret_cast<const uint8_t *>(&pi.Guid) + sizeof(pi.Guid));
+											guid.insert(guid.begin(), reinterpret_cast<const uint8_t*>(&pi.Guid), reinterpret_cast<const uint8_t*>(&pi.Guid) + sizeof(pi.Guid));
 									}
 									break;
 								}
@@ -4223,7 +4259,8 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 						if (guid == pdb_file.guid()) {
 							pdb_file.set_time_stamp(time_stamp_);
 							ReadMapFile(pdb_file);
-						} else
+						}
+						else
 							Notify(mtWarning, NULL, string_format(language[lsMAPFileHasIncorrectTimeStamp].c_str(), os::ExtractFileName(pdb_file.file_name().c_str()).c_str()));
 						break;
 					}
@@ -4267,24 +4304,25 @@ std::string PEArchitecture::pdb_file_name() const
 	return os::ChangeFileExt(owner()->file_name().c_str(), ".pdb");
 }
 
-bool PEArchitecture::ReadMapFile(IMapFile &map_file)
+bool PEArchitecture::ReadMapFile(IMapFile& map_file)
 {
 	if (!BaseArchitecture::ReadMapFile(map_file))
 		return false;
 
-	MapSection *sections = map_file.GetSectionByType(msSections);
+	MapSection* sections = map_file.GetSectionByType(msSections);
 	if (sections) {
 		for (size_t i = 0; i < sections->count(); i++) {
-			MapObject *section = sections->item(i);
+			MapObject* section = sections->item(i);
 
 			uint64_t address = section->address();
-			PESegment *segment;
-			if (section->segment() != (size_t)-1) { 
+			PESegment* segment;
+			if (section->segment() != (size_t)-1) {
 				if (section->segment() == 0 || section->segment() > segment_list_->count())
 					continue;
 
 				segment = segment_list_->item(section->segment() - 1);
-			} else {
+			}
+			else {
 				segment = segment_list_->GetSectionByAddress(address);
 				if (!segment)
 					continue;
@@ -4310,7 +4348,7 @@ bool PEArchitecture::WriteToFile()
 	IMAGE_OPTIONAL_HEADER32 pe_header32;
 	IMAGE_OPTIONAL_HEADER64 pe_header64;
 	uint32_t image_size, header_size;
-	PESegment *last_section;
+	PESegment* last_section;
 
 	// read header
 	Seek(header_offset_ + sizeof(uint32_t));
@@ -4320,7 +4358,8 @@ bool PEArchitecture::WriteToFile()
 	image_header.NumberOfSections = static_cast<uint16_t>(segment_list_->count());
 	if (cpu_address_size_ == osDWord) {
 		Read(&pe_header32, sizeof(pe_header32) - sizeof(pe_header32.DataDirectory));
-	} else {
+	}
+	else {
 		Read(&pe_header64, sizeof(pe_header64) - sizeof(pe_header64.DataDirectory));
 	}
 
@@ -4346,7 +4385,8 @@ bool PEArchitecture::WriteToFile()
 		pe_header32.MinorSubsystemVersion = static_cast<uint16_t>(subsystem_version_);
 		pe_header32.DllCharacteristics = dll_characteristics_;
 		Write(&pe_header32, sizeof(pe_header32) - sizeof(pe_header32.DataDirectory));
-	} else {
+	}
+	else {
 		pe_header64.AddressOfEntryPoint = (entry_point_) ? static_cast<uint32_t>(entry_point_ - image_base_) : 0;
 		pe_header64.SizeOfImage = image_size;
 		if (header_size > pe_header64.SizeOfHeaders)
@@ -4361,7 +4401,7 @@ bool PEArchitecture::WriteToFile()
 	return true;
 }
 
-bool PEArchitecture::Prepare(CompileContext &ctx)
+bool PEArchitecture::Prepare(CompileContext& ctx)
 {
 	if ((ctx.options.flags & cpPack) && segment_alignment_ < 0x1000) {
 		ctx.options.flags &= ~cpPack;
@@ -4378,7 +4418,7 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 			std::vector<IResource*> resources = resource_list()->GetResourceList();
 			bool need_resource_protection = false;
 			for (size_t i = 0; i < resources.size(); i++) {
-				IResource *resource = resources[i];
+				IResource* resource = resources[i];
 				if (!resource->excluded_from_packing() && !resource->need_store()) {
 					need_resource_protection = true;
 					break;
@@ -4387,7 +4427,8 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 			if (!need_resource_protection)
 				ctx.options.flags &= ~cpResourceProtection;
 		}
-	} else {
+	}
+	else {
 		if (ctx.options.flags & cpResourceProtection)
 			ctx.options.flags &= ~cpResourceProtection;
 #ifdef ULTIMATE
@@ -4400,8 +4441,8 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 		return false;
 
 	size_t i;
-	PESegment *section;
-	std::vector<PESegment *> optimized_section_list;
+	PESegment* section;
+	std::vector<PESegment*> optimized_section_list;
 
 	// optimize sections
 	if (resource_section_)
@@ -4420,11 +4461,12 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 	for (i = segment_list_->count(); i > 0; i--) {
 		section = segment_list_->item(i - 1);
 
-		std::vector<PESegment *>::iterator it = std::find(optimized_section_list.begin(), optimized_section_list.end(), section);
+		std::vector<PESegment*>::iterator it = std::find(optimized_section_list.begin(), optimized_section_list.end(), section);
 		if (it != optimized_section_list.end()) {
 			optimized_section_list.erase(it);
 			optimized_section_count_--;
-		} else {
+		}
+		else {
 			break;
 		}
 	}
@@ -4446,7 +4488,7 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 		new_header_size -= low_resize_header_;
 	}
 	for (i = 0; i < directory_list_->count(); i++) {
-		PEDirectory *dir = directory_list_->item(i);
+		PEDirectory* dir = directory_list_->item(i);
 		if (!dir->visible() || dir->type() == IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT)
 			continue;
 
@@ -4490,7 +4532,7 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 	if (optimized_section_count_ > 0) {
 		section = segment_list_->item(optimized_section_count_ - 1);
 		if (ctx.runtime) {
-			PEArchitecture *runtime = reinterpret_cast<PEArchitecture *>(ctx.runtime);
+			PEArchitecture* runtime = reinterpret_cast<PEArchitecture*>(ctx.runtime);
 			if (runtime->segment_list()->count()) {
 				runtime->Rebase(image_base(), AlignValue(section->address() + section->size(), segment_alignment()) - runtime->segment_list()->item(0)->address());
 
@@ -4508,24 +4550,25 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 					section = runtime->segment_list()->last();
 					if (section->address() == runtime->runtime_function_list()->address())
 						delete section;
-					else 
+					else
 						runtime->runtime_function_list()->FreeByManager(runtime_manager);
 				}
 				runtime->import_list()->FreeByManager(runtime_manager, (ctx.options.flags & cpImportProtection) != 0);
 				runtime_manager.Pack();
 				for (i = 0; i < runtime_manager.count(); i++) {
-					MemoryRegion *region = runtime_manager.item(i);
+					MemoryRegion* region = runtime_manager.item(i);
 					ctx.manager->Add(region->address(), region->size(), region->type());
 				}
 				section = runtime->segment_list()->last();
-			} else {
+			}
+			else {
 				runtime->Rebase(image_base(), image_base() - runtime->image_base());
 			}
 		}
 
 		// add new section
 		assert(section);
-		ctx.manager->Add(AlignValue(section->address() + section->size(), segment_alignment()), UINT32_MAX,  mtReadable | mtExecutable | mtWritable | mtNotPaged | (runtime_function_list()->count() ? mtSolid : mtNone));
+		ctx.manager->Add(AlignValue(section->address() + section->size(), segment_alignment()), UINT32_MAX, mtReadable | mtExecutable | mtWritable | mtNotPaged | (runtime_function_list()->count() ? mtSolid : mtNone));
 	}
 
 	if (ctx.runtime)
@@ -4533,7 +4576,7 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 	if (ctx.options.flags & cpPack) {
 		export_list_->FreeByManager(*ctx.manager);
 		tls_directory_->FreeByManager(*ctx.manager);
-		PEDirectory *dir = directory_list_->GetCommandByType(IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG);
+		PEDirectory* dir = directory_list_->GetCommandByType(IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG);
 		if (dir)
 			dir->FreeByManager(*ctx.manager);
 		dir = directory_list_->GetCommandByType(IMAGE_DIRECTORY_ENTRY_ARCHITECTURE);
@@ -4548,24 +4591,24 @@ bool PEArchitecture::Prepare(CompileContext &ctx)
 	return true;
 }
 
-bool PEArchitecture::Compile(CompileOptions &options, IArchitecture *runtime)
+bool PEArchitecture::Compile(CompileOptions& options, IArchitecture* runtime)
 {
 	return visible() ? BaseArchitecture::Compile(options, runtime) : true;
 }
 
-void PEArchitecture::Save(CompileContext &ctx)
+void PEArchitecture::Save(CompileContext& ctx)
 {
-	PEDirectory *dir;
-	PESegment *last_section, *section, *vmp_section;
+	PEDirectory* dir;
+	PESegment* last_section, * section, * vmp_section;
 	uint64_t pos, address, resource_section_info, resource_packer_info, file_crc_address, loader_crc_address, name_table,
 		loader_crc_size_address, loader_crc_hash_address, file_crc_size_address;
 	uint32_t size, file_crc_size, loader_crc_size, name_table_size;
 	size_t i, j, c;
-	MemoryRegion *region;
+	MemoryRegion* region;
 	uint32_t resource_section_flags, fixup_section_flags;
 	std::string resource_section_name, fixup_section_name;
 	int vmp_index;
-	MemoryManager *manager = memory_manager();
+	MemoryManager* manager = memory_manager();
 
 	// erase sections area
 	{
@@ -4575,12 +4618,12 @@ void PEArchitecture::Save(CompileContext &ctx)
 			Write(&section_header, sizeof(section_header));
 		}
 	}
-	
+
 	// resize header
 	if (low_resize_header_ || resize_header_) {
 		uint32_t new_header_offset = header_offset_ - low_resize_header_;
 		size_t total_header_size = offsetof(IMAGE_NT_HEADERS32, OptionalHeader) + header_size_ + segment_list_->count() * sizeof(IMAGE_SECTION_HEADER);
-		const PEArchitecture *src = dynamic_cast<const PEArchitecture *>(source());
+		const PEArchitecture* src = dynamic_cast<const PEArchitecture*>(source());
 		if (low_resize_header_) {
 			Seek(offsetof(IMAGE_DOS_HEADER, e_lfanew));
 			WriteDWord(new_header_offset);
@@ -4610,7 +4653,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 			if ((ctx.options.flags & (cpPack | cpStripDebugInfo)) == 0) {
 				if (debug_directory_->address()) {
 					for (i = 0; i < debug_directory_->count(); i++) {
-						PEDebugData *data = debug_directory_->item(i);
+						PEDebugData* data = debug_directory_->item(i);
 						data->set_offset(data->offset() + resize_header_);
 					}
 					AddressSeek(debug_directory_->address());
@@ -4628,22 +4671,23 @@ void PEArchitecture::Save(CompileContext &ctx)
 	// compile modified objects
 	if ((ctx.options.flags & cpPack) == 0) {
 		if (source() && !export_list()->is_equal(*source()->export_list())) {
-			const PEArchitecture *src = dynamic_cast<const PEArchitecture *>(source());
-			if(src == NULL)
+			const PEArchitecture* src = dynamic_cast<const PEArchitecture*>(source());
+			if (src == NULL)
 				throw std::runtime_error("Runtime error at Save");
 
 			src->export_list()->FreeByManager(*manager);
 
-			PEIntelExport *pe_export = reinterpret_cast<PEIntelFunctionList *>(function_list())->AddExport(cpu_address_size());
+			PEIntelExport* pe_export = reinterpret_cast<PEIntelFunctionList*>(function_list())->AddExport(cpu_address_size());
 			pe_export->Init(ctx);
 			pe_export->Compile(ctx);
 
-			PEDirectory *dir = directory_list_->GetCommandByType(IMAGE_DIRECTORY_ENTRY_EXPORT);
+			PEDirectory* dir = directory_list_->GetCommandByType(IMAGE_DIRECTORY_ENTRY_EXPORT);
 			if (dir) {
 				if (pe_export->entry()) {
 					dir->set_address(pe_export->entry()->address());
 					dir->set_size(pe_export->size());
-				} else {
+				}
+				else {
 					dir->clear();
 				}
 			}
@@ -4655,9 +4699,9 @@ void PEArchitecture::Save(CompileContext &ctx)
 	if (ctx.runtime)
 		c += ctx.runtime->segment_list()->count();
 	for (i = 0; i < function_list_->count(); i++) {
-		IFunction *func = function_list_->item(i);
+		IFunction* func = function_list_->item(i);
 		for (j = 0; j < func->block_list()->count(); j++) {
-			CommandBlock *block = func->block_list()->item(j);
+			CommandBlock* block = func->block_list()->item(j);
 			c += block->end_index() - block->start_index() + 1;
 		}
 	}
@@ -4666,7 +4710,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 	if (resource_list_->count()) {
 		if (ctx.options.flags & cpResourceProtection) {
 			for (i = resource_list_->count(); i > 0; i--) {
-				PEResource *resource = resource_list_->item(i - 1);
+				PEResource* resource = resource_list_->item(i - 1);
 				if (!resource->need_store())
 					delete resource;
 			}
@@ -4687,7 +4731,8 @@ void PEArchitecture::Save(CompileContext &ctx)
 			resource_section_flags = section->flags();
 			resource_section_name = section->name();
 			resource_section_ = NULL;
-		} else if (fixup_section_ == section) {
+		}
+		else if (fixup_section_ == section) {
 			fixup_section_flags = section->flags();
 			fixup_section_name = section->name();
 			fixup_section_ = NULL;
@@ -4710,7 +4755,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 	vmp_section = segment_list_->Add(address, UINT32_MAX, static_cast<uint32_t>(pos), UINT32_MAX, IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE, "");
 
 	// merge runtime objects
-	PEArchitecture *runtime = reinterpret_cast<PEArchitecture*>(ctx.runtime);
+	PEArchitecture* runtime = reinterpret_cast<PEArchitecture*>(ctx.runtime);
 	if (runtime && runtime->segment_list()->count()) {
 		// merge sections
 		SignatureList patch_signatures;
@@ -4723,14 +4768,14 @@ void PEArchitecture::Save(CompileContext &ctx)
 			if (section->physical_offset() && section->physical_size()) {
 				runtime->Seek(section->physical_offset());
 				size = static_cast<uint32_t>(section->physical_size());
-				uint8_t *buffer = new uint8_t[size];
+				uint8_t* buffer = new uint8_t[size];
 				runtime->Read(buffer, size);
 				if ((section->memory_type() & mtExecutable) && patch_signatures.count()) {
 					patch_signatures.InitSearch();
 					for (c = 0; c < size; c++) {
 						uint8_t b = buffer[c];
 						for (j = 0; j < patch_signatures.count(); j++) {
-							Signature *sign = patch_signatures.item(j);
+							Signature* sign = patch_signatures.item(j);
 							if (sign->SearchByte(b)) {
 								size_t p = c + 1 - sign->size();
 								buffer[p + 7] = 0xeb;
@@ -4740,7 +4785,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 				}
 
 				Write(buffer, size);
-				delete [] buffer;
+				delete[] buffer;
 			}
 			size = static_cast<uint32_t>(AlignValue(section->size(), runtime->segment_alignment()) - section->physical_size());
 			for (j = 0; j < size; j++) {
@@ -4748,29 +4793,29 @@ void PEArchitecture::Save(CompileContext &ctx)
 			}
 			uint32_t memory_type = section->memory_type();
 			if (image_type_ != itDriver)
-				 memory_type &= ~mtWritable;
+				memory_type &= ~mtWritable;
 			vmp_section->include_write_type(memory_type);
 
 			StepProgress();
 		}
 		// merge fixups
 		for (i = 0; i < runtime->fixup_list()->count(); i++) {
-			PEFixup *fixup = runtime->fixup_list()->item(i);
+			PEFixup* fixup = runtime->fixup_list()->item(i);
 			fixup_list_->AddObject(fixup->Clone(fixup_list_));
 		}
 		// merge seh handlers
 		for (i = 0; i < runtime->seh_handler_list()->count(); i++) {
-			PESEHandler *handler = runtime->seh_handler_list()->item(i);
+			PESEHandler* handler = runtime->seh_handler_list()->item(i);
 			load_config_directory_->seh_handler_list()->Add(handler->address());
 		}
 		// merge CFG addresses
-		PECFGAddressTable *cfg_address_list = runtime->load_config_directory_->cfg_address_list();
+		PECFGAddressTable* cfg_address_list = runtime->load_config_directory_->cfg_address_list();
 		for (i = 0; i < cfg_address_list->count(); i++) {
 			load_config_directory_->cfg_address_list()->Add(cfg_address_list->item(i)->address());
 		}
 		// merge runtime functions
 		for (i = 0; i < runtime->runtime_function_list()->count(); i++) {
-			PERuntimeFunction *runtime_function = runtime->runtime_function_list()->item(i);
+			PERuntimeFunction* runtime_function = runtime->runtime_function_list()->item(i);
 			runtime_function_list_->AddObject(runtime_function->Clone(runtime_function_list_));
 		}
 	}
@@ -4830,7 +4875,8 @@ void PEArchitecture::Save(CompileContext &ctx)
 				last_section->include_write_type(mtReadable | mtNotDiscardable | mtNotPaged);
 				dir->set_address(address);
 				dir->set_size(size);
-			} else {
+			}
+			else {
 				dir->clear();
 			}
 		}
@@ -4838,9 +4884,10 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 	if (vmp_section->write_type() == mtNone) {
 		delete vmp_section;
-	} else {
+	}
+	else {
 		vmp_section->set_name(string_format("%s%d", ctx.options.section_name.c_str(), vmp_index++));
-	
+
 		size = static_cast<uint32_t>(this->size() - vmp_section->physical_offset());
 		vmp_section->set_size(size);
 		vmp_section->set_physical_size(AlignValue(size, file_alignment_));
@@ -4854,7 +4901,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 	// write memory CRC table
 	if (function_list_->crc_table()) {
-		IntelCRCTable *intel_crc = reinterpret_cast<IntelCRCTable *>(function_list_->crc_table());
+		IntelCRCTable* intel_crc = reinterpret_cast<IntelCRCTable*>(function_list_->crc_table());
 		CRCTable crc_table(function_list_->crc_cryptor(), intel_crc->table_size());
 
 		// add non writable sections
@@ -4881,23 +4928,24 @@ void PEArchitecture::Save(CompileContext &ctx)
 		}
 
 		// skip IAT
-		IntelImport *intel_import  = reinterpret_cast<IntelFunctionList *>(function_list_)->import();
+		IntelImport* intel_import = reinterpret_cast<IntelFunctionList*>(function_list_)->import();
 		size = OperandSizeToValue(cpu_address_size());
 		size_t k = (runtime && runtime->segment_list()->count() > 0) ? 2 : 1;
 		for (size_t n = 0; n < k; n++) {
-			PEImportList *import_list = (n == 0) ? import_list_ : runtime->import_list();
+			PEImportList* import_list = (n == 0) ? import_list_ : runtime->import_list();
 			for (i = 0; i < import_list->count(); i++) {
-				PEImport *import = import_list->item(i);
+				PEImport* import = import_list->item(i);
 				if (ctx.options.flags & cpImportProtection) {
 					for (j = 0; j < import->count(); j++) {
-						PEImportFunction *import_function = import->item(j);
+						PEImportFunction* import_function = import->item(j);
 						address = import_function->address();
-						IntelCommand *iat_command = intel_import->GetIATCommand(import_function);
+						IntelCommand* iat_command = intel_import->GetIATCommand(import_function);
 						if (iat_command)
 							address = iat_command->address();
 						crc_table.Remove(address, size);
 					}
-				} else {
+				}
+				else {
 					if (import->count() > 0)
 						crc_table.Remove(import->item(0)->address(), size * import->count());
 				}
@@ -4907,7 +4955,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 		// skip fixups
 		if ((ctx.options.flags & cpStripFixups) == 0) {
 			for (i = 0; i < fixup_list_->count(); i++) {
-				PEFixup *fixup = fixup_list_->item(i);
+				PEFixup* fixup = fixup_list_->item(i);
 				if (!fixup->is_deleted())
 					crc_table.Remove(fixup->address(), OperandSizeToValue(fixup->size()));
 			}
@@ -4915,12 +4963,12 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 		// skip relocations
 		for (i = 0; i < relocation_list_->count(); i++) {
-			PERelocation *relocation = relocation_list_->item(i);
+			PERelocation* relocation = relocation_list_->item(i);
 			crc_table.Remove(relocation->address(), OperandSizeToValue(relocation->size()));
 		}
 
 		// skip loader_data
-		IntelFunction *loader_data = reinterpret_cast<IntelFunctionList *>(function_list_)->loader_data();
+		IntelFunction* loader_data = reinterpret_cast<IntelFunctionList*>(function_list_)->loader_data();
 		if (loader_data)
 			crc_table.Remove(loader_data->entry()->address(), loader_data->entry()->dump_size());
 
@@ -4967,9 +5015,9 @@ void PEArchitecture::Save(CompileContext &ctx)
 		{
 			size_t iat_count = 0;
 			for (j = 0; j < 2; j++) {
-				PEArchitecture *source_file = (j == 0) ? this : runtime;
+				PEArchitecture* source_file = (j == 0) ? this : runtime;
 				for (i = 0; i < source_file->import_list()->count(); i++) {
-					IImport *import = source_file->import_list()->item(i);
+					IImport* import = source_file->import_list()->item(i);
 					if (import->is_sdk())
 						continue;
 
@@ -5016,7 +5064,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 			uint64_t tls_data_address = address + size;
 			for (i = 0; i < data_size; i++) {
-				if (IFixup *fixup = fixup_list()->GetFixupByAddress(tls_directory_->start_address_of_raw_data() + i))
+				if (IFixup* fixup = fixup_list()->GetFixupByAddress(tls_directory_->start_address_of_raw_data() + i))
 					fixup->set_address(tls_data_address + i);
 			}
 			tls_directory_->set_start_address_of_raw_data(tls_data_address);
@@ -5033,9 +5081,9 @@ void PEArchitecture::Save(CompileContext &ctx)
 			Resize(section->physical_offset() + section->physical_size());
 		}
 
-		std::vector<IFunction *> processor_list = function_list_->processor_list();
-		IntelRuntimeCRCTable *runtime_crc_table = reinterpret_cast<IntelFunctionList *>(function_list_)->runtime_crc_table();
-		PEIntelLoader *loader = new PEIntelLoader(NULL, cpu_address_size());
+		std::vector<IFunction*> processor_list = function_list_->processor_list();
+		IntelRuntimeCRCTable* runtime_crc_table = reinterpret_cast<IntelFunctionList*>(function_list_)->runtime_crc_table();
+		PEIntelLoader* loader = new PEIntelLoader(NULL, cpu_address_size());
 		if (security_cookie_address)
 			loader->set_security_cookie(security_cookie_address);
 		if (iat_address)
@@ -5061,8 +5109,8 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 		pos = Resize(AlignValue(this->size(), file_alignment_));
 		section = segment_list_->Add(address, UINT32_MAX, static_cast<uint32_t>(pos), UINT32_MAX,
-										IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_CNT_CODE, 
-										string_format("%s%d", ctx.options.section_name.c_str(), vmp_index++));
+			IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_CNT_CODE,
+			string_format("%s%d", ctx.options.section_name.c_str(), vmp_index++));
 		c = loader->WriteToFile(*this);
 		section->update_type(section->write_type() | ((ctx.options.sdk_flags & cpMemoryProtection) ? mtNotPaged : mtNone));
 		for (i = 0; i < processor_list.size(); i++) {
@@ -5078,9 +5126,9 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 		// copy directories
 		{
-			IArchitecture *source = const_cast<IArchitecture *>(this->source());
+			IArchitecture* source = const_cast<IArchitecture*>(this->source());
 			last_section = segment_list_->last();
-			const uint32_t copy_dir_types[] = {IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG, IMAGE_DIRECTORY_ENTRY_ARCHITECTURE};
+			const uint32_t copy_dir_types[] = { IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG, IMAGE_DIRECTORY_ENTRY_ARCHITECTURE };
 			for (j = 0; j < _countof(copy_dir_types); j++) {
 				if (copy_dir_types[j] != IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG && (ctx.options.flags & cpPack) == 0)
 					continue;
@@ -5092,7 +5140,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 					CopyFrom(*source, size);
 					address = last_section->address() + pos - last_section->physical_offset();
 					for (i = 0; i < size; i++) {
-						PEFixup *fixup = reinterpret_cast<PEFixup *>(source->fixup_list()->GetFixupByAddress(dir->address() + i));
+						PEFixup* fixup = reinterpret_cast<PEFixup*>(source->fixup_list()->GetFixupByAddress(dir->address() + i));
 						if (fixup) {
 							fixup = fixup->Clone(fixup_list_);
 							fixup->set_address(address + i);
@@ -5106,7 +5154,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 			if ((ctx.options.flags & (cpPack | cpStripDebugInfo)) == cpPack) {
 				if (debug_directory_->address()) {
 					for (i = 0; i < debug_directory_->count(); i++) {
-						PEDebugData *data = debug_directory_->item(i);
+						PEDebugData* data = debug_directory_->item(i);
 						if (source->Seek(data->offset())) {
 							size = data->size();
 							pos = Resize(AlignValue(this->size(), 0x10));
@@ -5151,7 +5199,8 @@ void PEArchitecture::Save(CompileContext &ctx)
 				section->update_type(mtReadable | mtNotDiscardable | mtNotPaged);
 				dir->set_address(address);
 				dir->set_size(size);
-			} else {
+			}
+			else {
 				dir->clear();
 			}
 		}
@@ -5173,14 +5222,15 @@ void PEArchitecture::Save(CompileContext &ctx)
 			dir->set_address(loader->iat_entry()->address());
 			dir->set_size(loader->iat_size());
 		}
-		
+
 		if (loader->export_entry()) {
 			dir = directory_list_->GetCommandByType(IMAGE_DIRECTORY_ENTRY_EXPORT);
 			if (dir) {
 				if (loader->export_size()) {
 					dir->set_address(loader->export_entry()->address());
 					dir->set_size(loader->export_size());
-				} else {
+				}
+				else {
 					dir->clear();
 				}
 			}
@@ -5192,7 +5242,8 @@ void PEArchitecture::Save(CompileContext &ctx)
 				if (loader->tls_size()) {
 					dir->set_address(loader->tls_entry()->address());
 					dir->set_size(loader->tls_size());
-				} else {
+				}
+				else {
 					dir->clear();
 				}
 			}
@@ -5204,7 +5255,8 @@ void PEArchitecture::Save(CompileContext &ctx)
 				if (loader->delay_import_size()) {
 					dir->set_address(loader->delay_import_entry()->address());
 					dir->set_size(loader->delay_import_size());
-				} else {
+				}
+				else {
 					dir->clear();
 				}
 			}
@@ -5245,21 +5297,22 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 		ctx.file->EndProgress();
 	}
-	
+
 	// save fixups
 	dir = directory_list_->GetCommandByType(IMAGE_DIRECTORY_ENTRY_BASERELOC);
 	if (dir) {
 		if (fixup_list_->Pack() == 0 || (ctx.options.flags & cpStripFixups) != 0) {
 			dir->clear();
 			fixup_section_ = NULL;
-		} else {
+		}
+		else {
 			last_section = segment_list_->last();
 			address = AlignValue(last_section->address() + last_section->size(), segment_alignment_);
 
 			pos = Resize(AlignValue(this->size(), file_alignment_));
 			size = static_cast<uint32_t>(fixup_list_->WriteToFile(*this));
 			section = segment_list_->Add(address, size, static_cast<uint32_t>(pos), AlignValue(size, file_alignment_),
-											fixup_section_flags, fixup_section_name);
+				fixup_section_flags, fixup_section_name);
 			fixup_section_ = section;
 
 			Resize(section->physical_offset() + section->physical_size());
@@ -5275,15 +5328,16 @@ void PEArchitecture::Save(CompileContext &ctx)
 		if (resource_list_->count() == 0) {
 			dir->clear();
 			resource_section_ = NULL;
-		} else {
+		}
+		else {
 			last_section = segment_list_->last();
 			address = AlignValue(last_section->address() + last_section->size(), segment_alignment_);
-			
+
 			pos = Resize(AlignValue(this->size(), file_alignment_));
 			address = AlignValue(last_section->address() + last_section->size(), segment_alignment_);
 			size = static_cast<uint32_t>(resource_list_->WriteToFile(*this, address));
 			section = segment_list_->Add(address, (uint32_t)resource_list_->size(), static_cast<uint32_t>(pos), AlignValue(size, file_alignment_),
-											resource_section_flags, resource_section_name);
+				resource_section_flags, resource_section_name);
 			resource_section_ = section;
 
 			Resize(section->physical_offset() + section->physical_size());
@@ -5309,7 +5363,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 	// clear directories
 	{
-		const uint32_t clear_dir_types[] = {IMAGE_DIRECTORY_ENTRY_SECURITY, IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT};
+		const uint32_t clear_dir_types[] = { IMAGE_DIRECTORY_ENTRY_SECURITY, IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT };
 		for (i = 0; i < _countof(clear_dir_types); i++) {
 			dir = directory_list_->GetCommandByType(clear_dir_types[i]);
 			if (dir)
@@ -5359,7 +5413,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 		// add header
 		crc_table.Add(image_base_, header_offset_ + sizeof(uint32_t) + sizeof(IMAGE_FILE_HEADER) +
-			((cpu_address_size() == osDWord) ? offsetof(IMAGE_OPTIONAL_HEADER32, DataDirectory) : offsetof(IMAGE_OPTIONAL_HEADER64, DataDirectory)) + 
+			((cpu_address_size() == osDWord) ? offsetof(IMAGE_OPTIONAL_HEADER32, DataDirectory) : offsetof(IMAGE_OPTIONAL_HEADER64, DataDirectory)) +
 			directory_list_->count() * sizeof(IMAGE_DATA_DIRECTORY) +
 			segment_list_->count() * sizeof(IMAGE_SECTION_HEADER));
 
@@ -5374,7 +5428,8 @@ void PEArchitecture::Save(CompileContext &ctx)
 
 				if (resources_address && section->address() == resources_address) {
 					size = (uint32_t)(resource_list()->store_size());
-				} else {
+				}
+				else {
 					size = std::min(static_cast<uint32_t>(section->size()), section->physical_size());
 				}
 				if (size)
@@ -5393,7 +5448,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 			((cpu_address_size() == osDWord) ? offsetof(IMAGE_OPTIONAL_HEADER32, ImageBase) : offsetof(IMAGE_OPTIONAL_HEADER64, ImageBase)),
 			OperandSizeToValue(cpu_address_size()));
 		// skip security directory
-		crc_table.Remove(image_base_ + header_offset_ + sizeof(uint32_t) + sizeof(IMAGE_FILE_HEADER) + 
+		crc_table.Remove(image_base_ + header_offset_ + sizeof(uint32_t) + sizeof(IMAGE_FILE_HEADER) +
 			((cpu_address_size() == osDWord) ? offsetof(IMAGE_OPTIONAL_HEADER32, DataDirectory) : offsetof(IMAGE_OPTIONAL_HEADER64, DataDirectory)) +
 			IMAGE_DIRECTORY_ENTRY_SECURITY * sizeof(IMAGE_DATA_DIRECTORY),
 			sizeof(IMAGE_DATA_DIRECTORY));
@@ -5406,12 +5461,13 @@ void PEArchitecture::Save(CompileContext &ctx)
 			// skip part of import table
 			if (name_table)
 				crc_table.Remove(name_table, name_table_size);
-		} else {
+		}
+		else {
 			// skip IMAGE_IMPORT_DESCRIPTOR.TimeDateStamp and IMAGE_IMPORT_DESCRIPTOR.ForwarderChain for each import DLL
 			dir = directory_list_->GetCommandByType(IMAGE_DIRECTORY_ENTRY_IMPORT);
 			if (dir) {
 				address = dir->address();
-				for (i = 0; i < dir->size()/sizeof(IMAGE_IMPORT_DESCRIPTOR); i++, address += sizeof(IMAGE_IMPORT_DESCRIPTOR)) {
+				for (i = 0; i < dir->size() / sizeof(IMAGE_IMPORT_DESCRIPTOR); i++, address += sizeof(IMAGE_IMPORT_DESCRIPTOR)) {
 					crc_table.Remove(address + offsetof(IMAGE_IMPORT_DESCRIPTOR, TimeDateStamp), sizeof(uint32_t) * 2);
 				}
 			}
@@ -5421,7 +5477,7 @@ void PEArchitecture::Save(CompileContext &ctx)
 		// skip fixups
 		if ((ctx.options.flags & cpStripFixups) == 0) {
 			for (i = 0; i < fixup_list_->count(); i++) {
-				PEFixup *fixup = fixup_list_->item(i);
+				PEFixup* fixup = fixup_list_->item(i);
 				crc_table.Remove(fixup->address(), OperandSizeToValue(fixup->size()));
 			}
 		}
@@ -5456,9 +5512,9 @@ void PEArchitecture::Save(CompileContext &ctx)
 			((cpu_address_size() == osDWord) ? offsetof(IMAGE_OPTIONAL_HEADER32, CheckSum) : offsetof(IMAGE_OPTIONAL_HEADER64, CheckSum)),
 			sizeof(uint32_t));
 		// skip position of security directory
-		crc_table.Remove(header_offset_ + sizeof(uint32_t) + sizeof(IMAGE_FILE_HEADER) + 
-			((cpu_address_size() == osDWord) ? offsetof(IMAGE_OPTIONAL_HEADER32, DataDirectory) : offsetof(IMAGE_OPTIONAL_HEADER64, DataDirectory)) + 
-			IMAGE_DIRECTORY_ENTRY_SECURITY * sizeof(IMAGE_DATA_DIRECTORY), 
+		crc_table.Remove(header_offset_ + sizeof(uint32_t) + sizeof(IMAGE_FILE_HEADER) +
+			((cpu_address_size() == osDWord) ? offsetof(IMAGE_OPTIONAL_HEADER32, DataDirectory) : offsetof(IMAGE_OPTIONAL_HEADER64, DataDirectory)) +
+			IMAGE_DIRECTORY_ENTRY_SECURITY * sizeof(IMAGE_DATA_DIRECTORY),
 			sizeof(IMAGE_DATA_DIRECTORY));
 		// skip file CRC table
 		if (AddressSeek(file_crc_address))
@@ -5504,7 +5560,7 @@ bool PEArchitecture::is_executable() const
 	return image_type() == itExe;
 }
 
-std::string PEArchitecture::ANSIToUTF8(const std::string &str) const
+std::string PEArchitecture::ANSIToUTF8(const std::string& str) const
 {
 #ifndef VMP_GNU
 	if (!os::ValidateUTF8(str))
@@ -5513,11 +5569,11 @@ std::string PEArchitecture::ANSIToUTF8(const std::string &str) const
 	return str;
 }
 
-void PEArchitecture::ReadFromBuffer(Buffer &buffer)
+void PEArchitecture::ReadFromBuffer(Buffer& buffer)
 {
 	BaseArchitecture::ReadFromBuffer(buffer);
 
-	PECFGAddressTable *cfg_address_list = load_config_directory_->cfg_address_list();
+	PECFGAddressTable* cfg_address_list = load_config_directory_->cfg_address_list();
 	size_t c = buffer.ReadDWord();
 	for (size_t i = 0; i < c; i++) {
 		cfg_address_list->Add(buffer.ReadDWord() + image_base());
@@ -5534,7 +5590,7 @@ PDBFile::PDBFile()
 
 }
 
-bool PDBFile::Parse(const char *file_name, const std::vector<uint64_t> &segments)
+bool PDBFile::Parse(const char* file_name, const std::vector<uint64_t>& segments)
 {
 	clear();
 	guid_.clear();
@@ -5565,7 +5621,7 @@ bool PDBFile::Parse(const char *file_name, const std::vector<uint64_t> &segments
 			pdb_ds_reader reader(fs);
 			if (!reader.init())
 				return false;
-			guid_.insert(guid_.begin(), reinterpret_cast<const uint8_t *>(&reader.root->guid), reinterpret_cast<const uint8_t *>(&reader.root->guid) + sizeof(reader.root->guid));
+			guid_.insert(guid_.begin(), reinterpret_cast<const uint8_t*>(&reader.root->guid), reinterpret_cast<const uint8_t*>(&reader.root->guid) + sizeof(reader.root->guid));
 			return ReadSymbols(reader);
 		}
 	}
@@ -5573,15 +5629,15 @@ bool PDBFile::Parse(const char *file_name, const std::vector<uint64_t> &segments
 	return false;
 }
 
-bool PDBFile::ReadSymbols(pdb_reader &reader)
+bool PDBFile::ReadSymbols(pdb_reader& reader)
 {
 	// read types
 	if (reader.read_file(PDB_STREAM_TPI, types_data_)) {
-		PDB_TYPES *types = reinterpret_cast<PDB_TYPES *>(types_data_.data());
+		PDB_TYPES* types = reinterpret_cast<PDB_TYPES*>(types_data_.data());
 
 		size_t offset;
 		if (types->version < 19960000) {
-			const PDB_TYPES_OLD *types_old = reinterpret_cast<const PDB_TYPES_OLD *>(types);
+			const PDB_TYPES_OLD* types_old = reinterpret_cast<const PDB_TYPES_OLD*>(types);
 			offset = sizeof(PDB_TYPES_OLD);
 			types_first_index_ = types_old->first_index;
 		}
@@ -5593,19 +5649,19 @@ bool PDBFile::ReadSymbols(pdb_reader &reader)
 		int length;
 		for (size_t i = offset; i < types_data_.size(); i += length)
 		{
-			const union codeview_type *type = reinterpret_cast<const union codeview_type*>(types_data_.data() + i);
+			const union codeview_type* type = reinterpret_cast<const union codeview_type*>(types_data_.data() + i);
 			length = type->generic.len + 2;
-			if (!type->generic.id || length < 4) 
+			if (!type->generic.id || length < 4)
 				break;
 
 			types_offset_.push_back(type);
 		}
 	}
 
-	PDB_SYMBOLS *symbols;
+	PDB_SYMBOLS* symbols;
 	std::vector<uint8_t> vsymbols, vmodimage;
 
-	if (!reader.read_file(PDB_STREAM_DBI, vsymbols)) 
+	if (!reader.read_file(PDB_STREAM_DBI, vsymbols))
 		return false;
 	symbols = reinterpret_cast<PDB_SYMBOLS*>(vsymbols.data());
 
@@ -5614,7 +5670,7 @@ bool PDBFile::ReadSymbols(pdb_reader &reader)
 		codeview_dump_symbols(vmodimage, 0);
 
 	// read per-module symbol / linenumber tables
-	const char *file = reinterpret_cast<const char*>(symbols) + sizeof(PDB_SYMBOLS);
+	const char* file = reinterpret_cast<const char*>(symbols) + sizeof(PDB_SYMBOLS);
 	while (static_cast<size_t>(file - reinterpret_cast<const char*>(symbols)) < sizeof(PDB_SYMBOLS) + symbols->module_size)
 	{
 		int file_nr, symbol_size;
@@ -5642,7 +5698,7 @@ bool PDBFile::ReadSymbols(pdb_reader &reader)
 	return true;
 }
 
-void PDBFile::AddSymbol(size_t segment, size_t offset, const std::string &name)
+void PDBFile::AddSymbol(size_t segment, size_t offset, const std::string& name)
 {
 	if (!segment || segment >= segments_.size())
 		return;
@@ -5653,26 +5709,26 @@ void PDBFile::AddSymbol(size_t segment, size_t offset, const std::string &name)
 		return;
 	map_.insert(key);
 
-	MapSection *section = GetSectionByType(msFunctions);
+	MapSection* section = GetSectionByType(msFunctions);
 	if (!section)
 		section = Add(msFunctions);
 
 	section->Add(NOT_ID, address, 0, name);
 }
 
-void PDBFile::AddSection(size_t segment, size_t offset, uint64_t size, const std::string &name)
+void PDBFile::AddSection(size_t segment, size_t offset, uint64_t size, const std::string& name)
 {
 	if (segment >= segments_.size())
 		return;
 
-	MapSection *section = GetSectionByType(msSections);
+	MapSection* section = GetSectionByType(msSections);
 	if (!section)
 		section = Add(msSections);
 
 	section->Add(segment, segments_[segment] + offset, size, name);
 }
 
-size_t leaf_length(const uint16_t *type)
+size_t leaf_length(const uint16_t* type)
 {
 	size_t res = sizeof(*type);
 	switch (*type++) {
@@ -5720,10 +5776,10 @@ size_t leaf_length(const uint16_t *type)
 	return res;
 }
 
-std::string PDBFile::GetTypeName(size_t data_type, const std::string &name)
+std::string PDBFile::GetTypeName(size_t data_type, const std::string& name)
 {
 	std::string res;
-	const p_string *p_str;
+	const p_string* p_str;
 
 	if (data_type < types_first_index_) {
 		switch (data_type) {
@@ -5867,21 +5923,21 @@ std::string PDBFile::GetTypeName(size_t data_type, const std::string &name)
 			return GetTypeName(type->array_v3.elemtype, (!name.empty() && name.front() != '*' ? "* " : "*") + name);
 		case LF_STRUCTURE_V1:
 		case LF_CLASS_V1:
-			p_str = reinterpret_cast<const p_string *>(reinterpret_cast<const char *>(&type->struct_v1.structlen) + leaf_length(&type->struct_v1.structlen));
+			p_str = reinterpret_cast<const p_string*>(reinterpret_cast<const char*>(&type->struct_v1.structlen) + leaf_length(&type->struct_v1.structlen));
 			res = (type->generic.id == LF_CLASS_V1 ? "class " : "struct ") + std::string(p_str->name, p_str->namelen);
 			break;
 		case LF_STRUCTURE_V2:
 		case LF_CLASS_V2:
-			p_str = reinterpret_cast<const p_string *>(reinterpret_cast<const char *>(&type->struct_v2.structlen) + leaf_length(&type->struct_v2.structlen));
+			p_str = reinterpret_cast<const p_string*>(reinterpret_cast<const char*>(&type->struct_v2.structlen) + leaf_length(&type->struct_v2.structlen));
 			res = (type->generic.id == LF_CLASS_V2 ? "class " : "struct ") + std::string(p_str->name, p_str->namelen);
 			break;
 		case LF_STRUCTURE_V3:
 		case LF_CLASS_V3:
-			res = (type->generic.id == LF_CLASS_V3 ? "class " : "struct ") + std::string(reinterpret_cast<const char *>(&type->struct_v3.structlen) + leaf_length(&type->struct_v3.structlen));
+			res = (type->generic.id == LF_CLASS_V3 ? "class " : "struct ") + std::string(reinterpret_cast<const char*>(&type->struct_v3.structlen) + leaf_length(&type->struct_v3.structlen));
 			break;
 		case LF_ARGLIST_V1:
 		{
-			const union codeview_reftype *ref_type = reinterpret_cast<const union codeview_reftype *>(type);
+			const union codeview_reftype* ref_type = reinterpret_cast<const union codeview_reftype*>(type);
 			if (ref_type->arglist_v2.num == 0)
 				res = GetTypeName(T_VOID, "");
 			else for (size_t i = 0; i < ref_type->arglist_v1.num; i++) {
@@ -5893,7 +5949,7 @@ std::string PDBFile::GetTypeName(size_t data_type, const std::string &name)
 		break;
 		case LF_ARGLIST_V2:
 		{
-			const union codeview_reftype *ref_type = reinterpret_cast<const union codeview_reftype *>(type);
+			const union codeview_reftype* ref_type = reinterpret_cast<const union codeview_reftype*>(type);
 			if (ref_type->arglist_v2.num == 0)
 				res = GetTypeName(T_VOID, "");
 			else for (size_t i = 0; i < ref_type->arglist_v2.num; i++) {
@@ -5908,15 +5964,15 @@ std::string PDBFile::GetTypeName(size_t data_type, const std::string &name)
 		case LF_PROCEDURE_V2:
 			return GetTypeName(type->procedure_v2.rvtype, '(' + name + ')' + '(' + GetTypeName(type->procedure_v2.arglist, "") + ')');
 		case LF_UNION_V1:
-			p_str = reinterpret_cast<const p_string *>(reinterpret_cast<const char *>(&type->union_v1.un_len) + leaf_length(&type->union_v1.un_len));
+			p_str = reinterpret_cast<const p_string*>(reinterpret_cast<const char*>(&type->union_v1.un_len) + leaf_length(&type->union_v1.un_len));
 			res = "union " + std::string(p_str->name, p_str->namelen);
 			break;
 		case LF_UNION_V2:
-			p_str = reinterpret_cast<const p_string *>(reinterpret_cast<const char *>(&type->union_v2.un_len) + leaf_length(&type->union_v2.un_len));
+			p_str = reinterpret_cast<const p_string*>(reinterpret_cast<const char*>(&type->union_v2.un_len) + leaf_length(&type->union_v2.un_len));
 			res = "union " + std::string(p_str->name, p_str->namelen);
 			break;
 		case LF_UNION_V3:
-			res = "union " + std::string(reinterpret_cast<const char *>(&type->union_v3.un_len) + leaf_length(&type->union_v3.un_len));
+			res = "union " + std::string(reinterpret_cast<const char*>(&type->union_v3.un_len) + leaf_length(&type->union_v3.un_len));
 			break;
 		case LF_ENUM_V1:
 			res = "enum " + std::string(type->enumeration_v1.p_name.name, type->enumeration_v1.p_name.namelen);
@@ -5937,7 +5993,7 @@ std::string PDBFile::GetTypeName(size_t data_type, const std::string &name)
 	return res + name;
 }
 
-void PDBFile::codeview_dump_symbols(const std::vector<uint8_t> &root, size_t offset)
+void PDBFile::codeview_dump_symbols(const std::vector<uint8_t>& root, size_t offset)
 {
 	size_t i;
 	int length;
@@ -6001,7 +6057,7 @@ void PDBFile::codeview_dump_symbols(const std::vector<uint8_t> &root, size_t off
 		case S_PROCREF_V1:
 		case S_DATAREF_V1:
 		case S_LPROCREF_V1:
-			length += (*(reinterpret_cast<const char *>(sym) + length) + 1 + 3) & ~3;
+			length += (*(reinterpret_cast<const char*>(sym) + length) + 1 + 3) & ~3;
 			break;
 		}
 	}
@@ -6011,7 +6067,7 @@ void PDBFile::codeview_dump_symbols(const std::vector<uint8_t> &root, size_t off
  * COFFStringTable
  */
 
-std::string COFFStringTable::GetString(uint32_t pos) const 
+std::string COFFStringTable::GetString(uint32_t pos) const
 {
 	if (pos < sizeof(uint32_t))
 		throw std::runtime_error("Invalid index for string table");
@@ -6034,7 +6090,7 @@ std::string COFFStringTable::GetString(uint32_t pos) const
 	return std::string(&data_[pos], len);
 }
 
-void COFFStringTable::ReadFromFile(PEArchitecture &file)
+void COFFStringTable::ReadFromFile(PEArchitecture& file)
 {
 	uint32_t size = file.ReadDWord();
 	if (size < sizeof(size))
@@ -6044,7 +6100,7 @@ void COFFStringTable::ReadFromFile(PEArchitecture &file)
 	file.Read(data_.data() + sizeof(uint32_t), data_.size() - sizeof(uint32_t));
 }
 
-void COFFStringTable::ReadFromFile(FileStream &file)
+void COFFStringTable::ReadFromFile(FileStream& file)
 {
 	uint32_t size = 0;
 	file.Read(&size, sizeof(size));
@@ -6059,7 +6115,7 @@ void COFFStringTable::ReadFromFile(FileStream &file)
 * COFFFile
 */
 
-bool COFFFile::Parse(const char *file_name, const std::vector<uint64_t> &segments)
+bool COFFFile::Parse(const char* file_name, const std::vector<uint64_t>& segments)
 {
 	clear();
 	time_stamp_ = 0;
@@ -6097,7 +6153,7 @@ bool COFFFile::Parse(const char *file_name, const std::vector<uint64_t> &segment
 									name = string_table.GetString(sym.N.Name.Long);
 								}
 								else {
-									name = std::string(reinterpret_cast<char *>(&sym.N.ShortName), strnlen(reinterpret_cast<char *>(&sym.N.ShortName), sizeof(sym.N.ShortName)));
+									name = std::string(reinterpret_cast<char*>(&sym.N.ShortName), strnlen(reinterpret_cast<char*>(&sym.N.ShortName), sizeof(sym.N.ShortName)));
 								}
 								AddSymbol(sym.SectionNumber, sym.Value, name);
 							}
@@ -6111,13 +6167,13 @@ bool COFFFile::Parse(const char *file_name, const std::vector<uint64_t> &segment
 	return false;
 }
 
-void COFFFile::AddSymbol(size_t segment, size_t offset, const std::string &name)
+void COFFFile::AddSymbol(size_t segment, size_t offset, const std::string& name)
 {
 	if (!segment || segment >= segments_.size())
 		return;
 
 	uint64_t address = segments_[segment] + offset;
-	MapSection *section = GetSectionByType(msFunctions);
+	MapSection* section = GetSectionByType(msFunctions);
 	if (!section)
 		section = Add(msFunctions);
 

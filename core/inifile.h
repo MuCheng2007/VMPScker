@@ -43,7 +43,7 @@ private:
 
 class LanguageManager;
 
-// временный костыль для проверки многопроцессорной сборки
+
 #ifdef VMP_GNU
 #define MUTEX_FILE "/tmp/VMProtect.dat.mutex"
 #endif
@@ -60,7 +60,7 @@ struct GlobalLocker
 	GlobalLocker()
 	{
 #ifdef VMP_GNU
-		// многопоточной защиты здесь нет, только многопроцессная и от рекурсии
+
 		++depth;
 		if (depth == 1)  
 		{

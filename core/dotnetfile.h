@@ -2825,8 +2825,11 @@ private:
 	std::string win_dir_;
 	std::vector<FrameworkPathInfo> dotnet_dir_list_;
 
-	struct ci_less : std::binary_function<std::string, std::string, bool>
+	struct ci_less
 	{
+		using first_argument_type = std::string;
+		using second_argument_type = std::string;
+		using result_type = bool;
 		bool operator() (const std::string &s1, const std::string &s2) const
 		{
 			return _strcmpi(s1.c_str(), s2.c_str()) < 0;

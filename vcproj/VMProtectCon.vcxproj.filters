@@ -10,7 +10,4 @@
     <ClInclude Include="..\VMProtectCon\main.h" />
     <ClInclude Include="..\VMProtectCon\console.h" />
   </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="..\core\vmprotect.rc" />
-  </ItemGroup>
 </Project>

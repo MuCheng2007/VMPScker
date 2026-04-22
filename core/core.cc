@@ -1974,10 +1974,10 @@ IArchitecture * Core::input_architecture() const
 	return (input_file_ && output_architecture_) ? input_file_->GetArchitectureByType(output_architecture_->type()) : NULL;
 }
 
-#include "version.h"
+
 const char * Core::version()
 {
-	return STR(VER_MAJOR) "." STR(VER_MINOR) "." STR(VER_PATCH);
+	return "3.5";
 }
 
 const char * Core::build()

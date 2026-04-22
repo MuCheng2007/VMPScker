@@ -147,7 +147,6 @@ SettingsFile::SettingsFile()
 
 	if (!language_manager_->GetLanguageById(language_))
 		language_ = language_manager_->default_language();
-	language_manager_->set_language(language_);
 }
 
 SettingsFile::~SettingsFile()
@@ -198,7 +197,6 @@ void SettingsFile::set_project_list(const std::vector<std::string> &project_list
 void SettingsFile::set_language(const std::string &language)
 {
 	language_ = language;
-	language_manager_->set_language(language_);
 
 	GlobalLocker locker;
 	Open();

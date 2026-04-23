@@ -8923,16 +8923,7 @@ void IntelCommand::AddJmpWithFlagSection(const CompileContext &ctx, IntelCommand
 {
 	OperandSize os = operand_[1].size;
 	uint8_t extract_to;
-#ifdef DEMO
-	extract_to = static_cast<uint8_t>(OperandSizeToStack(size_));
-
-	AddVMCommand(ctx, cmPush, otValue, size_, 0, voLinkCommand);
-	AddVMCommand(ctx, cmPush, otValue, size_, 0, voLinkCommand);
-
-	AddVMCommand(ctx, cmPush, otRegistr, size_, regESP);
-#else
 	extract_to = 1;
-#endif
 
 	switch (jmp_command_type) {
 	case cmCmpxchg:
@@ -9012,17 +9003,6 @@ void IntelCommand::AddJmpWithFlagSection(const CompileContext &ctx, IntelCommand
 		break;
 	}
 
-#ifdef DEMO
-	AddVMCommand(ctx, cmAdd, otNone, size_, false);
-
-	AddVMCommand(ctx, cmPush, otMemory, size_, segSS);
-
-	AddVMCommand(ctx, cmPop, otRegistr, size_, regEIX);
-	AddVMCommand(ctx, cmPop, otRegistr, size_, regEmpty);
-	AddVMCommand(ctx, cmPop, otRegistr, size_, regEmpty);
-
-	AddVMCommand(ctx, cmPush, otRegistr, size_, regEIX);
-#else
 	AddVMCommand(ctx, cmPush, otValue, size_, (uint64_t)-1);
 	AddVMCommand(ctx, cmAdd, otNone, size_, false);
 	AddVMCommand(ctx, cmPop, otRegistr, size_, regEIX);
@@ -9047,7 +9027,6 @@ void IntelCommand::AddJmpWithFlagSection(const CompileContext &ctx, IntelCommand
 
 	// OR addresses 
 	AddVMCommand(ctx, cmAdd, otNone, size_, false);
-#endif
 
 	AddVMCommand(ctx, cmPush, otRegistr, size_, regERX);
 	AddVMCommand(ctx, cmAdd, otNone, size_, false);
@@ -17982,13 +17961,11 @@ IntelCommand *IntelFunction::AddGate(ICommand *to_command, AddressRange *address
 	command = AddCommand(cmCall, IntelOperand(otValue, cpu_address_size()));
 	command->include_option(roUseAsJmp);
 	command->AddLink(0, ltCall, virtual_machine->entry_command());
-#ifndef DEMO
 	if (false)
 	if (virtual_machine->processor()->cpu_address_size() == cpu_address_size()) {
 		IntelObfuscation engine;
 		engine.Compile(this, old_count);
 	}
-#endif
 
 	CommandBlock *cur_block = NULL;
 	for (i = old_count; i < count(); i++) {

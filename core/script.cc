@@ -3670,10 +3670,8 @@ void CoreBinder::Register(lua_State *state)
 		{"saveProject", &SafeFunction<save_project>},
 		{"inputArchitecture", &SafeFunction<input_architecture>},
 		{"outputArchitecture", &SafeFunction<output_architecture>},
-#ifdef ULTIMATE
 		{"licenses", &SafeFunction<licenses>},
 		{"files", &SafeFunction<files>},
-#endif
 		{NULL, NULL}
 	};
 
@@ -3685,10 +3683,8 @@ void CoreBinder::Register(lua_State *state)
 	register_class(state, class_name(), methods);
 
 	ProjectOptionBinder::Register(state);
-#ifdef ULTIMATE
 	LicensesBinder::Register(state);
 	FilesBinder::Register(state);
-#endif
 	WatermarksBinder::Register(state);
 
     luaL_newlib(state, lib_methods);
@@ -3813,7 +3809,6 @@ int CoreBinder::project_file_name(lua_State *state)
 	return 1;
 }
 
-#ifdef ULTIMATE
 int CoreBinder::licenses(lua_State *state)
 {
 	Core *object = reinterpret_cast<Core *>(check_object(state, 1, class_name()));
@@ -3827,7 +3822,6 @@ int CoreBinder::files(lua_State *state)
 	push_object(state, FilesBinder::class_name(), object->file_manager());
 	return 1;
 }
-#endif
 
 int CoreBinder::watermarks(lua_State *state)
 {

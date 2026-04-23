@@ -52,6 +52,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\core\core.cc" />
+    <ClCompile Include="..\core\core_internal\core_utils.cc" />
+    <ClCompile Include="..\core\core_internal\file_manager.cc" />
+    <ClCompile Include="..\core\core_internal\license.cc" />
+    <ClCompile Include="..\core\core_internal\project_template.cc" />
+    <ClCompile Include="..\core\core_internal\rsa.cc" />
+    <ClCompile Include="..\core\core_internal\watermark.cc" />
     <ClCompile Include="..\core\files.cc" />
     <ClCompile Include="..\core\inifile.cc" />
     <ClCompile Include="..\core\intel.cc" />
@@ -81,6 +87,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\core\core.h" />
+    <ClInclude Include="..\core\core_internal\core_utils.h" />
+    <ClInclude Include="..\core\core_internal\file_manager.h" />
+    <ClInclude Include="..\core\core_internal\license.h" />
+    <ClInclude Include="..\core\core_internal\project_template.h" />
+    <ClInclude Include="..\core\core_internal\rsa.h" />
+    <ClInclude Include="..\core\core_internal\watermark.h" />
     <ClInclude Include="..\core\dotnet.h" />
     <ClInclude Include="..\core\elf.h" />
     <ClInclude Include="..\core\files.h" />
@@ -434,6 +446,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>false</TreatWarningAsError>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

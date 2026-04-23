@@ -7,11 +7,11 @@
     <Filter Include="common">
       <UniqueIdentifier>{cb40700d-7f2b-496b-b4ea-fca91daa3209}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\core_internal">
+      <UniqueIdentifier>{915455e1-9295-4156-af15-3f8352fdff3a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\core\core.cc">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\core\files.cc">
       <Filter>src</Filter>
     </ClCompile>
@@ -51,11 +51,29 @@
     <ClCompile Include="..\core\precompiled.cc">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\core\core_internal\core_utils.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\rsa.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\watermark.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\project_template.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\license.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\file_manager.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\core\core.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="..\core\intel.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -115,6 +133,27 @@
     </ClInclude>
     <ClInclude Include="..\core\pdb.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\core_utils.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\rsa.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\watermark.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\project_template.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\license.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\file_manager.h">
+      <Filter>src\core_internal</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -16,17 +16,10 @@
 #include "script.h"
 #include "pdb.h"
 
-#ifdef DEMO
-#include "win_runtime32demo.dll.inc"
-#include "win_runtime64demo.dll.inc"
-#include "win_runtime32demo.sys.inc"
-#include "win_runtime64demo.sys.inc"
-#else
 #include "win_runtime32.dll.inc"
 #include "win_runtime64.dll.inc"
 #include "win_runtime32.sys.inc"
 #include "win_runtime64.sys.inc"
-#endif
 
 
  /**
@@ -3740,16 +3733,10 @@ std::string PEFile::version() const
 
 bool PEFile::is_executable() const
 {
-#ifdef __unix__
-	return false;
-#elif __APPLE__
-	return false;
-#else
 	for (size_t i = 0; i < count(); i++) {
 		if (item(i)->is_executable())
 			return true;
 	}
-#endif
 	return false;
 }
 
@@ -4146,32 +4133,10 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 			delay_import_list_->ReadFromFile(*this, *dir);
 			break;
 		case IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR:
+			if (dir->address()) {
+				// This is a .NET assembly - not supported
 				return osUnsupportedCPU;
-
-				/*
-				if (res != osSuccess)
-					return res;
-
-				if ((net->header().Flags & COMIMAGE_FLAGS_ILONLY) == 0) {
-					switch (cpu_) {
-					case IMAGE_FILE_MACHINE_I386:
-					case IMAGE_FILE_MACHINE_AMD64:
-						function_list_ = new PEIntelFunctionList(this);
-						break;
-					default:
-						return osUnsupportedCPU;
-					}
-
-					if ((mode & foHeaderOnly) == 0) {
-						map_function_list()->ReadFromFile(*this);
-
-						IntelFileHelper helper;
-						helper.Parse(*this);
-					}
-				}
-				return osSuccess;
-				*/
-			
+			}
 			break;
 		}
 	}
@@ -4396,10 +4361,8 @@ bool PEArchitecture::Prepare(CompileContext& ctx)
 	else {
 		if (ctx.options.flags & cpResourceProtection)
 			ctx.options.flags &= ~cpResourceProtection;
-#ifdef ULTIMATE
 		if (ctx.options.file_manager)
 			ctx.options.file_manager = NULL;
-#endif
 	}
 
 	if (!BaseArchitecture::Prepare(ctx))

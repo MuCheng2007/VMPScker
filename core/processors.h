@@ -2,6 +2,7 @@
 #define PROCESSORS_H
 
 #include "osutils.h"
+#include "files.h"
 
 class CommandLink;
 class Buffer;
@@ -15,6 +16,12 @@ class MemoryManager;
 class CommandInfoList;
 class FunctionInfoList;
 class FunctionInfo;
+class IArchitecture;
+class IRuntimeFunction;
+class Watermark;
+class IVirtualMachineList;
+
+// CompilationType is defined in files.h
 
 enum OperandType : uint16_t {
 	otNone = 0x0000,

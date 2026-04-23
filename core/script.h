@@ -732,10 +732,8 @@ private:
 	static int save_project(lua_State *state);
 	static int input_architecture(lua_State *state);
 	static int output_architecture(lua_State *state);
-#ifdef ULTIMATE
 	static int licenses(lua_State *state);
 	static int files(lua_State *state);
-#endif
 };
 
 class ProjectOptionBinder
@@ -744,8 +742,6 @@ public:
 	static void Register(lua_State *state);
 	static const char *enum_name() { return "ProjectOption"; }
 };
-
-#ifdef ULTIMATE
 
 class LicensesBinder
 {
@@ -859,8 +855,6 @@ private:
 	static int set_file_name(lua_State *state);
 	static int set_action(lua_State *state);
 };
-
-#endif
 
 class WatermarksBinder
 {

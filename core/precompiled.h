@@ -70,8 +70,6 @@
 #endif
 
 #include "pe.h"
-#include "mach-o.h"
-#include "elf.h"
 #include "../third-party/tinyxml/tinyxml.h"
 
 #endif //CORE_PCH

@@ -9,7 +9,6 @@
 #include "streams.h"
 #include "files.h"
 #include "pefile.h"
-#include "dotnetfile.h"
 #include "processors.h"
 #include "intel.h"
 #include "lang.h"
@@ -29,14 +28,6 @@
 #include "win_runtime64.sys.inc"
 #endif
 
-#include "dotnet20_runtime32.dll.inc"
-#include "dotnet20_runtime64.dll.inc"
-#include "dotnet40_runtime32.dll.inc"
-#include "dotnet40_runtime64.dll.inc"
-#include "netstandard_runtime32.dll.inc"
-#include "netstandard_runtime64.dll.inc"
-#include "netcore_runtime32.dll.inc"
-#include "netcore_runtime64.dll.inc"
 
  /**
   * PESegment
@@ -3682,32 +3673,11 @@ bool PEFile::Compile(CompileOptions& options)
 		{win_runtime64_dll_file, sizeof(win_runtime64_dll_file), win_runtime64_dll_code},
 		{win_runtime32_sys_file, sizeof(win_runtime32_sys_file), win_runtime32_sys_code},
 		{win_runtime64_sys_file, sizeof(win_runtime64_sys_file), win_runtime64_sys_code},
-		{dotnet20_runtime32_dll_file, sizeof(dotnet20_runtime32_dll_file), dotnet20_runtime32_dll_code},
-		{dotnet20_runtime64_dll_file, sizeof(dotnet20_runtime64_dll_file), dotnet20_runtime64_dll_code},
-		{dotnet40_runtime32_dll_file, sizeof(dotnet40_runtime32_dll_file), dotnet40_runtime32_dll_code},
-		{dotnet40_runtime64_dll_file, sizeof(dotnet40_runtime64_dll_file), dotnet40_runtime64_dll_code},
-		{netstandard_runtime32_dll_file, sizeof(netstandard_runtime32_dll_file), netstandard_runtime32_dll_code},
-		{netstandard_runtime64_dll_file, sizeof(netstandard_runtime64_dll_file), netstandard_runtime64_dll_code},
-		{netcore_runtime32_dll_file, sizeof(netcore_runtime32_dll_file), netcore_runtime32_dll_code},
-		{netcore_runtime64_dll_file, sizeof(netcore_runtime64_dll_file), netcore_runtime64_dll_code},
+
 	};
 
 	size_t index;
-	if (count() > 1) {
-		FrameworkInfo info = reinterpret_cast<NETArchitecture*>(item(1))->command_list()->framework();
-		switch (info.type) {
-		case fwFramework:
-			index = (info.version.major >= 4) ? 6 : 4;
-			break;
-		case fwStandard:
-			index = 8;
-			break;
-		default:
-			index = 10;
-			break;
-		}
-	}
-	else
+
 		index = (arch_pe()->image_type() == itDriver) ? 2 : 0;
 
 	ResourceInfo info = runtime_info[index + (arch_pe()->cpu_address_size() == osDWord ? 0 : 1)];
@@ -3811,8 +3781,7 @@ bool PEFile::GetCheckSum(uint32_t* check_sum)
 
 std::string PEFile::exec_command() const
 {
-	if (count() > 1 && reinterpret_cast<NETArchitecture*>(item(1))->command_list()->framework().type == fwCore)
-		return "dotnet.exe";
+
 	return std::string();
 }
 
@@ -4177,11 +4146,7 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 			delay_import_list_->ReadFromFile(*this, *dir);
 			break;
 		case IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR:
-			if (dir->address()) {
-				NETArchitecture* net = new NETArchitecture(reinterpret_cast<PEFile*>(owner()));
-				owner()->AddObject(net);
-				OpenStatus res = net->ReadFromFile(mode);
-				return res;
+				return osUnsupportedCPU;
 
 				/*
 				if (res != osSuccess)
@@ -4206,7 +4171,7 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 				}
 				return osSuccess;
 				*/
-			}
+			
 			break;
 		}
 	}

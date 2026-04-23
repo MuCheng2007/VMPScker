@@ -18,9 +18,6 @@
     <ClCompile Include="..\core\intel.cc">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\macfile.cc">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\core\objects.cc">
       <Filter>src</Filter>
     </ClCompile>
@@ -54,30 +51,12 @@
     <ClCompile Include="..\core\precompiled.cc">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\dotnetfile.cc">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\il.cc">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\elffile.cc">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\objc.cc">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\dwarf.cc">
-      <Filter>src</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\core\core.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\core\intel.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\core\macfile.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\core\pefile.h">
@@ -131,23 +110,8 @@
     <ClInclude Include="..\core\dotnet.h">
       <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="..\core\dotnetfile.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\core\il.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="..\core\elf.h">
       <Filter>common</Filter>
-    </ClInclude>
-    <ClInclude Include="..\core\elffile.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\core\objc.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\core\dwarf.h">
-      <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\core\pdb.h">
       <Filter>src</Filter>

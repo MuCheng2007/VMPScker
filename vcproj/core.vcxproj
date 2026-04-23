@@ -52,16 +52,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\core\core.cc" />
-    <ClCompile Include="..\core\dotnetfile.cc" />
-    <ClCompile Include="..\core\dwarf.cc" />
-    <ClCompile Include="..\core\elffile.cc" />
     <ClCompile Include="..\core\files.cc" />
-    <ClCompile Include="..\core\il.cc" />
     <ClCompile Include="..\core\inifile.cc" />
     <ClCompile Include="..\core\intel.cc" />
     <ClCompile Include="..\core\lang.cc" />
-    <ClCompile Include="..\core\macfile.cc" />
-    <ClCompile Include="..\core\objc.cc" />
     <ClCompile Include="..\core\objects.cc" />
     <ClCompile Include="..\core\osutils.cc" />
     <ClCompile Include="..\core\packer.cc" />
@@ -88,16 +82,11 @@
   <ItemGroup>
     <ClInclude Include="..\core\core.h" />
     <ClInclude Include="..\core\dotnet.h" />
-    <ClInclude Include="..\core\dotnetfile.h" />
-    <ClInclude Include="..\core\dwarf.h" />
     <ClInclude Include="..\core\elf.h" />
-    <ClInclude Include="..\core\elffile.h" />
     <ClInclude Include="..\core\files.h" />
-    <ClInclude Include="..\core\il.h" />
     <ClInclude Include="..\core\inifile.h" />
     <ClInclude Include="..\core\intel.h" />
     <ClInclude Include="..\core\lang.h" />
-    <ClInclude Include="..\core\macfile.h" />
     <ClInclude Include="..\core\mach-o.h" />
     <ClInclude Include="..\core\objects.h" />
     <ClInclude Include="..\core\osutils.h" />
@@ -110,7 +99,6 @@
     <ClInclude Include="..\core\script.h" />
     <ClInclude Include="..\core\streams.h" />
     <ClInclude Include="..\core\resources.h" />
-    <ClInclude Include="..\core\objc.h" />
     <ClInclude Include="..\runtime\common.h" />
     <ClInclude Include="..\runtime\crypto.h" />
   </ItemGroup>

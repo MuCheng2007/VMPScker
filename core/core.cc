@@ -8,8 +8,6 @@
 #include "inifile.h"
 #include "script.h"
 #include "pefile.h"
-#include "macfile.h"
-#include "elffile.h"
 #include "lang.h"
 #include "core.h"
 
@@ -544,8 +542,7 @@ bool Core::Open(const std::string &file_name, const std::string &user_project_fi
 		if (log_)
 			log_->StartProgress(string_format("%s %s...", language[lsLoading].c_str(), os::ExtractFileName(exe_file_name.c_str()).c_str()), 1);
 
-		std::auto_ptr<IFile> file[] = { std::auto_ptr<IFile>(new PEFile(log_)), std::auto_ptr<IFile>(new MacFile(log_)), 
-			std::auto_ptr<IFile>(new ELFFile(log_))
+		std::auto_ptr<IFile> file[] = { std::auto_ptr<IFile>(new PEFile(log_))
 		};
 		std::string open_error;
 		for (i = 0; i < _countof(file); i++) {

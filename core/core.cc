@@ -11,17 +11,7 @@
 #include "lang.h"
 #include "core.h"
 
-#ifdef __APPLE__
-#include <Security/SecKey.h>
-#include <Security/SecItem.h>
-#include <Security/SecImportExport.h>
-#endif // __APPLE__
 
-#ifdef __unix__
-namespace OpenSSL {
- #include <openssl/rsa.h>
-}
-#endif //__unix__
 
 void Base64ToVector(const char *src, size_t src_len, std::vector<uint8_t> &dst)
 {
@@ -435,9 +425,7 @@ Core::Core(ILog *log /*=NULL*/)
 	watermark_manager_ = new WatermarkManager(this);
 	template_manager_ = new ProjectTemplateManager(this);
 	script_ = new Script(this);
-#ifdef __APPLE__
-	watermark_manager_->ReadFromFile(settings_file());
-#else
+
 	if (settings_file().watermarks_node_created()) {
 		// convert old settings file into new format
 		std::string ini_file_name = os::CombinePaths(os::GetSysAppDataDirectory().c_str(), "PolyTech/VMProtect/VMProtect.ini");
@@ -449,7 +437,7 @@ Core::Core(ILog *log /*=NULL*/)
 	} else {
 		watermark_manager_->ReadFromFile(settings_file());
 	}
-#endif
+
 	template_manager_->ReadFromFile(settings_file());
 }
 
@@ -532,11 +520,6 @@ bool Core::Open(const std::string &file_name, const std::string &user_project_fi
 	exe_file_name = file_name;
 	project_file_name_ = (user_project_file_name.empty()) ? GetProjectFileName(exe_file_name) : user_project_file_name;
 
-#ifdef __APPLE__
-	std::string new_file_name = os::GetMainExeFileName(exe_file_name.c_str());
-	if (!new_file_name.empty())
-		exe_file_name = new_file_name;
-#endif
 
 	if (!exe_file_name.empty()) {
 		if (log_)

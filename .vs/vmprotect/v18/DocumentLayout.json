@@ -93,71 +93,6 @@
               "IsPinned": true
             },
             {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "files.cc",
-              "DocumentMoniker": "E:\\VMPScker\\core\\files.cc",
-              "RelativeDocumentMoniker": "core\\files.cc",
-              "ToolTip": "E:\\VMPScker\\core\\files.cc",
-              "RelativeToolTip": "core\\files.cc",
-              "ViewState": "AgIAAPMPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-23T01:19:11.487Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "core.h",
-              "DocumentMoniker": "E:\\VMPScker\\core\\core.h",
-              "RelativeDocumentMoniker": "core\\core.h",
-              "ToolTip": "E:\\VMPScker\\core\\core.h",
-              "RelativeToolTip": "core\\core.h",
-              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-04-23T01:19:08.878Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "intel.cc",
-              "DocumentMoniker": "E:\\VMPScker\\core\\intel.cc",
-              "RelativeDocumentMoniker": "core\\intel.cc",
-              "ToolTip": "E:\\VMPScker\\core\\intel.cc",
-              "RelativeToolTip": "core\\intel.cc",
-              "ViewState": "AgIAAC5LAAAAAAAAAAAuwD1LAAAHAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-23T01:16:32.274Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 9,
-              "Title": "precompiled.h",
-              "DocumentMoniker": "E:\\VMPScker\\core\\precompiled.h",
-              "RelativeDocumentMoniker": "core\\precompiled.h",
-              "ToolTip": "E:\\VMPScker\\core\\precompiled.h",
-              "RelativeToolTip": "core\\precompiled.h",
-              "ViewState": "AgIAAD4AAAAAAAAAAAAkwEcAAAAPAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-04-23T01:16:17.205Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "objects.cc",
-              "DocumentMoniker": "E:\\VMPScker\\core\\objects.cc",
-              "RelativeDocumentMoniker": "core\\objects.cc",
-              "ToolTip": "E:\\VMPScker\\core\\objects.cc",
-              "RelativeToolTip": "core\\objects.cc",
-              "ViewState": "AgIAAB4AAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-23T01:13:06.62Z",
-              "EditorCaption": ""
-            },
-            {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
             },
@@ -183,6 +118,66 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "files.cc",
+              "DocumentMoniker": "E:\\VMPScker\\core\\files.cc",
+              "RelativeDocumentMoniker": "core\\files.cc",
+              "ToolTip": "E:\\VMPScker\\core\\files.cc",
+              "RelativeToolTip": "core\\files.cc",
+              "ViewState": "AgIAAPMPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-04-23T01:19:11.487Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "core.h",
+              "DocumentMoniker": "E:\\VMPScker\\core\\core.h",
+              "RelativeDocumentMoniker": "core\\core.h",
+              "ToolTip": "E:\\VMPScker\\core\\core.h",
+              "RelativeToolTip": "core\\core.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-04-23T01:19:08.878Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "intel.cc",
+              "DocumentMoniker": "E:\\VMPScker\\core\\intel.cc",
+              "RelativeDocumentMoniker": "core\\intel.cc",
+              "ToolTip": "E:\\VMPScker\\core\\intel.cc",
+              "RelativeToolTip": "core\\intel.cc",
+              "ViewState": "AgIAAC5LAAAAAAAAAAAuwD1LAAAHAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-04-23T01:16:32.274Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "precompiled.h",
+              "DocumentMoniker": "E:\\VMPScker\\core\\precompiled.h",
+              "RelativeDocumentMoniker": "core\\precompiled.h",
+              "ToolTip": "E:\\VMPScker\\core\\precompiled.h",
+              "RelativeToolTip": "core\\precompiled.h",
+              "ViewState": "AgIAAD4AAAAAAAAAAAAkwEcAAAAPAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-04-23T01:16:17.205Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "objects.cc",
+              "DocumentMoniker": "E:\\VMPScker\\core\\objects.cc",
+              "RelativeDocumentMoniker": "core\\objects.cc",
+              "ToolTip": "E:\\VMPScker\\core\\objects.cc",
+              "RelativeToolTip": "core\\objects.cc",
+              "ViewState": "AgIAAB4AAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-04-23T01:13:06.62Z"
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 1,
               "Title": "script.cc",
               "DocumentMoniker": "E:\\VMPScker\\core\\script.cc",
@@ -191,8 +186,7 @@
               "RelativeToolTip": "core\\script.cc",
               "ViewState": "AgIAAA8SAAAAAAAAAAAewB4SAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-22T16:34:48.776Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-22T16:34:48.776Z"
             },
             {
               "$type": "Document",
@@ -215,8 +209,7 @@
               "RelativeToolTip": "core\\script.h",
               "ViewState": "AgIAALgBAAAAAAAAAAAAAMQBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-04-22T16:32:16.826Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-22T16:32:16.826Z"
             },
             {
               "$type": "Document",
@@ -226,7 +219,7 @@
               "RelativeDocumentMoniker": "core\\core.cc",
               "ToolTip": "E:\\VMPScker\\core\\core.cc",
               "RelativeToolTip": "core\\core.cc",
-              "ViewState": "AgIAALIHAAAAAAAAAAAswL4HAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAPsBAAAAAAAAAAAWwAUCAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-04-22T16:02:28.195Z",
               "EditorCaption": ""
@@ -301,8 +294,7 @@
               "RelativeToolTip": "core\\pefile.cc",
               "ViewState": "AgIAACwQAAAAAAAAAAAewDoQAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-22T15:41:44.988Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-22T15:41:44.988Z"
             },
             {
               "$type": "Document",
@@ -314,8 +306,7 @@
               "RelativeToolTip": "core\\pe.h",
               "ViewState": "AgIAAGIAAAAAAAAAAAAAAGIAAABKAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-04-22T15:40:52.235Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-22T15:40:52.235Z"
             }
           ]
         }

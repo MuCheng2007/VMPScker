@@ -3,8 +3,36 @@
   "WorkspaceRootPath": "E:\\VMPScker\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\core.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\core.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\processors.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\processors.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\core.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\core.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\intel.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\intel.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\pdb.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\pdb.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\files.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\files.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F3B5035B-34E5-4A8A-9B2B-485C3C79B67A}|vcproj\\VMProtectSDK.vcxproj|E:\\VMPScker\\sdk\\sdk.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{F3B5035B-34E5-4A8A-9B2B-485C3C79B67A}|vcproj\\VMProtectSDK.vcxproj|solutionrelative:sdk\\sdk.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BF5F6D1F-48B1-4DCA-BD02-05E9C9DC5410}|vcproj\\VMProtectCon.vcxproj|E:\\VMPScker\\VMProtectCon\\main.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{BF5F6D1F-48B1-4DCA-BD02-05E9C9DC5410}|vcproj\\VMProtectCon.vcxproj|solutionrelative:VMProtectCon\\main.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\script.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -21,18 +49,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\pefile.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\pefile.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\intel.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\intel.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\files.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\files.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\core.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\core.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|E:\\VMPScker\\core\\objects.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -63,10 +79,6 @@
       "RelativeMoniker": "D:0:0:{9C3F704A-25EC-4A48-907D-DF78EA2CFC47}|vcproj\\core.vcxproj|solutionrelative:core\\lang.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{BF5F6D1F-48B1-4DCA-BD02-05E9C9DC5410}|vcproj\\VMProtectCon.vcxproj|E:\\VMPScker\\VMProtectCon\\main.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{BF5F6D1F-48B1-4DCA-BD02-05E9C9DC5410}|vcproj\\VMProtectCon.vcxproj|solutionrelative:VMProtectCon\\main.cc||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files (x86)\\MSBuild\\Microsoft.Cpp\\v4.0\\v140\\Microsoft.CppCommon.targets||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
     }
   ],
@@ -77,11 +89,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 15,
+          "SelectedChildIndex": 12,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 17,
               "Title": "ffi.h",
               "DocumentMoniker": "E:\\VMPScker\\third-party\\libffi\\include\\ffi.h",
               "RelativeDocumentMoniker": "third-party\\libffi\\include\\ffi.h",
@@ -117,44 +129,90 @@
               "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
             },
             {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "pdb.h",
+              "DocumentMoniker": "E:\\VMPScker\\core\\pdb.h",
+              "RelativeDocumentMoniker": "core\\pdb.h",
+              "ToolTip": "E:\\VMPScker\\core\\pdb.h",
+              "RelativeToolTip": "core\\pdb.h",
+              "ViewState": "AgIAAD4DAAAAAAAAAAAAAEEDAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-04-24T15:39:21.896Z",
+              "EditorCaption": ""
+            },
+            {
               "$type": "Document",
               "DocumentIndex": 6,
+              "Title": "sdk.cc",
+              "DocumentMoniker": "E:\\VMPScker\\sdk\\sdk.cc",
+              "RelativeDocumentMoniker": "sdk\\sdk.cc",
+              "ToolTip": "E:\\VMPScker\\sdk\\sdk.cc",
+              "RelativeToolTip": "sdk\\sdk.cc",
+              "ViewState": "AgIAAHwBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-04-24T14:14:31.303Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "processors.cc",
+              "DocumentMoniker": "E:\\VMPScker\\core\\processors.cc",
+              "RelativeDocumentMoniker": "core\\processors.cc",
+              "ToolTip": "E:\\VMPScker\\core\\processors.cc",
+              "RelativeToolTip": "core\\processors.cc",
+              "ViewState": "AgIAAAEIAAAAAAAAAAAkwBcIAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-04-24T14:12:07.746Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
               "Title": "files.cc",
               "DocumentMoniker": "E:\\VMPScker\\core\\files.cc",
               "RelativeDocumentMoniker": "core\\files.cc",
               "ToolTip": "E:\\VMPScker\\core\\files.cc",
               "RelativeToolTip": "core\\files.cc",
-              "ViewState": "AgIAAPMPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAF4MAAAAAAAAAAAWwGwMAAAXAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-23T01:19:11.487Z"
+              "WhenOpened": "2026-04-23T01:19:11.487Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 0,
               "Title": "core.h",
               "DocumentMoniker": "E:\\VMPScker\\core\\core.h",
               "RelativeDocumentMoniker": "core\\core.h",
-              "ToolTip": "E:\\VMPScker\\core\\core.h",
-              "RelativeToolTip": "core\\core.h",
-              "ViewState": "AgIAAAAAAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "ToolTip": "E:\\VMPScker\\core\\core.h*",
+              "RelativeToolTip": "core\\core.h*",
+              "ViewState": "AgIAAB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-04-23T01:19:08.878Z"
+              "WhenOpened": "2026-04-23T01:19:08.878Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 3,
               "Title": "intel.cc",
               "DocumentMoniker": "E:\\VMPScker\\core\\intel.cc",
               "RelativeDocumentMoniker": "core\\intel.cc",
               "ToolTip": "E:\\VMPScker\\core\\intel.cc",
               "RelativeToolTip": "core\\intel.cc",
-              "ViewState": "AgIAAC5LAAAAAAAAAAAuwD1LAAAHAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-23T01:16:32.274Z"
+              "WhenOpened": "2026-04-23T01:16:32.274Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 13,
               "Title": "precompiled.h",
               "DocumentMoniker": "E:\\VMPScker\\core\\precompiled.h",
               "RelativeDocumentMoniker": "core\\precompiled.h",
@@ -166,7 +224,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 12,
               "Title": "objects.cc",
               "DocumentMoniker": "E:\\VMPScker\\core\\objects.cc",
               "RelativeDocumentMoniker": "core\\objects.cc",
@@ -178,19 +236,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 8,
               "Title": "script.cc",
               "DocumentMoniker": "E:\\VMPScker\\core\\script.cc",
               "RelativeDocumentMoniker": "core\\script.cc",
               "ToolTip": "E:\\VMPScker\\core\\script.cc",
               "RelativeToolTip": "core\\script.cc",
-              "ViewState": "AgIAAA8SAAAAAAAAAAAewB4SAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-22T16:34:48.776Z"
+              "WhenOpened": "2026-04-22T16:34:48.776Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 19,
               "Title": "Microsoft.CppCommon.targets",
               "DocumentMoniker": "C:\\Program Files (x86)\\MSBuild\\Microsoft.Cpp\\v4.0\\v140\\Microsoft.CppCommon.targets",
               "ToolTip": "C:\\Program Files (x86)\\MSBuild\\Microsoft.Cpp\\v4.0\\v140\\Microsoft.CppCommon.targets [\u53EA\u8BFB]",
@@ -201,7 +260,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 9,
               "Title": "script.h",
               "DocumentMoniker": "E:\\VMPScker\\core\\script.h",
               "RelativeDocumentMoniker": "core\\script.h",
@@ -213,20 +272,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "core.cc",
               "DocumentMoniker": "E:\\VMPScker\\core\\core.cc",
               "RelativeDocumentMoniker": "core\\core.cc",
               "ToolTip": "E:\\VMPScker\\core\\core.cc",
               "RelativeToolTip": "core\\core.cc",
-              "ViewState": "AgIAAPsBAAAAAAAAAAAWwAUCAAAJAAAAAAAAAA==",
+              "ViewState": "AgIAAOICAAAAAAAAAAAkwOsCAAAsAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-04-22T16:02:28.195Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 18,
               "Title": "lang.h",
               "DocumentMoniker": "E:\\VMPScker\\core\\lang.h",
               "RelativeDocumentMoniker": "core\\lang.h",
@@ -238,7 +297,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 14,
               "Title": "lang.cc",
               "DocumentMoniker": "E:\\VMPScker\\core\\lang.cc",
               "RelativeDocumentMoniker": "core\\lang.cc",
@@ -250,19 +309,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 7,
               "Title": "main.cc",
               "DocumentMoniker": "E:\\VMPScker\\VMProtectCon\\main.cc",
               "RelativeDocumentMoniker": "VMProtectCon\\main.cc",
               "ToolTip": "E:\\VMPScker\\VMProtectCon\\main.cc",
               "RelativeToolTip": "VMProtectCon\\main.cc",
-              "ViewState": "AgIAAFgAAAAAAAAAAAAUwGEAAAAMAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-04-22T15:59:09.792Z"
+              "WhenOpened": "2026-04-22T15:59:09.792Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 16,
               "Title": "console.cc",
               "DocumentMoniker": "E:\\VMPScker\\VMProtectCon\\console.cc",
               "RelativeDocumentMoniker": "VMProtectCon\\console.cc",
@@ -274,7 +334,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 15,
               "Title": "inifile.h",
               "DocumentMoniker": "E:\\VMPScker\\core\\inifile.h",
               "RelativeDocumentMoniker": "core\\inifile.h",
@@ -286,7 +346,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 11,
               "Title": "pefile.cc",
               "DocumentMoniker": "E:\\VMPScker\\core\\pefile.cc",
               "RelativeDocumentMoniker": "core\\pefile.cc",
@@ -298,7 +358,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 10,
               "Title": "pe.h",
               "DocumentMoniker": "E:\\VMPScker\\core\\pe.h",
               "RelativeDocumentMoniker": "core\\pe.h",

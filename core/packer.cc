@@ -1,4 +1,4 @@
-#include "../third-party/lzma/Alloc.h"
+﻿#include "../third-party/lzma/Alloc.h"
 #include "objects.h"
 #include "files.h"
 #include "packer.h"

@@ -1,4 +1,4 @@
-#ifndef EXPORT_KEY_PAIR_DIALOG_H
+﻿#ifndef EXPORT_KEY_PAIR_DIALOG_H
 #define EXPORT_KEY_PAIR_DIALOG_H
 
 class ExportKeyPairDialog : public QDialog

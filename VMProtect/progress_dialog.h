@@ -1,4 +1,4 @@
-#ifndef PROGRESS_DIALOG_H
+﻿#ifndef PROGRESS_DIALOG_H
 #define PROGRESS_DIALOG_H
 
 class WaitCursor;

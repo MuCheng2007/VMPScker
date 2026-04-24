@@ -1,4 +1,4 @@
-/* Area:	closure_call
+﻿/* Area:	closure_call
    Purpose:	Test anonymous unsigned short argument.
    Limitations:	none.
    PR:		none.

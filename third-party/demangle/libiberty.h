@@ -1,4 +1,4 @@
-/* Function declarations for libiberty.
+﻿/* Function declarations for libiberty.
 
    Copyright (C) 1997-2021 Free Software Foundation, Inc.
    

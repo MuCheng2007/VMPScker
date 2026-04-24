@@ -1,4 +1,4 @@
-#ifndef WATERMARKS_WINDOW_H
+﻿#ifndef WATERMARKS_WINDOW_H
 #define WATERMARKS_WINDOW_H
 
 class WatermarksWindow : public QDialog

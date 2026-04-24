@@ -1,4 +1,4 @@
-#ifndef INIFILE_H
+﻿#ifndef INIFILE_H
 #define INIFILE_H
 
 long StrToIntDef(const char *str, long default_value);

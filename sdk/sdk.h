@@ -1,4 +1,4 @@
-#ifndef SDK_H
+﻿#ifndef SDK_H
 #define SDK_H
 
 #if defined(VMP_IMPORT)

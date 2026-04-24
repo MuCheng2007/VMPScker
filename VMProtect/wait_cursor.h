@@ -1,4 +1,4 @@
-#ifndef WAITCURSOR_H
+﻿#ifndef WAITCURSOR_H
 #define WAITCURSOR_H
 
 class WaitCursor

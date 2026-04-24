@@ -1,4 +1,4 @@
-#ifndef STRING_MANAGER_H
+﻿#ifndef STRING_MANAGER_H
 #define STRING_MANAGER_H
 
 class CipherRC5;

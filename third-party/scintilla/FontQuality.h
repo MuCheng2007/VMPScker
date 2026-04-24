@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+﻿// Scintilla source code edit control
 /** @file FontQuality.h
  ** Definitions to control font anti-aliasing.
  **/

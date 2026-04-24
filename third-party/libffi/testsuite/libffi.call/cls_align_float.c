@@ -1,4 +1,4 @@
-/* Area:	ffi_call, closure_call
+﻿/* Area:	ffi_call, closure_call
    Purpose:	Check structure alignment of float.
    Limitations:	none.
    PR:		none.

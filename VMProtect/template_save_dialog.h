@@ -1,4 +1,4 @@
-#ifndef TEMPLATE_SAVE_DIALOG_H
+﻿#ifndef TEMPLATE_SAVE_DIALOG_H
 #define TEMPLATE_SAVE_DIALOG_H
 
 class TemplateSaveDialog : public QDialog

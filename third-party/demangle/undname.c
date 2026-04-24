@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Demangle VC++ symbols into C function prototypes
  *
  *  Copyright 2000 Jon Griffiths

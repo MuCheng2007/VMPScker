@@ -1,4 +1,4 @@
-/* Arrays of asctime-date day and month strs, rfc1123-date day and month strs, and rfc850-date day and month strs. */
+﻿/* Arrays of asctime-date day and month strs, rfc1123-date day and month strs, and rfc850-date day and month strs. */
 static const char* kDayStrs[] = {
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 	"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};

@@ -1,4 +1,4 @@
-/* Area:	ffi_call, closure_call
+﻿/* Area:	ffi_call, closure_call
    Purpose:	Check structure passing with different structure size.
 		Contains structs as parameter of the struct itself.
 		Sample taken from Alan Modras patch to src/prep_cif.c.

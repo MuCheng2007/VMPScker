@@ -1,4 +1,4 @@
-@ECHO OFF
+﻿@ECHO OFF
 echo version.bat: generating build number...
 
 SET version_h=%1version.h

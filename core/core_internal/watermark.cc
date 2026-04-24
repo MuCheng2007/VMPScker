@@ -1,4 +1,4 @@
-#include "watermark.h"
+﻿#include "watermark.h"
 
 #include "../inifile.h"
 #include "../files.h"

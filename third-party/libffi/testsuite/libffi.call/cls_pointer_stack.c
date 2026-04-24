@@ -1,4 +1,4 @@
-/* Area:		ffi_call, closure_call
+﻿/* Area:		ffi_call, closure_call
    Purpose:		Check pointer arguments across multiple hideous stack frames.
    Limitations:	none.
    PR:			none.

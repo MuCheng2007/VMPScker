@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef ICORE_C_PCH
 #define ICORE_C_PCH
 

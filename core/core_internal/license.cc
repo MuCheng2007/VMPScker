@@ -1,4 +1,4 @@
-#include "license.h"
+﻿#include "license.h"
 
 #include "../../runtime/crypto.h"
 #include "../lang.h"

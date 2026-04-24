@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Support of object hierarchy.
  */
 

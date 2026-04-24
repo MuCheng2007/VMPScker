@@ -1,4 +1,4 @@
-/* Area:	ffi_call, closure_call
+﻿/* Area:	ffi_call, closure_call
    Purpose:	Check structure alignment of long double.
    Limitations:	none.
    PR:		none.

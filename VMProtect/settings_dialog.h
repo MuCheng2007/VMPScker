@@ -1,4 +1,4 @@
-#ifndef SETTINGS_DIALOG_H
+﻿#ifndef SETTINGS_DIALOG_H
 #define SETTINGS_DIALOG_H
 
 class SettingsDialog : public QDialog

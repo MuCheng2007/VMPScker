@@ -1,4 +1,4 @@
-/* Area:		ffi_call, closure_call
+﻿/* Area:		ffi_call, closure_call
    Purpose:		Check long double arguments.
    Limitations:	none.
    PR:			none.

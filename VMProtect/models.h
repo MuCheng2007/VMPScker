@@ -1,4 +1,4 @@
-#ifndef MODELS_H
+﻿#ifndef MODELS_H
 #define MODELS_H
 
 #include "widgets.h"

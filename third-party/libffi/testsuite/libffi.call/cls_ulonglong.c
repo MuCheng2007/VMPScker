@@ -1,4 +1,4 @@
-/* Area:	closure_call
+﻿/* Area:	closure_call
    Purpose:	Check return value long long.
    Limitations:	none.
    PR:		none.

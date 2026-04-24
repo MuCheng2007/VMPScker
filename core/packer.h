@@ -1,4 +1,4 @@
-#ifndef PACKER_H
+﻿#ifndef PACKER_H
 #define PACKER_H
 
 #include "../third-party/lzma/LzmaEnc.h"

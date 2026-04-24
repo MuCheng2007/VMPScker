@@ -1,4 +1,4 @@
-/* Area:	ffi_call
+﻿/* Area:	ffi_call
    Purpose:	Check that negative integers are passed correctly.
    Limitations:	none.
    PR:		none.

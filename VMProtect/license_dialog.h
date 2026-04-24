@@ -1,4 +1,4 @@
-#ifndef LICENSE_DIALOG_H
+﻿#ifndef LICENSE_DIALOG_H
 #define LICENSE_DIALOG_H
 
 class LicenseDialog : public QDialog

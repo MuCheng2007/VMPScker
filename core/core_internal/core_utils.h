@@ -1,4 +1,4 @@
-#ifndef CORE_UTILS_H
+﻿#ifndef CORE_UTILS_H
 #define CORE_UTILS_H
 
 #include "../../runtime/common.h"

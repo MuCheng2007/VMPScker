@@ -1,4 +1,4 @@
-/* Area:	ffi_call
+﻿/* Area:	ffi_call
    Purpose:	Check if long long are passed in the corresponding regs on ppc.
    Limitations:	none.
    PR:		20104.

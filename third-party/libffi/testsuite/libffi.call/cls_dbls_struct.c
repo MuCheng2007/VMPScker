@@ -1,4 +1,4 @@
-/* Area:		ffi_call, closure_call
+﻿/* Area:		ffi_call, closure_call
    Purpose:		Check double arguments in structs.
    Limitations:	none.
    PR:			none.

@@ -1,4 +1,4 @@
-#include "../core/objects.h"
+﻿#include "../core/objects.h"
 #include "../core/files.h"
 #include "../core/lang.h"
 

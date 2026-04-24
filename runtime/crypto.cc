@@ -1,4 +1,4 @@
-#include "common.h"
+﻿#include "common.h"
 #include "crypto.h"
 
 uint32_t rand32()

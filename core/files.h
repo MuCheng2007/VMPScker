@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Operations with executable files.
  */
 
@@ -6,6 +6,10 @@
 #define FILES_H
 
 #include "../runtime/common.h"
+
+// 前向声明
+class LicensingManager;
+class FileManager;
 
 std::string NameToString(const char name[], size_t name_size);
 std::string DisplayString(const std::string &str);

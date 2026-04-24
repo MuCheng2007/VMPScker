@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Support of PE executable files.
  */
 

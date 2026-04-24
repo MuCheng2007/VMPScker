@@ -1,4 +1,4 @@
-/* Area:	ffi_call, closure_call
+﻿/* Area:	ffi_call, closure_call
    Purpose:	Check structure passing with different structure size.
 		Depending on the ABI. Double alignment check on darwin.
    Limitations:	none.

@@ -1,4 +1,4 @@
-/* Area:	closure_call
+﻿/* Area:	closure_call
    Purpose:	Check multiple values passing from different type.
 		Also, exceed the limit of gpr and fpr registers on PowerPC
 		Darwin.

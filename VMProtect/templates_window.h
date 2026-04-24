@@ -1,4 +1,4 @@
-#ifndef TEMPLATES_WINDOW_H
+﻿#ifndef TEMPLATES_WINDOW_H
 #define TEMPLATES_WINDOW_H
 
 class TemplatesWindow : public QDialog

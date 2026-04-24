@@ -1,4 +1,4 @@
-#ifndef HOOK_MANAGER_H
+﻿#ifndef HOOK_MANAGER_H
 #define HOOK_MANAGER_H
 
 class HookedAPI

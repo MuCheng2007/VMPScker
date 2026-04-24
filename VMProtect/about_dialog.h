@@ -1,4 +1,4 @@
-#ifndef ABOUT_DIALOG_H
+﻿#ifndef ABOUT_DIALOG_H
 #define ABOUT_DIALOG_H
 
 class AboutDialog : public QDialog

@@ -1,4 +1,4 @@
-/* Area:	closure_call
+﻿/* Area:	closure_call
    Purpose:	Check simple closure handling with all ABIs
    Limitations:	none.
    PR:		none.

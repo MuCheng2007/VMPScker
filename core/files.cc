@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Operations with executable files.
  */
 
@@ -16,6 +16,11 @@
 #include "../third-party/demangle/undname.h"
 #include "../third-party/demangle/demangle.h"
 #include "../third-party/demangle/unmangle.h"
+
+
+#include "core_internal/watermark.h"
+#include "core_internal/license.h"
+#include "core_internal/file_manager.h"
 
 uint16_t OperandSizeToValue(OperandSize os)
 {
@@ -3171,14 +3176,8 @@ bool BaseArchitecture::Prepare(CompileContext &ctx)
 	}
 #endif
 
-#ifndef DEMO
-	if (
-		(ctx.options.flags & cpUnregisteredVersion)
-#ifdef ULTIMATE
-		|| !ctx.options.hwid.empty()
-#endif
-		)
-#endif
+
+	if (!ctx.options.hwid.empty())
 		runtime_options |= roHWID;
 
 	if (runtime_options || ctx.options.sdk_flags) {

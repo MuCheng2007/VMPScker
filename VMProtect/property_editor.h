@@ -1,4 +1,4 @@
-#ifndef PROPERTY_EDITOR_H
+﻿#ifndef PROPERTY_EDITOR_H
 #define PROPERTY_EDITOR_H
 
 class Property : public QObject

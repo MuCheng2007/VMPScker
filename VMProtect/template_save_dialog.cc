@@ -1,8 +1,12 @@
-#include "../core/objects.h"
+﻿#include "../core/objects.h"
 #include "../core/files.h"
 #include "../core/lang.h"
 #include "../core/core.h"
 //#include "../core/inifile.h"
+
+// 按需包含内部头文件
+#include "../core/core_internal/project_template.h"
+
 #include "widgets.h"
 #include "template_save_dialog.h"
 #include "help_browser.h"

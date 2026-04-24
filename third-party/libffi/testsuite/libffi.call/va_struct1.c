@@ -1,4 +1,4 @@
-/* Area:		ffi_call
+﻿/* Area:		ffi_call
    Purpose:		Test passing struct in variable argument lists.
    Limitations:	none.
    PR:			none.

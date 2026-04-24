@@ -1,4 +1,4 @@
-#ifndef HELP_BROWSER_H
+﻿#ifndef HELP_BROWSER_H
 #define HELP_BROWSER_H
 
 class TextBrowser;

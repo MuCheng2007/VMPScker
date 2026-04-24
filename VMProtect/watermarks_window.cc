@@ -1,4 +1,4 @@
-#include "../core/objects.h"
+﻿#include "../core/objects.h"
 #include "../core/osutils.h"
 #include "../core/core.h"
 #include "../core/streams.h"
@@ -7,6 +7,10 @@
 #include "../core/macfile.h"
 #include "../core/elffile.h"
 #include "../core/lang.h"
+
+// 按需包含内部头文件
+#include "../core/core_internal/watermark.h"
+
 #include "models.h"
 #include "widgets.h"
 #include "progress_dialog.h"

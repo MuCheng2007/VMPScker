@@ -1,4 +1,4 @@
-#ifndef FUNCTION_DIALOG_H
+﻿#ifndef FUNCTION_DIALOG_H
 #define FUNCTION_DIALOG_H
 
 struct AddressInfo {

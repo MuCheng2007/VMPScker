@@ -1,4 +1,4 @@
-#include "../runtime/common.h"
+﻿#include "../runtime/common.h"
 #include "../runtime/crypto.h"
 #include "../runtime/loader.h"
 #include "objects.h"
@@ -15,6 +15,11 @@
 #include "intel.h"
 
 #include <intrin.h>
+
+
+#include "core_internal/watermark.h"
+#include "core_internal/file_manager.h"
+#include "core_internal/license.h"
 
 /**
  * IntelCommand
@@ -21582,31 +21587,9 @@ bool IntelRuntimeData::Init(const CompileContext &ctx)
 	VMProtectBeginVirtualization("Trial HWID");
 	trial_hwid_entry_ = NULL;
 	trial_hwid_size_ = 0;
-#ifdef DEMO
-	if (true)
-#else
-	if (ctx.options.flags & cpUnregisteredVersion)
-#endif
-	{
-		size_t size = VMProtectGetCurrentHWID(NULL, 0);
-		std::vector<char> hwid;
-		hwid.resize(size);
-		VMProtectGetCurrentHWID(hwid.data(), (int)hwid.size());
 
-		std::vector<uint8_t> binary;
-		binary.resize(size);
-		Base64Decode(hwid.data(), hwid.size(), binary.data(), size);
-
-		Data data;
-		data.PushBuff(binary.data(), binary.size());
-		data.resize(64);
-
-		trial_hwid_size_ = static_cast<uint32_t>(std::min(size, data.size()));
-		trial_hwid_entry_ = AddCommand(data);
-		trial_hwid_entry_->include_option(roCreateNewBlock);
-	}
 #ifdef ULTIMATE
-	else if (!ctx.options.hwid.empty()) {
+	if (!ctx.options.hwid.empty()) {
 		std::string hwid = ctx.options.hwid;
 		size_t size = hwid.size();
 
@@ -23261,13 +23244,7 @@ bool PEIntelLoader::Prepare(const CompileContext &ctx)
 	loader_string_list[FACE_VIRTUAL_MACHINE_FOUND] = AddCommand(EncryptString(os::FromUTF8(ctx.options.messages[MESSAGE_VIRTUAL_MACHINE_FOUND]).c_str(), string_key));
 	loader_string_list[FACE_INITIALIZATION_ERROR] = AddCommand(EncryptString(os::FromUTF8("Initialization error %d").c_str(), string_key));
 	VMProtectBeginVirtualization("Loader Strings");
-	loader_string_list[FACE_UNREGISTERED_VERSION] = AddCommand(EncryptString(
-#ifdef DEMO
-		true
-#else
-		(ctx.options.flags & cpUnregisteredVersion)
-#endif
-		? os::FromUTF8(VMProtectDecryptStringA("This application is protected with unregistered version of VMProtect.")).c_str() : os::unicode_string().c_str(), string_key));
+	loader_string_list[FACE_UNREGISTERED_VERSION] = AddCommand(EncryptString(os::unicode_string().c_str(), string_key));
 	VMProtectEnd();
 	loader_string_list[FACE_SICE_NAME] = AddCommand(EncryptString("sice.sys", string_key));
 	loader_string_list[FACE_SIWVID_NAME] = AddCommand(EncryptString("siwvid.sys", string_key));
@@ -24970,24 +24947,7 @@ void IntelVirtualMachine::InitCommands(const CompileContext &ctx, const IntelOpc
 	}
 
 	// init registers
-	if 
-#ifdef DEMO
-		(true)
-#else
-		(ctx.options.flags & cpUnregisteredVersion)
-#endif	
-	{
-		crypt_registr_ = (ctx.options.flags & cpEncryptBytecode) ? regEBX : 0;
-		pcode_registr_ = regESI;
-		stack_registr_ = regEBP;
-		if (type_ == vtAdvanced)
-			jmp_registr_ = regEDI;
-		else if (cpu_address_size == osQWord)
-			jmp_registr_ = regR11;
-		else
-			jmp_registr_ = 0;
-	}
-	else {
+
 		IntelRegistrList work_registr_list;
 		work_registr_list.push_back(regEBX);
 		work_registr_list.push_back(regEBP);
@@ -25012,7 +24972,7 @@ void IntelVirtualMachine::InitCommands(const CompileContext &ctx, const IntelOpc
 		pcode_registr_ = work_registr_list.GetRandom();
 		stack_registr_ = work_registr_list.GetRandom();
 		jmp_registr_ = (type_ == vtAdvanced || cpu_address_size == osQWord) ? work_registr_list.GetRandom() : 0;
-	}
+	
 
 	free_registr_list_.push_back(regEAX);
 	free_registr_list_.push_back(regECX);
@@ -27020,12 +26980,8 @@ void IntelVirtualMachineList::Prepare(const CompileContext &ctx)
 	OperandSize cpu_address_size = ctx.file->cpu_address_size();
 
 	VirtualMachineType type =
-#ifdef DEMO
-		true
-#else
-		((ctx.options.flags & cpUnregisteredVersion) != 0 || ((ctx.options.vm_flags & 1) != 0))
-#endif	
-		? vtClassic : vtAdvanced;
+
+		((ctx.options.flags & cpClassicVM) != 0) ? vtClassic : vtAdvanced;
 
 	if (ctx.runtime) {
 		visible_opcode_list.Add(cmCall, otNone, cpu_address_size, 0);
@@ -27170,9 +27126,8 @@ void IntelVirtualMachineList::Prepare(const CompileContext &ctx)
 			AddObject(virtual_machine);
 			CompileContext new_ctx;
 			new_ctx.options.vm_count = 1;
-#ifndef DEMO
-			new_ctx.options.flags = ctx.options.flags & (cpUnregisteredVersion | cpEncryptBytecode);
-#endif
+			new_ctx.options.flags = ctx.options.flags & (cpEncryptBytecode);
+
 			new_ctx.file = ctx.file;
 			visible_opcode_list.clear();
 			visible_opcode_list.Add(cmRet, otNone, osQWord, 1);

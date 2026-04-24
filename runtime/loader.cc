@@ -1,4 +1,4 @@
-#include "common.h"
+﻿#include "common.h"
 #include "loader.h"
 #include "crypto.h"
 #include "../third-party/lzma/LzmaDecode.h"

@@ -1,4 +1,4 @@
-/* Area:	ffi_call, closure_call
+﻿/* Area:	ffi_call, closure_call
    Purpose:	Check structure passing with different structure size.
 		Especially with small structures which may fit in one
 		register. Depending on the ABI. Check overlapping.

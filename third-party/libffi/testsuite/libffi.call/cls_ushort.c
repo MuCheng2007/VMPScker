@@ -1,4 +1,4 @@
-/* Area:	closure_call
+﻿/* Area:	closure_call
    Purpose:	Check return value ushort.
    Limitations:	none.
    PR:		none.

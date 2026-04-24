@@ -1,4 +1,4 @@
-#ifndef SCRIPT_H
+﻿#ifndef SCRIPT_H
 #define SCRIPT_H
 
 #include "../third-party/lua/lua.hpp"

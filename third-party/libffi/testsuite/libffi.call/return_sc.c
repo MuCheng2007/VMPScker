@@ -1,4 +1,4 @@
-/* Area:	ffi_call
+﻿/* Area:	ffi_call
    Purpose:	Check return value signed char.
    Limitations:	none.
    PR:		none.

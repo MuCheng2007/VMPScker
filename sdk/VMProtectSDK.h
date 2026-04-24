@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #if defined(__APPLE__) || defined(__unix__)
 #define VMP_IMPORT 

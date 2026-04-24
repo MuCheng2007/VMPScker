@@ -1,4 +1,4 @@
-#ifndef INTEL_H
+﻿#ifndef INTEL_H
 #define INTEL_H
 
 enum IntelCommandType : uint16_t

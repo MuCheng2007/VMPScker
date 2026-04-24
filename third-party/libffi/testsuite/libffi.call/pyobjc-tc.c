@@ -1,4 +1,4 @@
-/* Area:	ffi_call
+﻿/* Area:	ffi_call
    Purpose:	Check different structures.
    Limitations:	none.
    PR:		none.

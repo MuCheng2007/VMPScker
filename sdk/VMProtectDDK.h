@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define VMP_IMPORT __declspec(dllimport)
 #define VMP_API __stdcall

@@ -1,7 +1,11 @@
-#ifdef ULTIMATE
+﻿#ifdef ULTIMATE
 #include "../core/objects.h"
 #include "../core/core.h"
 #include "../core/lang.h"
+
+// 按需包含内部头文件
+#include "../core/core_internal/license.h"
+
 #include "widgets.h"
 #include "license_dialog.h"
 #include "moc/moc_license_dialog.cc"

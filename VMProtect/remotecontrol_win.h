@@ -1,4 +1,4 @@
-#ifndef REMOTECONTROL_WIN_H
+﻿#ifndef REMOTECONTROL_WIN_H
 #define REMOTECONTROL_WIN_H
 
 class StdInListenerWin : public QThread

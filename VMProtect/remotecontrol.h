@@ -1,4 +1,4 @@
-#ifndef REMOTECONTROL_H
+﻿#ifndef REMOTECONTROL_H
 #define REMOTECONTROL_H
 
 #include <QtCore/QObject>

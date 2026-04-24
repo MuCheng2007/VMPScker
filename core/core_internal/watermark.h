@@ -1,4 +1,4 @@
-#ifndef WATERMARK_H
+﻿#ifndef WATERMARK_H
 #define WATERMARK_H
 
 #include "../../runtime/common.h"

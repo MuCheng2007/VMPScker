@@ -1,4 +1,4 @@
-/*
+﻿/*
   LzmaDecode.c
   LZMA Decoder (optimized for Speed version)
 

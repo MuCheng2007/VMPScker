@@ -1,4 +1,4 @@
-/* Area:	ffi_call
+﻿/* Area:	ffi_call
    Purpose:	Check strlen function call.
    Limitations:	none.
    PR:		none.

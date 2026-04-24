@@ -1,4 +1,4 @@
-#include "project_template.h"
+﻿#include "project_template.h"
 
 #include "../lang.h"
 #include "../osutils.h"

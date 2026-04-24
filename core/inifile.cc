@@ -1,4 +1,4 @@
-#include "objects.h"
+﻿#include "objects.h"
 #include "inifile.h"
 #include "osutils.h"
 #include "lang.h"

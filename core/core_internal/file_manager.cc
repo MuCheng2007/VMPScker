@@ -1,4 +1,4 @@
-#include "file_manager.h"
+﻿#include "file_manager.h"
 
 #include "../lang.h"
 #include "../osutils.h"
@@ -8,6 +8,10 @@
 
 #ifdef _WIN32
 #include <intrin.h>
+// _rotl32 intrinsic might need this on some compiler versions
+#ifndef _rotl32
+#define _rotl32(x, n) ((x) << (n) | (x) >> (32 - (n)))
+#endif
 #endif
 
 FileFolder::FileFolder(FileFolder *owner, const std::string &name)

@@ -1,4 +1,4 @@
-#include "../core/objects.h"
+﻿#include "../core/objects.h"
 #include "../core/osutils.h"
 #include "application.h"
 #include "moc/moc_application.cc"

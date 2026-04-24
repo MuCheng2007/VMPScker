@@ -1,6 +1,10 @@
-#include "../core/objects.h"
+﻿#include "../core/objects.h"
 #include "../core/lang.h"
 #include "../core/core.h"
+
+// 按需包含内部头文件
+#include "../core/core_internal/watermark.h"
+
 #include "widgets.h"
 #include "watermark_dialog.h"
 #include "moc/moc_watermark_dialog.cc"

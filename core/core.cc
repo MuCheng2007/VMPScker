@@ -1,4 +1,4 @@
-#include "../runtime/crypto.h"
+﻿#include "../runtime/crypto.h"
 
 #include "objects.h"
 #include "osutils.h"
@@ -263,6 +263,7 @@ bool Core::LoadFromXML(const char *project_file_name)
 			u = 0;
 			protection_node->QueryUnsignedAttribute("VMOptions", &u);
 			vm_options_ = u;
+
 			if (version < 2) {
 				bool check_kernel_debugger = false;
 				protection_node->QueryBoolAttribute("CheckKernelDebugger", &check_kernel_debugger);
@@ -744,6 +745,7 @@ bool Core::Save()
 		}
 		protection_node->SetAttribute("InputFileName", input_file_name_);
 		protection_node->SetAttribute("Options", options_);
+		protection_node->SetAttribute("VMOptions", vm_options_);
 		protection_node->SetAttribute("VMCodeSectionName", vm_section_name_);
 
 		if (!hwid_.empty())
@@ -1283,29 +1285,18 @@ bool Core::Compile()
 	options.flags &= ~input_file_->disable_options();
 	if ((options.flags & cpCheckDebugger) == 0)
 		options.flags &= ~cpCheckKernelDebugger;
-	if (VMProtectGetSerialNumberState() == SERIAL_STATE_SUCCESS) {
+
 		options.flags |= cpEncryptBytecode;
 		if ((options.flags & cpMemoryProtection) == 0)
 			options.flags |= cpLoaderCRC;
-	} else 
-		options.flags |= cpUnregisteredVersion;
 
 	options.section_name = vm_section_name_;
 	options.vm_flags = vm_options_;
-	options.vm_count = 
-		((options.flags & cpUnregisteredVersion) != 0 || (options.vm_flags & 2) != 0)
-		? 1 : 10;
+	options.vm_count = 10;
 	for (size_t i = 0; i < _countof(options.messages); i++) {
 		options.messages[i] = messages_[i];
 	}
 
-	if (options.flags & cpUnregisteredVersion)
-		options.messages[MESSAGE_HWID_MISMATCHED] = 
-#ifdef VMP_GNU
-				VMProtectDecryptStringA(MESSAGE_UNREGISTERED_VERSION_STR);
-#else
-				os::ToUTF8(VMProtectDecryptStringW(MESSAGE_UNREGISTERED_VERSION_STR));
-#endif
 
 	options.watermark = watermark;
 	options.script = script_;
@@ -1456,6 +1447,11 @@ void Core::set_license_data_file_name(const std::string &license_data_file_name)
 		Notify(mtChanged, this);
 		licensing_manager_->Open(os::CombinePaths(project_path().c_str(), license_data_file_name_.c_str()));
 	}
+}
+
+std::string Core::activation_server() const
+{
+	return licensing_manager_->activation_server();
 }
 
 void Core::set_activation_server(const std::string &activation_server)

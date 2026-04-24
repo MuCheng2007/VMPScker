@@ -1,4 +1,4 @@
-#include "help_browser.h" 
+﻿#include "help_browser.h" 
 #include "message_dialog.h" 
 #include "widgets.h" 
 #include "moc/moc_help_browser.cc"

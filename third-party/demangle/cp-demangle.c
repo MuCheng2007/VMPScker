@@ -1,4 +1,4 @@
-/* Demangler for g++ V3 ABI.
+﻿/* Demangler for g++ V3 ABI.
    Copyright (C) 2003-2021 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@wasabisystems.com>.
 

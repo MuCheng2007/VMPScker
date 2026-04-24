@@ -1,4 +1,4 @@
-#ifndef HWID_H
+﻿#ifndef HWID_H
 #define HWID_H
 
 class CryptoContainer;

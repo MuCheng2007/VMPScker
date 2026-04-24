@@ -1,4 +1,4 @@
-//#include "../core/objects.h"
+﻿//#include "../core/objects.h"
 #include "remotecontrol.h"
 #include "moc/moc_remotecontrol.cc"
 

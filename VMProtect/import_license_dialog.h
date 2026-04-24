@@ -1,4 +1,4 @@
-#ifndef IMPORT_LICENSE_DIALOG_H
+﻿#ifndef IMPORT_LICENSE_DIALOG_H
 #define IMPORT_LICENSE_DIALOG_H
 
 class ImportLicenseDialog : public QDialog

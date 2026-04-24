@@ -1,4 +1,4 @@
-/* Area:	closure_call
+﻿/* Area:	closure_call
    Purpose:	Check return value double.
    Limitations:	none.
    PR:		none.

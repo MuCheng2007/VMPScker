@@ -1,4 +1,4 @@
-#include "common.h"
+﻿#include "common.h"
 #include "objects.h"
 #include "utils.h"
 #include "hwid.h"

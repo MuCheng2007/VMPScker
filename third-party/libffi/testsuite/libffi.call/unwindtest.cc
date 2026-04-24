@@ -1,4 +1,4 @@
-/* Area:	ffi_closure, unwind info
+﻿/* Area:	ffi_closure, unwind info
    Purpose:	Check if the unwind information is passed correctly.
    Limitations:	none.
    PR:		none.

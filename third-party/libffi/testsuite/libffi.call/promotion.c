@@ -1,4 +1,4 @@
-/* Area:	ffi_call
+﻿/* Area:	ffi_call
    Purpose:	Promotion test.
    Limitations:	none.
    PR:		none.

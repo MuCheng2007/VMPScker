@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef PRECOMMON_PCH
 #define PRECOMMON_PCH
 

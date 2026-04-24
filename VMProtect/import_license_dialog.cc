@@ -1,4 +1,4 @@
-#include "../core/objects.h"
+﻿#include "../core/objects.h"
 #include "../core/lang.h"
 #include "import_license_dialog.h"
 #include "widgets.h"

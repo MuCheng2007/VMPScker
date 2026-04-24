@@ -1,4 +1,4 @@
-// Scintilla source code edit control
+﻿// Scintilla source code edit control
 /** @file Catalogue.h
  ** Lexer infrastructure.
  **/

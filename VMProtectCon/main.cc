@@ -5,6 +5,9 @@
 #include "../core/core.h"
 #include "../core/script.h"
 #include "../core/lang.h"
+
+#include "../core/core_internal/license.h"
+
 #include "console.h"
 #include "main.h"
 

@@ -1,4 +1,4 @@
-/* Area:	closure_call
+﻿/* Area:	closure_call
    Purpose:	Check return value uchar.
    Limitations:	none.
    PR:		none.

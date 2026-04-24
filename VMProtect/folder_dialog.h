@@ -1,4 +1,4 @@
-#ifndef FOLDER_DIALOG_H
+﻿#ifndef FOLDER_DIALOG_H
 #define FOLDER_DIALOG_H
 
 #include <QtGui/QDialog>

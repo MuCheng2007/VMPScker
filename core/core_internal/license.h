@@ -1,4 +1,4 @@
-#ifndef LICENSE_H
+﻿#ifndef LICENSE_H
 #define LICENSE_H
 
 #include "../../runtime/common.h"

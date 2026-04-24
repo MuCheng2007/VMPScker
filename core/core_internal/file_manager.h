@@ -1,4 +1,4 @@
-#ifndef FILE_MANAGER_H
+﻿#ifndef FILE_MANAGER_H
 #define FILE_MANAGER_H
 
 #include "../../runtime/common.h"

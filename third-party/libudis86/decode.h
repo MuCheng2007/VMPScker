@@ -1,4 +1,4 @@
-#ifndef UD_DECODE_H
+﻿#ifndef UD_DECODE_H
 #define UD_DECODE_H
 
 #define MAX_INSN_LENGTH 15

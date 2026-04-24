@@ -1,4 +1,4 @@
-/* Area:		ffi_call, closure_call
+﻿/* Area:		ffi_call, closure_call
    Purpose:		Test doubles passed in variable argument lists.
    Limitations:	none.
    PR:			none.

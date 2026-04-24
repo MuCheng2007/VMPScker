@@ -1,4 +1,4 @@
-/* -----------------------------------------------------------------------
+﻿/* -----------------------------------------------------------------------
    ffi_common.h - Copyright (C) 2011, 2012, 2013  Anthony Green
                   Copyright (C) 2007  Free Software Foundation, Inc
                   Copyright (c) 1996  Red Hat, Inc.

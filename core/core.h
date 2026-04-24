@@ -1,13 +1,15 @@
-#ifndef CORE_H
+﻿#ifndef CORE_H
 #define CORE_H
 
 #include "../runtime/common.h"
-#include "core_internal/core_utils.h"
-#include "core_internal/watermark.h"
-#include "core_internal/project_template.h"
 
-#include "core_internal/license.h"
-#include "core_internal/file_manager.h"
+
+class WatermarkManager;
+class ProjectTemplateManager;
+class LicensingManager;
+class FileManager;
+class Watermark;
+class ProjectTemplate;
 
 enum ProjectOption {
 	cpDebugMode             = 0x00000002,
@@ -24,9 +26,10 @@ enum ProjectOption {
 	cpResourceProtection    = 0x00010000,
 	cpCheckKernelDebugger	= 0x00020000,
 	cpStripDebugInfo		= 0x00040000,
+	cpClassicVM             = 0x00080000, 
 
 	cpLoaderCRC				= 0x10000000,
-	cpUnregisteredVersion   = 0x40000000,
+
 	cpEncryptBytecode       = 0x80000000,
 	cpVirtualFiles			= 0x08000000,
 	cpInternalMemoryProtection = 0x04000000,
@@ -129,7 +132,7 @@ public:
 	FileManager *file_manager() const { return file_manager_; }
 	std::string license_data_file_name() const { return license_data_file_name_; }
 	void set_license_data_file_name(const std::string &license_data_file_name);
-	std::string activation_server() const { return licensing_manager_->activation_server(); }
+	std::string activation_server() const;
 	void set_activation_server(const std::string &activation_server);
 	std::string default_license_data_file_name() const;
 	std::string project_path() const;

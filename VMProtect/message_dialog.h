@@ -1,4 +1,4 @@
-#ifndef MESSAGE_DIALOG_H
+﻿#ifndef MESSAGE_DIALOG_H
 #define MESSAGE_DIALOG_H
 
 class MessageDialog : public QDialog

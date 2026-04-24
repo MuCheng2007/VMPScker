@@ -1,4 +1,4 @@
-/* Area:		ffi_prep_cif, ffi_prep_closure
+﻿/* Area:		ffi_prep_cif, ffi_prep_closure
    Purpose:		Test error return for bad ABIs.
    Limitations:	none.
    PR:			none.

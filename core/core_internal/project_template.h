@@ -1,4 +1,4 @@
-#ifndef PROJECT_TEMPLATE_H
+﻿#ifndef PROJECT_TEMPLATE_H
 #define PROJECT_TEMPLATE_H
 
 #include "../../runtime/common.h"

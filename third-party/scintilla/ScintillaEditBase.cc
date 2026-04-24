@@ -1,4 +1,4 @@
-//
+﻿//
 //          Copyright (c) 1990-2011, Scientific Toolworks, Inc.
 //
 // The License.txt file describes the conditions under which this software may be distributed.

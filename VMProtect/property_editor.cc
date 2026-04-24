@@ -7,6 +7,11 @@
 #include "../core/lang.h"
 #include "../core/core.h"
 #include "../core/processors.h"
+
+// 按需包含内部头文件
+#include "../core/core_internal/watermark.h"
+#include "../core/core_internal/license.h"
+
 #include "widgets.h"
 #include "models.h"
 #include "property_editor.h"

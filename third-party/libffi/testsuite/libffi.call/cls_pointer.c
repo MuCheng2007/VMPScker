@@ -1,4 +1,4 @@
-/* Area:		ffi_call, closure_call
+﻿/* Area:		ffi_call, closure_call
    Purpose:		Check pointer arguments.
    Limitations:	none.
    PR:			none.

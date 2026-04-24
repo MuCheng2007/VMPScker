@@ -1,9 +1,10 @@
-#include "../runtime/crypto.h"
+﻿#include "../runtime/crypto.h"
 #include "objects.h"
 #include "osutils.h"
 #include "streams.h"
 #include "files.h"
 #include "core.h"
+#include "core_internal/watermark.h"
 #include "processors.h"
 #include "lang.h"
 #include <intrin.h>

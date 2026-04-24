@@ -1,4 +1,4 @@
-#ifndef LICENSING_MANAGER_H
+﻿#ifndef LICENSING_MANAGER_H
 #define LICENSING_MANAGER_H
 
 class CryptoContainer;

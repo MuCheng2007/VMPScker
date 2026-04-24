@@ -1,4 +1,4 @@
-#include "unmangle.h"
+﻿#include "unmangle.h"
 
 /* C++Builder Unmangler Source Code (UNMANGLE.C, UNMANGLE.H)
 

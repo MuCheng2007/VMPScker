@@ -1,4 +1,4 @@
-#ifndef WATERMARK_DIALOG_H
+﻿#ifndef WATERMARK_DIALOG_H
 #define WATERMARK_DIALOG_H
 
 class WatermarkDialog : public QDialog

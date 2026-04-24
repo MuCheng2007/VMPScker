@@ -1,4 +1,4 @@
-/* Area:		ffi_prep_cif
+﻿/* Area:		ffi_prep_cif
    Purpose:		Test error return for bad typedefs.
    Limitations:	none.
    PR:			none.

@@ -1,4 +1,4 @@
-/* Area:	ffi_call, closure_call
+﻿/* Area:	ffi_call, closure_call
    Purpose:	Check passing of multiple unsigned char values.
    Limitations:	none.
    PR:		PR13221.

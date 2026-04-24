@@ -1,4 +1,4 @@
-#include "osutils.h"
+﻿#include "osutils.h"
 #include <fstream>
 
 #ifdef __APPLE__

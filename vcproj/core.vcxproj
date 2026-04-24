@@ -131,7 +131,7 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Professional|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -350,6 +350,18 @@
       <AdditionalOptions>/ignore:4221</AdditionalOptions>
       <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
     </Lib>
+    <CustomBuildStep>
+      <Command />
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message />
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs />
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs />
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Professional|Win32'">
     <ClCompile />

@@ -1,10 +1,16 @@
-#include "../core/objects.h"
+﻿#include "../core/objects.h"
 #include "../core/files.h"
 #include "../core/core.h"
 #include "../core/processors.h"
 #include "../core/script.h"
 #include "../core/lang.h"
 #include "../core/inifile.h"
+
+// 按需包含内部头文件
+#include "../core/core_internal/watermark.h"
+#include "../core/core_internal/project_template.h"
+#include "../core/core_internal/license.h"
+#include "../core/core_internal/file_manager.h"
 
 #include "models.h"
 #include "widgets.h"

@@ -1,4 +1,4 @@
-#include "../runtime/crypto.h"
+﻿#include "../runtime/crypto.h"
 #include "objects.h"
 #include "osutils.h"
 #include "streams.h"
@@ -9,6 +9,11 @@
 #include "processors.h"
 #include "intel.h"
 #include "../third-party/libffi/ffi.h"
+
+
+#include "core_internal/watermark.h"
+#include "core_internal/license.h"
+#include "core_internal/file_manager.h"
 
 /**
  * lua utils

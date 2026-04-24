@@ -1,4 +1,4 @@
-/*	Area:			ffi_call, closure_call
+﻿/*	Area:			ffi_call, closure_call
 	Purpose:		Check large structure returns.
 	Limitations:	none.
 	PR:				none.

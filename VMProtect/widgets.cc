@@ -1,4 +1,4 @@
-#include "../core/objects.h"
+﻿#include "../core/objects.h"
 #include "../core/lang.h"
 #include "widgets.h"
 #include "moc/moc_widgets.cc"

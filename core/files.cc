@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Operations with executable files.
  */
 
@@ -2112,11 +2112,7 @@ FunctionBundle *FunctionBundleList::Add(IArchitecture *arch, IFunction *func)
 
 void FunctionBundleList::RemoveObject(FunctionBundle *bundle)
 {
-#ifdef __APPLE__
-	std::map<FunctionBundleHash, FunctionBundle *>::iterator it; // C++98
-#else
 	std::map<FunctionBundleHash, FunctionBundle *>::const_iterator it; // C++11
-#endif
 	for (it = map_.begin(); it != map_.end(); it++) {
 		if (it->second == bundle) {
 			map_.erase(it);
@@ -3132,10 +3128,8 @@ bool BaseArchitecture::Prepare(CompileContext &ctx)
 	if (ctx.options.flags & cpInternalMemoryProtection)
 		runtime_options |= roMemoryProtection;
 
-#ifdef ULTIMATE
 	if (ctx.options.file_manager)
 		runtime_options |= ctx.options.file_manager->GetRuntimeOptions();
-#endif
 
 	if ((runtime_options & roKey) == 0) {
 		for (i = 0; i < function_list()->count(); i++) {
@@ -3156,7 +3150,6 @@ bool BaseArchitecture::Prepare(CompileContext &ctx)
 		}
 	}
 
-#ifdef ULTIMATE
 	if (runtime_options & (roKey | roActivation)) {
 		if  (!ctx.options.licensing_manager || ctx.options.licensing_manager->empty()) {
 			Notify(mtError, ctx.options.licensing_manager, language[lsLicensingParametersNotInitialized]);
@@ -3169,12 +3162,6 @@ bool BaseArchitecture::Prepare(CompileContext &ctx)
 	} else {
 		ctx.options.licensing_manager = NULL;
 	}
-#else
-	if (runtime_options & (roKey | roActivation | roHWID)) {
-		Notify(mtError, NULL, language[lsLicensingSystemNotSupported]);
-		return false;
-	}
-#endif
 
 
 	if (!ctx.options.hwid.empty())

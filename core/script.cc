@@ -3913,8 +3913,6 @@ void ProjectOptionBinder::Register(lua_State *state)
 	register_enum(state, enum_name(), values);
 }
 
-#ifdef ULTIMATE
-
 /**
  * LicensesBinder
  */
@@ -4462,8 +4460,6 @@ int FileBinder::set_action(lua_State *state)
 	object->set_action(action);
 	return 0;
 }
-
-#endif
 
 /**
  * WatermarksBinder

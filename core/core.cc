@@ -172,11 +172,6 @@ bool Core::Open(const std::string &file_name, const std::string &user_project_fi
 			return false;
 	}
 
-#ifndef ULTIMATE
-	if (!input_file_)
-		return false;
-#endif
-
 	// set default values
 	ProjectTemplate *default_template = template_manager_->item(0);
 	options_ = default_template->options();
@@ -273,10 +268,10 @@ bool Core::LoadFromXML(const char *project_file_name)
 			protection_node->QueryStringAttribute("VMCodeSectionName", &vm_section_name_);
 			protection_node->QueryStringAttribute("OutputFileName", &output_file_name_);
 			protection_node->QueryStringAttribute("WaterMarkName", &watermark_name_);
-#ifdef ULTIMATE
+
 			protection_node->QueryStringAttribute("HWID", &hwid_);
 			protection_node->QueryStringAttribute("LicenseDataFileName", &license_data_file_name_);
-#endif
+
 
 			messages_node = protection_node->FirstChildElement("Messages");
 			if (messages_node) {

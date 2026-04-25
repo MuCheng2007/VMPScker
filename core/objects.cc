@@ -1,12 +1,8 @@
-﻿/**
+/**
  * Support of object hierarchy.
  */
 
 #include "objects.h"
-
-#ifdef __APPLE__
-#define _vsnprintf_s(dest, dest_sz, cnt, fmt, args) _vsnprintf((dest), (dest_sz), (fmt), (args))
-#endif // __APPLE__
 
 std::string string_format(const char *format, ...) 
 {

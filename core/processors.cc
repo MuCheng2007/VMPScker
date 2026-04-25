@@ -1,4 +1,4 @@
-﻿#include "../runtime/crypto.h"
+#include "../runtime/crypto.h"
 #include "objects.h"
 #include "osutils.h"
 #include "streams.h"
@@ -1128,23 +1128,6 @@ void CommandBlock::Compile(MemoryManager &manager)
 		}
 	} else {
 		alignment = 0;
-#ifndef DEMO
-		ICommand *stor_command = NULL;
-		for (i = start_index_; i <= end_index_; i++) {
-			command = func->item(i);
-			if (command->is_data()) {
-				stor_command = NULL;
-			} else if (!stor_command || (command->section_options() & rtBeginSection)) {
-				stor_command = command;
-			} else if (command->section_options() & rtEndSection) {
-				stor_command->Merge(command);
-				stor_command = NULL;
-			} else if (!command->Merge(stor_command)) {
-				stor_command->Merge(command);
-				stor_command = command;
-			}
-		}
-#endif
 		for (i = start_index_; i <= end_index_; i++) {
 			command = func->item(i);
 			for (size_t j = 0; j < command->count(); j++) {

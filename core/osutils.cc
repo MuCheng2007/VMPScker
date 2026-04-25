@@ -1,21 +1,9 @@
-﻿#include "osutils.h"
+#include "osutils.h"
 #include <fstream>
 
-#ifdef __APPLE__
-#include <CoreServices/CoreServices.h>
-#include <CoreFoundation/CoreFoundation.h>
-#include <dlfcn.h>
-#elif defined(__unix__)
-#include <dlfcn.h>
-#include <sys/time.h>
-#include <sys/uio.h>
-#include <langinfo.h>
-#include <pwd.h>
-#else
 #pragma warning( disable : 4091 )
 #include <shlobj.h>
 #pragma warning( default: 4091 )
-#endif
 
 #define FILE_OPEN_MODE(fm) ((fm) & 0xf)
 #define FILE_SHARE_MODE(fm) ((fm) & 0xf0)
@@ -302,30 +290,9 @@ std::string GetCurrentPath()
 std::string GetExecutablePath()
 {
 	std::string res;
-#ifdef __APPLE__
-	CFURLRef url = CFBundleCopyExecutableURL(CFBundleGetMainBundle());
-	if (url) {
-		CFStringRef path = CFURLCopyFileSystemPath(url, kCFURLPOSIXPathStyle);
-		if (path) {
-			char buffer[PATH_MAX];
-			if (CFStringGetCString(path, buffer, sizeof(buffer), kCFStringEncodingUTF8))
-				res = ExtractFilePath(buffer);
-			CFRelease(path);
-		}
-		CFRelease(url);
-	}
-#elif defined(__unix__)
-	char buff[PATH_MAX];
-	ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff)-1);
-	if (len != -1) {
-		buff[len] = '\0';
-		res = ExtractFilePath(buff);
-	}
-#else
 	wchar_t buff[MAX_PATH];
 	DWORD size = GetModuleFileNameW(NULL, buff, _countof(buff));
 	res = ExtractFilePath(ToUTF8(std::wstring(buff, size)).c_str());
-#endif
 	return res;
 }
 
@@ -346,21 +313,6 @@ bool FileExists(const char *name)
 
 bool FileDelete(const char *name, bool toRecycleBin /*= false*/)
 {
-#ifdef VMP_GNU
-	if(toRecycleBin)
-	{
-#ifdef __APPLE__
-		if (0 == FSPathMoveObjectToTrashSync(name, NULL, kFSFileOperationDefaultOptions))
-			return true;
-#elif defined(__unix__)
-		//using trash from apt-get install trash-cli
-		system((std::string("trash \"") + name + "\"").c_str());
-		if (!FileExists(name))
-			return true;
-#endif
-	}
-	return (remove(name) == 0);
-#else
 	unicode_string uname = FromUTF8(name);
 	if(toRecycleBin)
 	{
@@ -378,32 +330,11 @@ bool FileDelete(const char *name, bool toRecycleBin /*= false*/)
 		}
 	}
 	return (DeleteFileW(uname.c_str()) != FALSE);
-#endif
 }
 
 bool FileCopy(const char *src, const char *dest)
 {
-#ifdef __APPLE__
-	return (copyfile(src, dest, NULL, COPYFILE_ALL) == 0);
-#elif defined (__unix__)
-	try
-	{
-		std::ifstream source(src, std::ios::binary);
-		if (!source.is_open())
-			return false;
-		std::ofstream destination(dest, std::ios::binary);
-		if (!destination.is_open())
-			return false;
-		destination << source.rdbuf();
-		return true;
-	} catch(std::ios_base::failure &)
-	{
-		FileDelete(dest);
-		return false;
-	}
-#else
 	return (CopyFileW(FromUTF8(src).c_str(), FromUTF8(dest).c_str(), false) != FALSE);
-#endif
 }
 
 // fmCreate			Create a file with the given name. If a file with the given name exists, open the file in write mode.   
@@ -725,34 +656,12 @@ bool ValidateUTF8(const std::string &src)
 std::vector<std::string> CommandLine()
 {
 	std::vector<std::string> res;
-#ifdef __APPLE__
-	int num = *_NSGetArgc();
-	char **args = *_NSGetArgv();
-	for (int i = 0; i < num; i++) {
-		if (args[i])
-			res.push_back(std::string(args[i]));
-	}
-#elif defined(__unix__)
-	FILE *cmdline = fopen("/proc/self/cmdline", "rb");
-	char *arg = 0;
-	size_t size = 0;
-	if (cmdline)
-	{
-		while (getdelim(&arg, &size, 0, cmdline) != -1)
-		{
-			res.push_back(std::string(arg));
-		}
-	}
-	free(arg);
-	fclose(cmdline);
-#else
 	int num;
 	wchar_t **args = CommandLineToArgvW(GetCommandLineW(), &num);
 	for (int i = 0; i < num; i++) {
 		if (args[i])
 			res.push_back(ToUTF8(std::wstring(args[i])));
 	}
-#endif
 	return res;
 }
 
@@ -831,21 +740,7 @@ std::vector<std::string> FindFiles(const char *name, const char *mask, bool only
 
 uint32_t GetTickCount()
 {
-#ifdef __APPLE__
-	const int64_t one_million = 1000 * 1000;
-	mach_timebase_info_data_t timebase_info;
-	mach_timebase_info(&timebase_info);
-
-	// mach_absolute_time() returns billionth of seconds,
-	// so divide by one million to get milliseconds
-	return static_cast<uint32_t>((mach_absolute_time() * timebase_info.numer) / (one_million * timebase_info.denom));
-#elif defined (__unix__)
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-#else
 	return ::GetTickCount();
-#endif
 }
 
 #ifdef VMP_GNU
@@ -1105,16 +1000,7 @@ std::string ReadIniString(const char *section, const char *key, const char *defa
 
 HPROCESS ProcessOpen(uint32_t id)
 {
-#ifdef __APPLE__
-	mach_port_t task;
-	if (task_for_pid(mach_task_self(), id, &task) != KERN_SUCCESS)
-		return 0;
-	return task;
-#elif defined(__unix__)
-	return HPROCESS(id); 
-#else
 	return OpenProcess(PROCESS_ALL_ACCESS, FALSE, id);
-#endif
 }
 
 bool ProcessClose(HPROCESS h)
@@ -1129,47 +1015,18 @@ bool ProcessClose(HPROCESS h)
 
 size_t ProcessRead(HPROCESS h, void *base_address, void *buf, size_t size)
 {
-#ifdef __APPLE__
-	mach_vm_size_t res;
-	if (mach_vm_read_overwrite(h, (mach_vm_address_t)base_address, size, (mach_vm_address_t)buf, &res) != KERN_SUCCESS)
-		return -1;
-	return res;
-#elif defined(__unix__)
-	struct iovec local, remote;
-	local.iov_base = buf;
-	local.iov_len = (int)size;
-	remote.iov_base = base_address;
-	local.iov_len = (int)size;
-	ssize_t nread = process_vm_readv(reinterpret_cast<pid_t>(h), &local, 1, &remote, 1, 0);
-	return (size_t)nread;
-#else
 	SIZE_T res;
 	if (ReadProcessMemory(h, base_address, buf, size, &res) == 0)
 		return -1;
 	return res;
-#endif
 }
 
 size_t ProcessWrite(HPROCESS h, void *base_address, const void *buf, size_t size)
 {
-#ifdef __APPLE__
-	if (mach_vm_write(h, (mach_vm_address_t)base_address, size, (mach_vm_address_t)buf) != KERN_SUCCESS)
-		return -1;
-	return size;
-#elif defined(__unix__)
-	struct iovec local, remote;
-	local.iov_base = const_cast<void *>(buf);
-	local.iov_len = (int)size;
-	remote.iov_base = base_address;
-	local.iov_len = (int)size;
-	ssize_t nwrite = process_vm_writev(reinterpret_cast<pid_t>(h), &local, 1, &remote, 1, 0);
-	return (size_t)nwrite;
-#else
 	SIZE_T res;
 	if (WriteProcessMemory(h, base_address, buf, size, &res) == 0)
 		return -1;
 	return res;
-#endif
 }
 
 uint64_t GetLastWriteTime(const char *name)
@@ -1194,98 +1051,6 @@ uint64_t GetLastWriteTime(const char *name)
 std::vector<PROCESS_ITEM> EnumProcesses()
 {
 	std::vector<PROCESS_ITEM> res;
-#ifdef __APPLE__
-	int err;
-	static const int name[] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
-	size_t length;
-
-	bool done = false;
-	kinfo_proc *processes = NULL;
-	do {
-		length = 0;
-		err = sysctl(const_cast<int *>(name), (sizeof(name) / sizeof(*name)) - 1, NULL, &length, NULL, 0);
-		if (err == -1)
-			err = errno;
-
-		if (err == 0) {
-			processes = new kinfo_proc[length];
-			if (processes == NULL)
-				err = ENOMEM;
-		}
-
-		if (err == 0) {
-			err = sysctl(const_cast<int *>(name), (sizeof(name) / sizeof(*name)) - 1, processes, &length, NULL, 0);
-			if (err == -1)
-				err = errno;
-			if (err == 0) {
-				done = true;
-			} else if (err == ENOMEM) {
-				delete [] processes;
-				processes = NULL;
-				err = 0;
-			}
-		}
-	} while (err == 0 && !done);
-
-	mach_port_t task;
-	if (err == 0 && processes) {
-		for (size_t i = 0; i < length / sizeof(kinfo_proc); i++) {
-			kinfo_proc *process = &processes[i];
-
-			if (task_for_pid(mach_task_self(), process->kp_proc.p_pid, &task) != KERN_SUCCESS)
-				continue;
-
-			PROCESS_ITEM item;
-			item.id = process->kp_proc.p_pid;
-			item.name = process->kp_proc.p_comm;
-			res.push_back(item);
-		}
-	}
-	delete [] processes;
-#elif defined(__unix__)
-	struct dirent* dent;
-	DIR* srcdir = opendir("/proc");
-	if (srcdir != NULL)
-	{
-		while((dent = readdir(srcdir)) != NULL)
-		{
-			struct stat st;
-
-			if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0)
-				continue;
-
-			if (fstatat(dirfd(srcdir), dent->d_name, &st, 0) >= 0 && S_ISDIR(st.st_mode))
-			{
-				PROCESS_ITEM item;
-				item.id = atoi(dent->d_name);
-				if (item.id == 0)
-					continue;
-				char path[4096];
-				snprintf(path, sizeof(path), "/proc/%d/maps", item.id);
-				FILE *fmaps = fopen(path, "r");
-				if (fmaps)
-				{
-					char c;
-					size_t read = fread(&c, 1, 1, fmaps);
-					fclose(fmaps);
-					if (read == 1)
-					{
-						snprintf(path, sizeof(path), "/proc/%d/comm", item.id);
-						std::ifstream f(path);
-						std::stringstream buffer;
-						buffer << f.rdbuf();
-						item.name = buffer.str();
-						size_t endpos = item.name.find_last_not_of("\r\n");
-						if( std::string::npos != endpos )
-							item.name = item.name.substr( 0, endpos+1 );
-						res.push_back(item);
-					}
-				}
-			}
-		}
-	}
-	closedir(srcdir);
-#else
 	DWORD processes[1024], needed;
 	if (::EnumProcesses(processes, sizeof(processes), &needed)) {
 		size_t count = needed / sizeof(DWORD);
@@ -1306,106 +1071,12 @@ std::vector<PROCESS_ITEM> EnumProcesses()
 			}
 		}
 	}
-#endif
 	return res;
 }
-
-#ifdef __unix__
-/*
-address           perms offset  dev   inode       pathname
-00400000-00452000 r-xp 00000000 08:02 173521      /usr/bin/dbus-daemon
-00651000-00652000 r--p 00051000 08:02 173521      /usr/bin/dbus-daemon
-00652000-00655000 rw-p 00052000 08:02 173521      /usr/bin/dbus-daemon
-00e03000-00e24000 rw-p 00000000 00:00 0           [heap]
-00e24000-011f7000 rw-p 00000000 00:00 0           [heap]
-...
-35b1800000-35b1820000 r-xp 00000000 08:02 135522  /usr/lib64/ld-2.15.so
-35b1a1f000-35b1a20000 r--p 0001f000 08:02 135522  /usr/lib64/ld-2.15.so
-35b1a20000-35b1a21000 rw-p 00020000 08:02 135522  /usr/lib64/ld-2.15.so
-35b1a21000-35b1a22000 rw-p 00000000 00:00 0
-35b1c00000-35b1dac000 r-xp 00000000 08:02 135870  /usr/lib64/libc-2.15.so
-35b1dac000-35b1fac000 ---p 001ac000 08:02 135870  /usr/lib64/libc-2.15.so
-35b1fac000-35b1fb0000 r--p 001ac000 08:02 135870  /usr/lib64/libc-2.15.so
-35b1fb0000-35b1fb2000 rw-p 001b0000 08:02 135870  /usr/lib64/libc-2.15.so
-...
-f2c6ff8c000-7f2c7078c000 rw-p 00000000 00:00 0    [stack:986]
-...
-7fffb2c0d000-7fffb2c2e000 rw-p 00000000 00:00 0   [stack]
-7fffb2d48000-7fffb2d49000 r-xp 00000000 00:00 0   [vdso]
-*/
-static bool ParseMapsLine(const char *maps, int *inode, char *name, size_t cch_name, uint64_t *from, uint64_t *to, uint64_t *offset)
-{
-	bool res = false;
-	*inode = 0;
-	*name = 0;
-	*from = *to = *offset = 0;
-	if (	strlen(maps) < cch_name &&
-			sscanf_s(maps, "%llx-%llx%*[ \trwxp-]%llx%*[ \t]%*d:%*d%*[ \t]%d%*[ \t]%s", from, to, offset, inode, name) == 5 &&
-			*inode != 0)
-	{
-		res = true;
-	}
-	return res;
-}
-#endif
 
 std::vector<MODULE_ITEM> EnumModules(uint32_t process_id)
 {
 	std::vector<MODULE_ITEM> res;
-#ifdef __APPLE__
-	mach_port_t task;
-	if (task_for_pid(mach_task_self(), process_id, &task) == KERN_SUCCESS) {
-		struct task_dyld_info dyld_info;
-		mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
-		if (task_info(task, TASK_DYLD_INFO, (task_info_t)&dyld_info, &count) == KERN_SUCCESS) {
-			if (dyld_info.all_image_info_addr != 0 && dyld_info.all_image_info_size != 0) {
-				dyld_all_image_infos image_infos;
-				if (ProcessRead(task, (void *)dyld_info.all_image_info_addr, &image_infos, sizeof(image_infos)) != (size_t)-1 && image_infos.infoArrayCount) {
-					dyld_image_info *info_array = new dyld_image_info[image_infos.infoArrayCount];
-					if (ProcessRead(task, (void *)image_infos.infoArray, info_array, sizeof(dyld_image_info) * image_infos.infoArrayCount) != (size_t)-1) {
-						for (size_t i = 0; i < image_infos.infoArrayCount; i++) {
-							dyld_image_info *info = &info_array[i];
-
-							std::string name;
-							char c;
-							while (ProcessRead(task, (void *)(info->imageFilePath + name.size()), &c, sizeof(c)) != (size_t)-1) {
-								if (!c)
-									break;
-								name += c;
-							}
-
-							MODULE_ITEM item;
-							item.handle = (HMODULE)info->imageLoadAddress;
-							item.name = name;
-							res.push_back(item);
-						}
-					}
-					delete [] info_array;
-				}
-			}
-		}
-	}
-#elif defined(__unix__)
-	char maps[2048], name[2048];
-	snprintf(maps, sizeof(maps), "/proc/%d/maps", process_id);
-	FILE *fmaps = fopen(maps, "r");
-	if (fmaps)
-	{
-		while (fgets(maps, sizeof(maps), fmaps))
-		{
-			MODULE_ITEM item;
-			int inode;
-			uint64_t from, to, offset;
-			if(ParseMapsLine(maps, &inode, name, sizeof(name), &from, &to, &offset))
-			{
-				item.handle = reinterpret_cast<HMODULE>(from);
-				item.name = name;
-				res.push_back(item);
-			}
-		}
-		fclose(fmaps);
-	}
-#else
 	HANDLE process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, process_id);
 	if (process) {
         HMODULE mods[1024];
@@ -1415,7 +1086,7 @@ std::vector<MODULE_ITEM> EnumModules(uint32_t process_id)
 			size_t count = needed / sizeof(HMODULE);
 			for (size_t i = 0; i < count; i++) {
 				wchar_t module_name[MAX_PATH] = {0};
-	            if (GetModuleFileNameExW(process, mods[i], module_name, _countof(module_name))) {
+            	if (GetModuleFileNameExW(process, mods[i], module_name, _countof(module_name))) {
 					MODULE_ITEM item;
 					item.handle = mods[i];
 					item.name = ToUTF8(module_name);
@@ -1425,7 +1096,6 @@ std::vector<MODULE_ITEM> EnumModules(uint32_t process_id)
         }
 		CloseHandle(process);
     }
-#endif
 	return res;
 }
 
@@ -1434,89 +1104,6 @@ bool GetModuleInformation(HANDLE process, HMODULE module, MODULE_INFO *info, siz
 	if (size < sizeof(MODULE_INFO))
 		return false;
 
-#ifdef __APPLE__
-	uint8_t *address = static_cast<uint8_t *>(module);
-	mach_header header;
-	if (ProcessRead(process, address, &header, sizeof(header)) == (size_t)-1)
-		return false;
-
-	if (header.magic == MH_MAGIC) {
-		info->address = address;
-		address += sizeof(mach_header);
-		uint32_t min_address = 0;
-		uint32_t max_address = 0;
-		for (size_t i = 0; i < header.ncmds; i++) {
-			load_command command;
-			if (ProcessRead(process, address, &command, sizeof(command)) == (size_t)-1)
-				return false;
-
-			if (command.cmd == LC_SEGMENT) {
-				segment_command segment;
-				if (ProcessRead(process, address, &segment, sizeof(segment)) == (size_t)-1)
-					return false;
-
-				if (segment.vmaddr) {
-					if (!min_address)
-						min_address = segment.vmaddr;
-					if (max_address < segment.vmaddr + segment.vmsize)
-						max_address = segment.vmaddr + segment.vmsize;
-				}
-			}
-			address += command.cmdsize;
-		}
-		info->size = max_address - min_address;
-	} else if (header.magic == MH_MAGIC_64) {
-		info->address = address;
-		address += sizeof(mach_header_64);
-		uint64_t min_address = 0;
-		uint64_t max_address = 0;
-		for (size_t i = 0; i < header.ncmds; i++) {
-			load_command command;
-			if (ProcessRead(process, address, &command, sizeof(command)) == (size_t)-1)
-				return false;
-
-			if (command.cmd == LC_SEGMENT_64) {
-				segment_command_64 segment;
-				if (ProcessRead(process, address, &segment, sizeof(segment)) == (size_t)-1)
-					return false;
-				if (segment.vmaddr) {
-					if (!min_address)
-						min_address = segment.vmaddr;
-					if (max_address < segment.vmaddr + segment.vmsize)
-						max_address = segment.vmaddr + segment.vmsize;
-				}
-			}
-			address += command.cmdsize;
-		}
-		info->size = static_cast<size_t>(max_address - min_address);
-	} else {
-		return false;
-	}
-
-	return true;
-#elif defined(__unix__)
-	bool ret = false;
-	char maps[1024], name[2048];
-	snprintf(maps, sizeof(maps), "/proc/%d/maps", (int)process);
-	FILE *fmaps = fopen(maps, "r");
-	if (fmaps)
-	{
-		while (fgets(maps, sizeof(maps), fmaps))
-		{
-			int inode;
-			uint64_t from, to, offset;
-			if(ParseMapsLine(maps, &inode, name, sizeof(name), &from, &to, &offset) && 
-				reinterpret_cast<HMODULE>(from) == module)
-			{
-				info->address = (void *)from;
-				info->size = to - from;
-				ret = true;
-			}
-		}
-		fclose(fmaps);
-	}
-	return ret;
-#else
 	MODULEINFO moduleInfo;
 	if (!::GetModuleInformation(process, module, &moduleInfo, sizeof(moduleInfo)))
 		return false;
@@ -1524,36 +1111,15 @@ bool GetModuleInformation(HANDLE process, HMODULE module, MODULE_INFO *info, siz
 	info->address = moduleInfo.lpBaseOfDll;
 	info->size = moduleInfo.SizeOfImage;
 	return true;
-#endif
 }
 
 std::string GetSysAppDataDirectory()
 {
 	std::string res;
-#ifdef __APPLE__
-	FSRef ref;
-	if (FSFindFolder(kOnAppropriateDisk, kSharedUserDataFolderType, kDontCreateFolder, &ref) == 0) {
-		CFURLRef url_ref = CFURLCreateFromFSRef(NULL, &ref);
-		if (url_ref) {
-			char buffer[PATH_MAX];
-			if (CFURLGetFileSystemRepresentation(url_ref, true, (uint8_t*)buffer, sizeof(buffer)))
-				res = std::string(buffer);
-			CFRelease(url_ref);
-		}
-	}
-#elif defined(__unix__)
-	const char *homedir;
-
-	if ((homedir = getenv("HOME")) == NULL) {
-		homedir = getpwuid(getuid())->pw_dir;
-	}
-	res = std::string(homedir) + "/.config"; //admin should use hard links to map this stuff to /usr/share etc
-#else
 	os::unicode_char buffer[MAX_PATH];
 
 	if (SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA,  NULL, 0, buffer) >= 0)
 		res = os::ToUTF8(buffer);
-#endif
 	return res;
 }
 
@@ -1701,59 +1267,7 @@ static const LocaleInfo win_locale_info[] = {
 };
 #endif
 
-#ifdef __unix__
-struct LocaleInfo {
-	char iso_name[3];
-	char int_name[32];
-};
 
-static const LocaleInfo lin_locale_info[] = {
-	{"af", "Afrikaans"},
-	{"ar", "Arabic"},
-	{"be", "Belarusian"},
-	{"bg", "Bulgarian"},
-	{"ca", "Catalan"},
-	{"cs", "Czech"},
-	{"da", "Danish"},
-	{"de", "German"},
-	{"el", "Greek"},
-	{"en", "English"},
-	{"es", "Spanish"},
-	{"et", "Estonian"},
-	{"eu", "Basque"},
-	{"fa", "Farsi"},
-	{"fi", "Finnish"},
-	{"fo", "Faroese"},
-	{"fr", "French"},
-	{"he", "Hebrew"},
-	{"hi", "Hindi"},
-	{"hr", "Croatian"},
-	{"hu", "Hungarian"},
-	{"is", "Icelandic"},
-	{"it", "Italian"},
-	{"ja", "Japanese"},
-	{"ko", "Korean"},
-	{"lt", "Lithuanian"},
-	{"lv", "Latvian"},
-	{"mk", "Macedonian"},
-	{"ms", "Malay"},
-	{"mt", "Maltese"},
-	{"nl", "Dutch"},
-	{"pl", "Polish"},
-	{"pt", "Portuguese"},
-	{"ro", "Romanian"},
-	{"ru", "Russian"},
-	{"sq", "Albanian"},
-	{"sr", "Serbian"},
-	{"sv", "Swedish"},
-	{"th", "Thai"},
-	{"tr", "Turkish"},
-	{"uk", "Ukrainian"},
-	{"ur", "Urdu"},
-	{"vi", "Vietnamese"},
-	{"zh", "Chinese"},
-};
-#endif
 
 std::string GetLocaleName(const char *code)
 {
@@ -1761,41 +1275,6 @@ std::string GetLocaleName(const char *code)
 		return std::string();
 
 	std::string res;
-#ifdef __APPLE__
-	CFStringRef id = CFStringCreateWithCString(NULL, code, kCFStringEncodingUTF8);
-	CFLocaleRef loc = CFLocaleCreate(NULL, id);
-	if (loc) {
-		CFStringRef name = CFLocaleCopyDisplayNameForPropertyValue(loc, kCFLocaleLanguageCode, id);
-		if (name) {
-			CFMutableStringRef mutable_name = CFStringCreateMutableCopy(NULL, 0, name);
-			CFStringCapitalize(mutable_name, loc);
-			char buffer[1024];
-			if (CFStringGetCString(mutable_name, buffer, sizeof(buffer), kCFStringEncodingUTF8))
-				res = buffer;
-			CFRelease(mutable_name);
-			CFRelease(name);
-		}
-		CFRelease(loc);
-	}
-	CFRelease(id);
-#elif defined(__unix__)
-	int begin = 0;
-	int end = _countof(lin_locale_info);
-	while (end - begin > 1) {
-		int mid = (begin + end)/2;
-
-		const LocaleInfo *info = lin_locale_info + mid;
-		int cmp = strcmp(code, info->iso_name);
-		if (cmp < 0)
-			end = mid;
-		else if (cmp > 0)
-			begin = mid;
-		else {
-			res = info->int_name;
-			break;
-		}
-	}
-#else
 	LCID id = 0;
 
 	int begin = 0;
@@ -1822,7 +1301,6 @@ std::string GetLocaleName(const char *code)
 			res = os::ToUTF8(os::unicode_string(buffer));
 		}
 	}
-#endif
 	if (res.empty())
 		res = code;
 	return res;
@@ -1831,32 +1309,6 @@ std::string GetLocaleName(const char *code)
 std::string GetCurrentLocale()
 {
 	std::string res;
-#ifdef __APPLE__
-	CFLocaleRef loc = CFLocaleCopyCurrent();
-	if (loc) {
-		CFStringRef name = CFLocaleGetIdentifier(loc);
-		if (name) {
-			char buffer[1024];
-			if (CFStringGetCString(name, buffer, sizeof(buffer), kCFStringEncodingUTF8))
-				res = buffer;
-		}
-		CFRelease(loc);
-	}
-#elif defined(__unix__)
-	const char *lang = ::getenv("LANG");
-	if (lang && *lang)
-	{
-		while (char sym = *lang++)
-		{
-			if (sym == '.' || sym == '_')
-				break;
-			res += sym;
-		}
-	} else
-	{
-		res = "en";
-	}
-#else
 	LCID id = GetUserDefaultLCID();
 	for (size_t i = 0; i < _countof(win_locale_info); i++) {
 		if (win_locale_info[i].id == id) {
@@ -1864,7 +1316,6 @@ std::string GetCurrentLocale()
 			break;
 		}
 	}
-#endif
 	return res;
 }
 
@@ -2038,49 +1489,10 @@ std::string GetTempFilePathNameFor(const char *pathname)
 
 bool FileMove(const char *oldName, const char *newName)
 {
-#ifdef VMP_GNU
-	return rename(oldName, newName) == 0;
-#else
 	return MoveFileExW(os::FromUTF8(oldName).c_str(), os::FromUTF8(newName).c_str(), 
 		MOVEFILE_COPY_ALLOWED | // used only when different volumes
 		MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) == TRUE;
-#endif
 }
-
-#ifdef __APPLE__
-std::string GetMainExeFileName(const char *file_name)
-{
-	std::string res;
-	CFStringRef cfPath = CFStringCreateWithCString(NULL, file_name, kCFStringEncodingUTF8);
-	if (cfPath) {
-		CFURLRef bundleURL = CFURLCreateWithFileSystemPath(NULL, cfPath, kCFURLPOSIXPathStyle, true);
-		if (bundleURL) {
-			CFBundleRef aBundle = CFBundleCreate(NULL, bundleURL);
-			if (aBundle) {
-				CFURLRef mainExecUrl = CFBundleCopyExecutableURL(aBundle);
-				if(mainExecUrl) {
-					CFURLRef mainExecAbsUrl = CFURLCopyAbsoluteURL(mainExecUrl);
-					if(mainExecAbsUrl) {
-						CFStringRef mainExec = CFURLCopyFileSystemPath(mainExecAbsUrl, kCFURLPOSIXPathStyle);
-						if (mainExec) {
-							char buffer[PATH_MAX];
-							if (CFStringGetCString(mainExec, buffer, sizeof(buffer), kCFStringEncodingUTF8))
-								res = buffer;
-							CFRelease(mainExec);
-						}
-						CFRelease(mainExecAbsUrl);
-					}
-					CFRelease(mainExecUrl);
-				}
-				CFRelease(aBundle);
-			}
-			CFRelease(bundleURL);
-		}
-		CFRelease(cfPath);
-	}
-	return res;
-}
-#endif
 
 std::string CombineThisAppDataDirectory(const char *lastPathPart)
 {

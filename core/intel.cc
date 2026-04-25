@@ -1,4 +1,4 @@
-﻿#include "../runtime/common.h"
+#include "../runtime/common.h"
 #include "../runtime/crypto.h"
 #include "../runtime/loader.h"
 #include "objects.h"
@@ -8601,12 +8601,10 @@ IntelVMCommand *IntelCommand::AddVMCommand(const CompileContext &ctx, IntelComma
 	}
 
 	IntelVMCommand *vm_command = NULL;
-#ifdef ULTIMATE
 	if ((owner()->compilation_options() & coLockToKey) && command_type == cmPush && operand_type == otValue && (options & voLinkCommand)) {
 		vm_command = new IntelVMCommand(this, command_type, operand_type, osDWord, value, options);
 		vm_command->set_crypt_command(cmXadd, operand_size, ctx.options.licensing_manager->product_code());
 	}
-#endif
 	if (!vm_command)
 		vm_command = new IntelVMCommand(this, command_type, operand_type, operand_size, value, options);
 
@@ -21348,10 +21346,8 @@ bool IntelLoaderData::Init(const CompileContext &ctx)
 IntelRuntimeData::IntelRuntimeData(IFunctionList *owner, OperandSize cpu_address_size)
 	: IntelFunction(owner, cpu_address_size), strings_entry_(NULL), strings_size_(0), resources_entry_(NULL), resources_size_(0),
 	trial_hwid_entry_(NULL), trial_hwid_size_(0), data_key_(0)
-#ifdef ULTIMATE
 	, license_data_entry_(NULL), license_data_size_(0), files_entry_(NULL), files_size_(0),
 	registry_entry_(NULL), registry_size_(0)
-#endif	
 {
 	set_compilation_type(ctMutation);
 	rc5_key_.Create();
@@ -21442,7 +21438,6 @@ bool IntelRuntimeData::Init(const CompileContext &ctx)
 		}
 	}
 
-#ifdef ULTIMATE
 	files_entry_ = NULL;
 	files_size_ = 0;
 	if (ctx.options.file_manager) {
@@ -21516,7 +21511,6 @@ bool IntelRuntimeData::Init(const CompileContext &ctx)
 			registry_size_ = (uint32_t)i;
 		}
 	}
-#endif
 
 	function_list = reinterpret_cast<IntelFunctionList *>(ctx.file->function_list());
 	for (i = 0; i < function_list->count(); i++) {
@@ -21571,7 +21565,6 @@ bool IntelRuntimeData::Init(const CompileContext &ctx)
 		}
 	}
 
-#ifdef ULTIMATE
 	license_data_entry_ = NULL;
 	license_data_size_ = 0;
 	if (ctx.options.licensing_manager) {
@@ -21582,13 +21575,11 @@ bool IntelRuntimeData::Init(const CompileContext &ctx)
 			license_data_size_ = static_cast<uint32_t>(license_data.size());
 		}
 	}
-#endif
 
 	VMProtectBeginVirtualization("Trial HWID");
 	trial_hwid_entry_ = NULL;
 	trial_hwid_size_ = 0;
 
-#ifdef ULTIMATE
 	if (!ctx.options.hwid.empty()) {
 		std::string hwid = ctx.options.hwid;
 		size_t size = hwid.size();
@@ -21609,7 +21600,6 @@ bool IntelRuntimeData::Init(const CompileContext &ctx)
 		trial_hwid_entry_ = AddCommand(data);
 		trial_hwid_entry_->include_option(roCreateNewBlock);
 	}
-#endif
 	VMProtectEnd();
 
 	for (i = 0; i < count(); i++) {
@@ -21688,7 +21678,6 @@ bool IntelRuntimeData::Init(const CompileContext &ctx)
 							command->CompileToNative();
 						}
 						break;
-#ifdef ULTIMATE
 					case FACE_STORAGE_INFO:
 						if (files_entry_) {
 							link = command->AddLink((int)j, ltOffset, files_entry_);
@@ -21720,15 +21709,6 @@ bool IntelRuntimeData::Init(const CompileContext &ctx)
 						command->set_operand_value(j, license_data_size_);
 						command->CompileToNative();
 						break;
-#else
-					case FACE_STORAGE_INFO:
-					case FACE_REGISTRY_INFO:
-					case FACE_LICENSE_INFO:
-					case FACE_LICENSE_INFO_SIZE:
-						command->set_operand_value(j, 0);
-						command->CompileToNative();
-						break;
-#endif
 					case FACE_TRIAL_HWID:
 						if (trial_hwid_entry_) {
 							link = command->AddLink((int)j, ltOffset, trial_hwid_entry_);
@@ -21863,7 +21843,6 @@ size_t IntelRuntimeData::WriteToFile(IArchitecture &file)
 			command = trial_hwid_entry_;
 			size = AlignValue(trial_hwid_size_, 8);
 			break;
-#ifdef ULTIMATE
 		case 3:
 			command = license_data_entry_;
 			size = license_data_size_;
@@ -21876,7 +21855,6 @@ size_t IntelRuntimeData::WriteToFile(IArchitecture &file)
 			command = registry_entry_;
 			size = registry_size_;
 			break;
-#endif
 		default:
 			command = NULL;
 			size = 0;
@@ -21888,7 +21866,6 @@ size_t IntelRuntimeData::WriteToFile(IArchitecture &file)
 			file.AddressSeek(command->address());
 			uint64_t pos = file.Tell();
 			file.Read(&buff[0], buff.size());
-#ifdef ULTIMATE
 			if (command == trial_hwid_entry_) {
 				cipher.Encrypt(buff.data(), buff.size());
 			} else if (command == license_data_entry_) {
@@ -21902,7 +21879,6 @@ size_t IntelRuntimeData::WriteToFile(IArchitecture &file)
 				}
 				cipher.Encrypt(buff.data() + crc_pos, 16);
 			} else
-#endif
 			{
 				uint32_t *p = reinterpret_cast<uint32_t*>(buff.data());
 				for (size_t j = 0; j < size / sizeof(uint32_t); j++) {
@@ -22310,7 +22286,6 @@ bool PEIntelLoader::Prepare(const CompileContext &ctx)
 	for (i = 0; i < new_import_list.count(); i++) {
 		import = new_import_list.item(i);
 
-#ifdef ULTIMATE
 		if (ctx.options.file_manager && i < file_dll_count) {
 			bool is_delay_import = false;
 			for (j = 0; j < ctx.options.file_manager->count(); j++) {
@@ -22329,7 +22304,6 @@ bool PEIntelLoader::Prepare(const CompileContext &ctx)
 				continue;
 			}
 		}
-#endif
 
 		// IMAGE_IMPORT_DESCRIPTOR.OriginalFirstThunk
 		command = AddCommand(cmDD, IntelOperand(otValue, osDWord)); 
@@ -23186,7 +23160,6 @@ bool PEIntelLoader::Prepare(const CompileContext &ctx)
 
 	// create delay import info for loader
 	index = count();
-#ifdef ULTIMATE
 	for (i = 0, import_index = 0; i < orig_dll_count; i++) {
 		import = new_import_list.item(i);
 		if (import->count() == 0)
@@ -23231,7 +23204,6 @@ bool PEIntelLoader::Prepare(const CompileContext &ctx)
 		// end of DLL
 		AddCommand(cmDD, IntelOperand(otValue, osDWord));
 	}
-#endif
 	command = (count() == index) ? NULL : item(index);
 	if (command)
 		command->include_option(roCreateNewBlock);

@@ -1,4 +1,4 @@
-﻿#ifndef INTEL_H
+#ifndef INTEL_H
 #define INTEL_H
 
 enum IntelCommandType : uint16_t
@@ -981,14 +981,12 @@ private:
 	uint32_t resources_size_;
 	IntelCommand *trial_hwid_entry_;
 	uint32_t trial_hwid_size_;
-#ifdef ULTIMATE
 	IntelCommand *license_data_entry_;
 	uint32_t license_data_size_;
 	IntelCommand *files_entry_;
 	uint32_t files_size_;
 	IntelCommand *registry_entry_;
 	uint32_t registry_size_;
-#endif
 
 	struct CommandCompareHelper {
 		bool operator () (const IntelCommand *left, IntelCommand *right) const;

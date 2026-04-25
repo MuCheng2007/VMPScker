@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef CORE_PCH
 #define CORE_PCH
 
@@ -23,19 +23,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <dirent.h>
-#ifdef __APPLE__
-#include <copyfile.h>
-#include <crt_externs.h>
-#include <mach-o/dyld.h>
-#include <mach/mach_time.h>
-#include <mach/task.h>
-#include <mach/mach_vm.h>
-#include <sys/syslimits.h>
-#else
 #include <memory>
 #ifndef O_EXLOCK // not available at linux
 #define O_EXLOCK 0
-#endif
 #endif
 #include <sys/mman.h>
 #include <sys/sysctl.h>

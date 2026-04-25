@@ -1,4 +1,4 @@
-﻿#ifndef OSUTILS_H
+#ifndef OSUTILS_H
 #define OSUTILS_H
 
 /**
@@ -96,9 +96,6 @@ std::string GetLocaleName(const char *code);
 std::string GetCurrentLocale();
 void GetLocalTime(SYSTEM_TIME *res);
 bool FileMove(const char *oldName, const char *newName);
-#ifdef __APPLE__
-std::string GetMainExeFileName(const char *file_name);
-#endif
 HMODULE LibraryOpen(const std::string &name);
 bool LibraryClose(HMODULE h);
 void *GetFunction(HMODULE h, const std::string &name);

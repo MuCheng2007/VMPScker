@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Operations with executable files.
  */
 
@@ -58,10 +58,8 @@ V AlignValue(V value, A alignment)
 class Core;
 class Watermark;
 class WatermarkManager;
-#ifdef ULTIMATE
 class LicensingManager;
 class FileManager;
-#endif
 class Script;
 class IFile;
 class IArchitecture;
@@ -1180,15 +1178,11 @@ struct CompileOptions {
 	Watermark *watermark;
 	Script *script;
 	IArchitecture **architecture;
-#ifdef ULTIMATE
 	std::string hwid;
 	LicensingManager *licensing_manager;
 	FileManager *file_manager;
-#endif
 	CompileOptions() : flags(0), vm_flags(0), sdk_flags(0), vm_count(1), watermark(NULL), script(NULL), architecture(NULL)
-#ifdef ULTIMATE
 		, licensing_manager(NULL), file_manager(NULL)
-#endif
 		{}
 };
 

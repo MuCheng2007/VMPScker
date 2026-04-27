@@ -1,4 +1,4 @@
-﻿#include "rsa.h"
+#include "rsa.h"
 
 #include "../objects.h"
 

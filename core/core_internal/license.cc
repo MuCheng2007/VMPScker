@@ -1,10 +1,10 @@
-﻿#include "license.h"
+#include "license.h"
 
 #include "../../runtime/crypto.h"
 #include "../lang.h"
 #include "../osutils.h"
 #include "../files.h"
-#include "../core.h"
+#include "core.h"
 #include "core_utils.h"
 
 License::License(LicensingManager *owner, LicenseDate date, const std::string &customer_name, const std::string &customer_email, const std::string &order_ref, 

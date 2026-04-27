@@ -1,8 +1,8 @@
-﻿#include "watermark.h"
+#include "watermark.h"
 
 #include "../inifile.h"
 #include "../files.h"
-#include "../core.h"
+#include "core.h"
 #include "core_utils.h"
 
 Watermark::Watermark(WatermarkManager *owner)

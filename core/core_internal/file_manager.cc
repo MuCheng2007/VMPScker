@@ -1,10 +1,10 @@
-﻿#include "file_manager.h"
+#include "file_manager.h"
 
 #include "../lang.h"
 #include "../osutils.h"
 #include "../streams.h"
 #include "../processors.h"
-#include "../core.h"
+#include "core.h"
 
 #ifdef _WIN32
 #include <intrin.h>

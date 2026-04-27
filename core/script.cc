@@ -4,8 +4,8 @@
 #include "streams.h"
 #include "files.h"
 #include "script.h"
-#include "core.h"
-#include "pefile.h"
+#include "core_internal/core.h"
+
 #include "processors.h"
 
 #include "../third-party/libffi/ffi.h"
@@ -18,6 +18,9 @@
 #include "intel/ir/IntelCommand.h"
 #include "intel/ir/IntelFunction.h"
 #include "intel/ir/IntelFunctionList.h"
+
+// PE module
+#include "pe/pefile.h"
 
 /**
  * lua utils

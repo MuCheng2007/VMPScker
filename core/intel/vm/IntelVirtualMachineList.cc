@@ -6,7 +6,7 @@
 #include "../ir/IntelOpcodeInfo.h"
 #include "../../processors.h"
 #include "../../files.h"
-#include "../../core.h"
+#include "../../core_internal/core.h"
 
 /*
  * IntelVirtualMachineList

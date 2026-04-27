@@ -51,7 +51,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\core\core.cc" />
+    <ClCompile Include="..\core\core_internal\core.cc" />
     <ClCompile Include="..\core\core_internal\core_utils.cc" />
     <ClCompile Include="..\core\core_internal\file_manager.cc" />
     <ClCompile Include="..\core\core_internal\license.cc" />
@@ -80,7 +80,20 @@
     <ClCompile Include="..\core\objects.cc" />
     <ClCompile Include="..\core\osutils.cc" />
     <ClCompile Include="..\core\packer.cc" />
-    <ClCompile Include="..\core\pefile.cc" />
+    <ClCompile Include="..\core\pe\PEDebug.cc" />
+    <ClCompile Include="..\core\pe\PEDelayImport.cc" />
+    <ClCompile Include="..\core\pe\PEDirectory.cc" />
+    <ClCompile Include="..\core\pe\PEExport.cc" />
+    <ClCompile Include="..\core\pe\PEFile.cc" />
+    <ClCompile Include="..\core\pe\PEFixup.cc" />
+    <ClCompile Include="..\core\pe\PEImport.cc" />
+    <ClCompile Include="..\core\pe\PEMapFile.cc" />
+    <ClCompile Include="..\core\pe\PEResource.cc" />
+    <ClCompile Include="..\core\pe\PERuntimeFunction.cc" />
+    <ClCompile Include="..\core\pe\PESegment.cc" />
+    <ClCompile Include="..\core\pe\PESEHandler.cc" />
+    <ClCompile Include="..\core\pe\PETLS.cc" />
+    <ClCompile Include="..\core\pe\PEArchitecture.cc" />
     <ClCompile Include="..\core\precompiled.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Professional|Win32'">Create</PrecompiledHeader>
@@ -101,7 +114,7 @@
     <ClCompile Include="..\runtime\crypto.cc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\core\core.h" />
+    <ClInclude Include="..\core\core_internal\core.h" />
     <ClInclude Include="..\core\core_internal\core_utils.h" />
     <ClInclude Include="..\core\core_internal\file_manager.h" />
     <ClInclude Include="..\core\core_internal\license.h" />
@@ -136,6 +149,20 @@
     <ClInclude Include="..\core\packer.h" />
     <ClInclude Include="..\core\pdb.h" />
     <ClInclude Include="..\core\pe.h" />
+    <ClInclude Include="..\core\pe\PEDebug.h" />
+    <ClInclude Include="..\core\pe\PEDelayImport.h" />
+    <ClInclude Include="..\core\pe\PEDirectory.h" />
+    <ClInclude Include="..\core\pe\PEExport.h" />
+    <ClInclude Include="..\core\pe\PEFile.h" />
+    <ClInclude Include="..\core\pe\PEFixup.h" />
+    <ClInclude Include="..\core\pe\PEImport.h" />
+    <ClInclude Include="..\core\pe\PEMapFile.h" />
+    <ClInclude Include="..\core\pe\PEResource.h" />
+    <ClInclude Include="..\core\pe\PERuntimeFunction.h" />
+    <ClInclude Include="..\core\pe\PESegment.h" />
+    <ClInclude Include="..\core\pe\PESEHandler.h" />
+    <ClInclude Include="..\core\pe\PETLS.h" />
+    <ClInclude Include="..\core\pe\PEArchitecture.h" />
     <ClInclude Include="..\core\pefile.h" />
     <ClInclude Include="..\core\precompiled.h" />
     <ClInclude Include="..\core\processors.h" />

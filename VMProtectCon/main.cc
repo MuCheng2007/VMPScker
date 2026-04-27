@@ -2,7 +2,7 @@
 #include "../core/osutils.h"
 #include "../core/streams.h"
 #include "../core/files.h"
-#include "../core/core.h"
+#include "../core/core_internal/core.h"
 #include "../core/script.h"
 #include "../core/lang.h"
 

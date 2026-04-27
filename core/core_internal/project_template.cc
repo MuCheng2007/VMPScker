@@ -1,10 +1,10 @@
-﻿#include "project_template.h"
+#include "project_template.h"
 
 #include "../lang.h"
 #include "../osutils.h"
 #include "../files.h"
 #include "../inifile.h"
-#include "../core.h"
+#include "core.h"
 
 extern const VMP_CHAR *default_message[MESSAGE_COUNT];
 

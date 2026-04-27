@@ -1,7 +1,7 @@
 ﻿#ifndef CORE_H
 #define CORE_H
 
-#include "../runtime/common.h"
+#include "../../runtime/common.h"
 
 
 class WatermarkManager;

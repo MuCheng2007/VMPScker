@@ -4,7 +4,7 @@
 #include "IntelCommand.h"
 #include "IntelVMCommand.h"
 #include "../../processors.h"
-#include "../../core.h"
+#include "../../core_internal/core.h"
 #include "../../lang.h"
 #include "../../../runtime/crypto.h"
 #include "../vm/IntelVirtualMachine.h"

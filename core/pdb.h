@@ -2334,7 +2334,7 @@ bool pdb_reader::read(size_t block_size, const T* block_list, size_t size, std::
 	return true;
 }
 
-bool pdb_jg_reader::read_file(size_t file_nr, std::vector<uint8_t> &dest)
+inline bool pdb_jg_reader::read_file(size_t file_nr, std::vector<uint8_t> &dest)
 {
 	if (!toc || file_nr >= toc->num_files) 
 		return false;
@@ -2349,7 +2349,7 @@ bool pdb_jg_reader::read_file(size_t file_nr, std::vector<uint8_t> &dest)
 	return read(header.block_size, block_list, toc->file[file_nr].size, dest);
 }
 
-bool pdb_jg_reader::init()
+inline bool pdb_jg_reader::init()
 {
 	if(!fs_.RawRead(0, &header))
 		return false;
@@ -2370,7 +2370,7 @@ bool pdb_jg_reader::init()
 	return false;
 }
 
- bool pdb_ds_reader::read_file(size_t file_number, std::vector<uint8_t> &dest)
+inline bool pdb_ds_reader::read_file(size_t file_number, std::vector<uint8_t> &dest)
 {
 	if (!toc || file_number >= toc->num_files)
 		 return false;
@@ -2385,7 +2385,7 @@ bool pdb_jg_reader::init()
 	return read(header.block_size, block_list, toc->file_size[file_number], dest);
 }
 
-bool pdb_ds_reader::init()
+inline bool pdb_ds_reader::init()
 {
 	if (!fs_.RawRead(0, &header)) 
 		return false;

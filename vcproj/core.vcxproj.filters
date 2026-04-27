@@ -22,6 +22,9 @@
     <Filter Include="src\intel\vm">
       <UniqueIdentifier>{d4e5f6a7-8901-2345-def4-567890123456}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\pe">
+      <UniqueIdentifier>{e5f6a7b8-9012-3456-ef56-789012345678}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\core\files.cc">
@@ -29,9 +32,6 @@
     </ClCompile>
 
     <ClCompile Include="..\core\objects.cc">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\pefile.cc">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\core\processors.cc">
@@ -73,7 +73,7 @@
     <ClCompile Include="..\core\core_internal\project_template.cc">
       <Filter>src\core_internal</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\core.cc">
+    <ClCompile Include="..\core\core_internal\core.cc">
       <Filter>src\core_internal</Filter>
     </ClCompile>
     <ClCompile Include="..\core\core_internal\license.cc">
@@ -135,6 +135,48 @@
     </ClCompile>
     <ClCompile Include="..\core\intel\vm\IntelVirtualMachineProcessor.cc">
       <Filter>src\intel\vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEArchitecture.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEDebug.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEDelayImport.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEDirectory.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEExport.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEFile.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEFixup.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEImport.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEMapFile.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEResource.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PERuntimeFunction.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PESegment.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PESEHandler.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PETLS.cc">
+      <Filter>src\pe</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -208,7 +250,7 @@
     <ClInclude Include="..\core\core_internal\project_template.h">
       <Filter>src\core_internal</Filter>
     </ClInclude>
-    <ClInclude Include="..\core\core.h">
+    <ClInclude Include="..\core\core_internal\core.h">
       <Filter>src\core_internal</Filter>
     </ClInclude>
     <ClInclude Include="..\core\core_internal\license.h">
@@ -273,6 +315,48 @@
     </ClInclude>
     <ClInclude Include="..\core\intel\vm\IntelVirtualMachineProcessor.h">
       <Filter>src\intel\vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEArchitecture.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEDebug.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEDelayImport.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEDirectory.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEExport.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEFile.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEFixup.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEImport.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEMapFile.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEResource.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PERuntimeFunction.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PESegment.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PESEHandler.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PETLS.h">
+      <Filter>src\pe</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

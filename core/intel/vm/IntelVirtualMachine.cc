@@ -7,7 +7,7 @@
 #include "../ir/IntelFunction.h"
 #include "../ir/IntelFunctionList.h"
 #include "../../processors.h"
-#include "../../core.h"
+#include "../../core_internal/core.h"
 #include "../../files.h"
 #include "../../lang.h"
 #include "../../../runtime/crypto.h"

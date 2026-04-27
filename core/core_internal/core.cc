@@ -7,7 +7,7 @@
 #include "processors.h"
 #include "inifile.h"
 #include "script.h"
-#include "pefile.h"
+#include "pe/pefile.h"
 #include "lang.h"
 #include "core.h"
 

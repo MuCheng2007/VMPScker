@@ -11,7 +11,7 @@
 #include "processors.h"
 #include "inifile.h"
 #include "lang.h"
-#include "core.h"
+#include "core_internal/core.h"
 #include "script.h"
 #include "../third-party/demangle/undname.h"
 #include "../third-party/demangle/demangle.h"

@@ -4,7 +4,7 @@
 #include "IntelFunctionList.h"
 #include "../../processors.h"
 #include "../../files.h"
-#include "../../pefile.h"
+#include "../../pe/pefile.h"
 #include "../../lang.h"
 
 // Copied from intel.cc: IntelFileHelper implementation

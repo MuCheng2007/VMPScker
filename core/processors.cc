@@ -3,7 +3,7 @@
 #include "osutils.h"
 #include "streams.h"
 #include "files.h"
-#include "core.h"
+#include "core_internal/core.h"
 #include "core_internal/watermark.h"
 #include "processors.h"
 #include "lang.h"

@@ -8,7 +8,9 @@
 #include "osutils.h"
 #include "streams.h"
 #include "files.h"
-#include "processors.h"
+#include "processors/proc_interfaces.h"
+#include "processors/proc_crypto.h"
+
 #include "inifile.h"
 #include "lang.h"
 #include "core_internal/core.h"

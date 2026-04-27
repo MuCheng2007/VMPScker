@@ -1,9 +1,10 @@
-﻿#ifndef FILE_MANAGER_H
+#ifndef FILE_MANAGER_H
 #define FILE_MANAGER_H
 
 #include "../../runtime/common.h"
 #include "../objects.h"
-#include "../processors.h"
+#include "../processors/proc_interfaces.h"
+
 
 class Core;
 class FileManager;

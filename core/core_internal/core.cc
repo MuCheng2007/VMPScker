@@ -1,22 +1,22 @@
-﻿#include "../runtime/crypto.h"
+#include "../../runtime/crypto.h"
 
-#include "objects.h"
-#include "osutils.h"
-#include "streams.h"
-#include "files.h"
-#include "processors.h"
-#include "inifile.h"
-#include "script.h"
-#include "pe/pefile.h"
-#include "lang.h"
+#include "../objects.h"
+#include "../osutils.h"
+#include "../streams.h"
+#include "../files.h"
+#include "../processors.h"
+#include "../inifile.h"
+#include "../script.h"
+#include "../pe/pefile.h"
+#include "../lang.h"
 #include "core.h"
 
-#include "core_internal/core_utils.h"
-#include "core_internal/watermark.h"
-#include "core_internal/project_template.h"
+#include "core_utils.h"
+#include "watermark.h"
+#include "project_template.h"
 
-#include "core_internal/license.h"
-#include "core_internal/file_manager.h"
+#include "license.h"
+#include "file_manager.h"
 
 static std::string GetProjectFileName(std::string &exe_file_name)
 {

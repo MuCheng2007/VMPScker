@@ -195,3 +195,9 @@ app/vmprotect_gui.app/Contents/Resources/logo.icns
 /core/新建文件夹
 /错误.txt
 core/processors.h_bak
+core/invariant/lin_invariant_core.mak
+core/invariant/lin_invariant_core32.mak
+core/invariant/lin_invariant_core64.mak
+core/invariant/mac_invariant_core.mak
+core/invariant/mac_invariant_core32.mak
+core/invariant/mac_invariant_core64.mak

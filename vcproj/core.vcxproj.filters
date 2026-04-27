@@ -25,6 +25,9 @@
     <Filter Include="src\pe">
       <UniqueIdentifier>{e5f6a7b8-9012-3456-ef56-789012345678}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\processors">
+      <UniqueIdentifier>{f6a7b8c9-0123-4567-0678-901234567890}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\core\files.cc">
@@ -34,8 +37,32 @@
     <ClCompile Include="..\core\objects.cc">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\processors.cc">
-      <Filter>src</Filter>
+    <ClCompile Include="..\core\processors\proc_types.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_interfaces.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_info.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_command.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_command_link.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_command_block.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_function.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_vm.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_crypto.cc">
+      <Filter>src\processors</Filter>
     </ClCompile>
     <ClCompile Include="..\core\streams.cc">
       <Filter>src</Filter>
@@ -196,8 +223,32 @@
     <ClInclude Include="..\core\files.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\core\processors.h">
-      <Filter>src</Filter>
+    <ClInclude Include="..\core\processors\proc_types.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_interfaces.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_info.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_command.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_command_link.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_command_block.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_function.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_vm.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_crypto.h">
+      <Filter>src\processors</Filter>
     </ClInclude>
     <ClInclude Include="..\core\objects.h">
       <Filter>src</Filter>

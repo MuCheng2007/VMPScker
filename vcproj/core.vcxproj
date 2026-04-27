@@ -108,7 +108,15 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Demo|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Lite|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\core\processors.cc" />
+    <ClCompile Include="..\core\processors\proc_command.cc" />
+    <ClCompile Include="..\core\processors\proc_command_block.cc" />
+    <ClCompile Include="..\core\processors\proc_command_link.cc" />
+    <ClCompile Include="..\core\processors\proc_crypto.cc" />
+    <ClCompile Include="..\core\processors\proc_function.cc" />
+    <ClCompile Include="..\core\processors\proc_info.cc" />
+    <ClCompile Include="..\core\processors\proc_interfaces.cc" />
+    <ClCompile Include="..\core\processors\proc_types.cc" />
+    <ClCompile Include="..\core\processors\proc_vm.cc" />
     <ClCompile Include="..\core\script.cc" />
     <ClCompile Include="..\core\streams.cc" />
     <ClCompile Include="..\runtime\crypto.cc" />
@@ -165,7 +173,15 @@
     <ClInclude Include="..\core\pe\PEArchitecture.h" />
     <ClInclude Include="..\core\pefile.h" />
     <ClInclude Include="..\core\precompiled.h" />
-    <ClInclude Include="..\core\processors.h" />
+    <ClInclude Include="..\core\processors\proc_command.h" />
+    <ClInclude Include="..\core\processors\proc_command_block.h" />
+    <ClInclude Include="..\core\processors\proc_command_link.h" />
+    <ClInclude Include="..\core\processors\proc_crypto.h" />
+    <ClInclude Include="..\core\processors\proc_function.h" />
+    <ClInclude Include="..\core\processors\proc_info.h" />
+    <ClInclude Include="..\core\processors\proc_interfaces.h" />
+    <ClInclude Include="..\core\processors\proc_types.h" />
+    <ClInclude Include="..\core\processors\proc_vm.h" />
     <ClInclude Include="..\core\script.h" />
     <ClInclude Include="..\core\streams.h" />
     <ClInclude Include="..\core\resources.h" />

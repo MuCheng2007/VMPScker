@@ -1,8 +1,8 @@
-﻿#include "../core/objects.h"
+#include "../core/objects.h"
 #include "../core/osutils.h"
 #include "../core/files.h"
-#include "../core/processors.h"
 #include "../core/lang.h"
+#include "../core/processors/proc_interfaces.h"
 #include "console.h"
 
 /**

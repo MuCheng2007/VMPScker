@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Support of PE executable files.
  */
 
@@ -13,6 +13,7 @@ class PEFixupList;
 class PERelocationList;
 class PELoadConfigDirectory;
 class PERuntimeFunctionList;
+class FileStream;
 
 class PEDirectory : public BaseLoadCommand
 {

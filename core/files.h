@@ -6,8 +6,9 @@
 #define FILES_H
 
 #include "../runtime/common.h"
+#include "objects.h"
 
-// 前向声明
+
 class LicensingManager;
 class FileManager;
 

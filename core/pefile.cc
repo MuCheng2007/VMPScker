@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Support of PE executable files.
  */
 
@@ -10,7 +10,17 @@
 #include "files.h"
 #include "pefile.h"
 #include "processors.h"
-#include "intel.h"
+
+// Intel module - 按需包含
+#include "intel/ir/IntelCommandType.h"
+#include "intel/ir/IntelOperand.h"
+#include "intel/ir/IntelCommand.h"
+#include "intel/ir/IntelFunction.h"
+#include "intel/ir/IntelFunctionList.h"
+#include "intel/ir/IntelSDK.h"
+#include "intel/ir/IntelLoader.h"
+#include "intel/vm/IntelVirtualMachineList.h"
+
 #include "lang.h"
 #include "core.h"
 #include "script.h"

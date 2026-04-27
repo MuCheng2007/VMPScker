@@ -17,7 +17,6 @@
 #include "../third-party/demangle/demangle.h"
 #include "../third-party/demangle/unmangle.h"
 
-
 #include "core_internal/watermark.h"
 #include "core_internal/license.h"
 #include "core_internal/file_manager.h"

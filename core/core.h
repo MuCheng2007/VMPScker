@@ -34,7 +34,7 @@ enum ProjectOption {
 	cpVirtualFiles			= 0x08000000,
 	cpInternalMemoryProtection = 0x04000000,
 	cpLoader				= 0x02000000,
-	cpMaximumProtection     = cpCryptValues | cpRunnerCRC | cpEncryptRegs | cpPack | cpImportProtection | cpMemoryProtection | cpResourceProtection | cpStripDebugInfo,
+	cpMaximumProtection     = cpCryptValues | cpRunnerCRC | cpEncryptRegs | cpStripDebugInfo,
 	cpUserOptionsMask       = 0x00FFFFFF
 };
 

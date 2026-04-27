@@ -7,13 +7,17 @@
 #include "core.h"
 #include "pefile.h"
 #include "processors.h"
-#include "intel.h"
-#include "../third-party/libffi/ffi.h"
 
+#include "../third-party/libffi/ffi.h"
 
 #include "core_internal/watermark.h"
 #include "core_internal/license.h"
 #include "core_internal/file_manager.h"
+
+// Intel module
+#include "intel/ir/IntelCommand.h"
+#include "intel/ir/IntelFunction.h"
+#include "intel/ir/IntelFunctionList.h"
 
 /**
  * lua utils

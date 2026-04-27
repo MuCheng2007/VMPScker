@@ -60,7 +60,22 @@
     <ClCompile Include="..\core\core_internal\watermark.cc" />
     <ClCompile Include="..\core\files.cc" />
     <ClCompile Include="..\core\inifile.cc" />
-    <ClCompile Include="..\core\intel.cc" />
+    <ClCompile Include="..\core\intel\crypto\SectionCryptor.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelCommand.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelCommandInfo.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelFunction.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelFunctionList.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelLoader.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelMisc.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelObfuscation.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelOpcodeInfo.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelOperand.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelSDK.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelStack.cc" />
+    <ClCompile Include="..\core\intel\ir\IntelVMCommand.cc" />
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachine.cc" />
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachineList.cc" />
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachineProcessor.cc" />
     <ClCompile Include="..\core\lang.cc" />
     <ClCompile Include="..\core\objects.cc" />
     <ClCompile Include="..\core\osutils.cc" />
@@ -97,7 +112,23 @@
     <ClInclude Include="..\core\elf.h" />
     <ClInclude Include="..\core\files.h" />
     <ClInclude Include="..\core\inifile.h" />
-    <ClInclude Include="..\core\intel.h" />
+    <ClInclude Include="..\core\intel\crypto\SectionCryptor.h" />
+    <ClInclude Include="..\core\intel\ir\IntelCommand.h" />
+    <ClInclude Include="..\core\intel\ir\IntelCommandInfo.h" />
+    <ClInclude Include="..\core\intel\ir\IntelCommandType.h" />
+    <ClInclude Include="..\core\intel\ir\IntelFunction.h" />
+    <ClInclude Include="..\core\intel\ir\IntelFunctionList.h" />
+    <ClInclude Include="..\core\intel\ir\IntelLoader.h" />
+    <ClInclude Include="..\core\intel\ir\IntelMisc.h" />
+    <ClInclude Include="..\core\intel\ir\IntelObfuscation.h" />
+    <ClInclude Include="..\core\intel\ir\IntelOpcodeInfo.h" />
+    <ClInclude Include="..\core\intel\ir\IntelOperand.h" />
+    <ClInclude Include="..\core\intel\ir\IntelSDK.h" />
+    <ClInclude Include="..\core\intel\ir\IntelStack.h" />
+    <ClInclude Include="..\core\intel\ir\IntelVMCommand.h" />
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachine.h" />
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachineList.h" />
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachineProcessor.h" />
     <ClInclude Include="..\core\lang.h" />
     <ClInclude Include="..\core\mach-o.h" />
     <ClInclude Include="..\core\objects.h" />
@@ -182,7 +213,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Demo|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -489,6 +520,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -500,6 +532,18 @@
     <Lib>
       <AdditionalOptions>/ignore:4221</AdditionalOptions>
     </Lib>
+    <CustomBuildStep>
+      <Command />
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message />
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs />
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs />
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Demo|x64'">
     <ClCompile>

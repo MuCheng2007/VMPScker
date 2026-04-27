@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="src">
@@ -10,14 +10,24 @@
     <Filter Include="src\core_internal">
       <UniqueIdentifier>{915455e1-9295-4156-af15-3f8352fdff3a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\intel">
+      <UniqueIdentifier>{a1b2c3d4-e5f6-7890-abcd-ef1234567890}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\intel\crypto">
+      <UniqueIdentifier>{b2c3d4e5-f6a7-8901-bcde-f23456789012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\intel\ir">
+      <UniqueIdentifier>{c3d4e5f6-a789-0123-cdef-345678901234}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\intel\vm">
+      <UniqueIdentifier>{d4e5f6a7-8901-2345-def4-567890123456}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\core\files.cc">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\intel.cc">
-      <Filter>src</Filter>
-    </ClCompile>
+
     <ClCompile Include="..\core\objects.cc">
       <Filter>src</Filter>
     </ClCompile>
@@ -72,11 +82,63 @@
     <ClCompile Include="..\core\core_internal\file_manager.cc">
       <Filter>src\core_internal</Filter>
     </ClCompile>
+    <ClCompile Include="..\core\intel\crypto\OpcodeCryptor.cc">
+      <Filter>src\intel\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\crypto\SectionCryptor.cc">
+      <Filter>src\intel\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\crypto\ValueCryptor.cc">
+      <Filter>src\intel\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelCommand.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelCommandInfo.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelFunction.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelFunctionList.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelLoader.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelMisc.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelObfuscation.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelOpcodeInfo.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelOperand.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelSDK.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelStack.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelVMCommand.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachine.cc">
+      <Filter>src\intel\vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachineList.cc">
+      <Filter>src\intel\vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachineProcessor.cc">
+      <Filter>src\intel\vm</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\core\intel.h">
-      <Filter>src</Filter>
-    </ClInclude>
+
     <ClInclude Include="..\core\pefile.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -154,6 +216,63 @@
     </ClInclude>
     <ClInclude Include="..\core\core_internal\file_manager.h">
       <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\crypto\OpcodeCryptor.h">
+      <Filter>src\intel\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\crypto\SectionCryptor.h">
+      <Filter>src\intel\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\crypto\ValueCryptor.h">
+      <Filter>src\intel\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelCommand.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelCommandInfo.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelCommandType.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelFunction.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelFunctionList.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelLoader.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelMisc.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelObfuscation.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelOpcodeInfo.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelOperand.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelSDK.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelStack.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelVMCommand.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachine.h">
+      <Filter>src\intel\vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachineList.h">
+      <Filter>src\intel\vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachineProcessor.h">
+      <Filter>src\intel\vm</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 #include "proc_info.h"
 #include "proc_interfaces.h"
-#include "proc_command.h"
 #include "proc_function.h"
+#include "../files/runtime_func.h"
 #include <stdexcept>
 
 

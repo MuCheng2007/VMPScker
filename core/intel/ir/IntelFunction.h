@@ -2,6 +2,8 @@
 #define INTEL_FUNCTION_H
 
 #include "../../processors.h"
+#include "../../files/types.h"
+#include "../../files/markers.h"
 #include "IntelCommandType.h"
 #include "IntelCommand.h"
 #include <set>

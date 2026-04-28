@@ -2,6 +2,7 @@
 #define PE_DEBUG_H
 
 #include "../objects.h"
+#include "../files/memory.h"
 
 class PEArchitecture;
 class PEDirectory;

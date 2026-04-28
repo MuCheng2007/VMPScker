@@ -5,7 +5,7 @@
 #ifndef PE_RESOURCE_H
 #define PE_RESOURCE_H
 
-#include "../files.h"
+#include "../files/resources.h"
 
 class PEArchitecture;
 class PEResourceList;

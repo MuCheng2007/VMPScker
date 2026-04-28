@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Support of object hierarchy.
  */
 
@@ -7,30 +7,7 @@
 
 std::string string_format(const char *format, ...);
 
-// TODO: find more appropriate place for {
-enum OperandSize : uint8_t {
-	osByte,
-	osWord,
-	osDWord,
-	osQWord,
-	osTByte,
-	osOWord,
-	osXMMWord,
-	osYMMWord,
-	osFWord,
-	osDefault = 0xff
-};
-
-enum MessageType {
-	mtInformation,
-	mtWarning,
-	mtError,
-	mtAdded,
-	mtChanged,
-	mtDeleted,
-	mtScript,
-};
-// }
+#include "files/types.h"
 
 class IObject
 {

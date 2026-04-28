@@ -5,7 +5,8 @@
 #ifndef PE_EXPORT_H
 #define PE_EXPORT_H
 
-#include "../files.h"
+#include "../files/exports.h"
+#include "../files/memory.h"
 
 class PEArchitecture;
 class PEExportList;

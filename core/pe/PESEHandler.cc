@@ -4,7 +4,9 @@
 #include "../objects.h"
 #include "../osutils.h"
 #include "../streams.h"
-#include "../files.h"
+#include "../files/architecture.h"
+#include "../files/seh.h"
+#include "../files/utils.h"
 #include "PESEHandler.h"
 #include "PEArchitecture.h"
 

@@ -1,5 +1,6 @@
-﻿#ifndef CONSOLE_H
+#ifndef CONSOLE_H
 #define CONSOLE_H
+#include "../core/files/architecture.h"
 
 class ConsoleLog : public ILog
 {

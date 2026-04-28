@@ -1,4 +1,6 @@
 #include "IntelVirtualMachineProcessor.h"
+#include "../../files/utils.h"
+#include "../../files/architecture.h"
 #include "../ir/IntelFunction.h"
 #include "../ir/IntelFunctionList.h"
 #include "../ir/IntelCommand.h"

@@ -1,8 +1,10 @@
-﻿#include "../runtime/crypto.h"
+#include "../runtime/crypto.h"
 #include "objects.h"
 #include "osutils.h"
 #include "streams.h"
-#include "files.h"
+#include "files/mapping.h"
+#include "files/architecture.h"
+#include "files/utils.h"
 #include "script.h"
 #include "core_internal/core.h"
 

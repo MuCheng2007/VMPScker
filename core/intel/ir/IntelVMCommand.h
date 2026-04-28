@@ -2,6 +2,8 @@
 #define INTEL_VM_COMMAND_H
 
 #include "../../processors.h"
+#include "../../files/types.h"
+#include "../../files/fixups.h"
 #include "IntelCommandType.h"
 
 class IntelCommand;

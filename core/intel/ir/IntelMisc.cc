@@ -3,7 +3,10 @@
 #include "IntelFunction.h"
 #include "IntelFunctionList.h"
 #include "../../processors.h"
-#include "../../files.h"
+#include "../../files/architecture.h"
+#include "../../files/mapping.h"
+#include "../../files/compiler_func.h"
+#include "../../files/types.h"
 #include "../../pe/pefile.h"
 #include "../../lang.h"
 

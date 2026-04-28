@@ -1,4 +1,6 @@
 #include "IntelStack.h"
+#include "../../files/utils.h"
+#include "../../files/architecture.h"
 #include "../../processors.h"
 #include "../../osutils.h"
 #include "../../../runtime/crypto.h"

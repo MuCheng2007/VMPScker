@@ -5,7 +5,8 @@
 #ifndef PE_DIRECTORY_H
 #define PE_DIRECTORY_H
 
-#include "../files.h"
+#include "../files/sections.h"
+#include "../files/memory.h"
 
 class PEArchitecture;
 class PEDirectoryList;

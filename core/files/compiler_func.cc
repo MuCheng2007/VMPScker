@@ -4,7 +4,7 @@
  */
 
 #include "compiler_func.h"
-#include "../files.h"
+#include "architecture.h"
 #include "../core_internal/core.h"
 
 /**

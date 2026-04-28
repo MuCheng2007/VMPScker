@@ -1,5 +1,6 @@
 #include "IntelOperand.h"
-#include "../../files.h"
+#include "../../files/types.h"
+#include "../../files/fixups.h"
 #include "../../osutils.h"
 #include "../../../runtime/crypto.h"
 

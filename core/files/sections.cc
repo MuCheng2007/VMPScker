@@ -4,7 +4,7 @@
  */
 
 #include "sections.h"
-#include "../files.h" // IArchitecture definition
+#include "architecture.h" // IArchitecture definition
 
 /**
  * BaseLoadCommand

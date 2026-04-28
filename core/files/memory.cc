@@ -5,7 +5,8 @@
 
 #include "memory.h"
 #include "utils.h"
-#include "../files.h"
+#include "architecture.h"
+#include "sections.h"
 #include "sections.h"
 #include "../processors/proc_crypto.h"
 #include "../../runtime/crypto.h"

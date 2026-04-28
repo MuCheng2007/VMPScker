@@ -4,7 +4,7 @@
  */
 
 #include "seh.h"
-#include "../files.h"
+#include "architecture.h"
 
 /**
  * BaseSEHandler

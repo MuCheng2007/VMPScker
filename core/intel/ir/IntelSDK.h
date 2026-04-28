@@ -2,6 +2,7 @@
 #define INTEL_SDK_H
 
 #include "IntelFunction.h"
+#include "../../files/utils.h"
 #include "../../../runtime/crypto.h"
 
 class IntelSDK : public IntelFunction

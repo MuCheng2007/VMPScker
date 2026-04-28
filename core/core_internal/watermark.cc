@@ -1,7 +1,8 @@
 #include "watermark.h"
 
 #include "../inifile.h"
-#include "../files.h"
+#include "../files/architecture.h"
+#include "../files/utils.h"
 #include "core.h"
 #include "core_utils.h"
 

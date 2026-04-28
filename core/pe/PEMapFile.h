@@ -5,7 +5,7 @@
 #ifndef PE_MAP_FILE_H
 #define PE_MAP_FILE_H
 
-#include "../files.h"
+#include "../files/mapping.h"
 
 class FileStream;
 class PEArchitecture;

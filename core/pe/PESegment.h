@@ -5,7 +5,7 @@
 #ifndef PE_SEGMENT_H
 #define PE_SEGMENT_H
 
-#include "../files.h"
+#include "../files/sections.h"
 
 class PEArchitecture;
 class PESegmentList;

@@ -5,7 +5,8 @@
 #ifndef PE_RUNTIME_FUNCTION_H
 #define PE_RUNTIME_FUNCTION_H
 
-#include "../files.h"
+#include "../files/runtime_func.h"
+#include "../files/memory.h"
 
 class PEArchitecture;
 class PERuntimeFunctionList;

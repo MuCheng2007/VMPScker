@@ -4,7 +4,7 @@
  */
 
 #include "exports.h"
-#include "../files.h"
+#include "architecture.h"
 #include "../osutils.h"
 #include "../streams.h"
 

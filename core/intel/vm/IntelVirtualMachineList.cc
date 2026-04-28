@@ -1,11 +1,15 @@
 #include "IntelVirtualMachineList.h"
+#include "../../files/utils.h"
+#include "../../files/architecture.h"
 #include "IntelVirtualMachine.h"
 #include "IntelVirtualMachineProcessor.h"
 #include "../ir/IntelFunction.h"
 #include "../ir/IntelFunctionList.h"
 #include "../ir/IntelOpcodeInfo.h"
 #include "../../processors.h"
-#include "../../files.h"
+#include "../../files/architecture.h"
+#include "../../files/memory.h"
+#include "../../files/types.h"
 #include "../../core_internal/core.h"
 
 /*

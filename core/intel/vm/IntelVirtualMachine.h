@@ -6,6 +6,8 @@
 #include "../ir/IntelMisc.h"
 #include "../ir/IntelFunction.h"
 #include "../../processors.h"
+#include "../../files/types.h"
+#include "../../files/markers.h"
 #include <unordered_map>
 
 class IntelVirtualMachineList;

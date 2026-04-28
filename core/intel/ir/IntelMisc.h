@@ -2,6 +2,8 @@
 #define INTEL_MISC_H
 
 #include "../../processors.h"
+#include "../../files/types.h"
+#include "../../files/markers.h"
 #include "IntelCommandType.h"
 #include <vector>
 

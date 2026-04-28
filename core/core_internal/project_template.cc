@@ -2,7 +2,8 @@
 
 #include "../lang.h"
 #include "../osutils.h"
-#include "../files.h"
+#include "../files/architecture.h"
+#include "../files/utils.h"
 #include "../inifile.h"
 #include "core.h"
 

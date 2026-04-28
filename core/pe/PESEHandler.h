@@ -5,7 +5,8 @@
 #ifndef PE_SEH_HANDLER_H
 #define PE_SEH_HANDLER_H
 
-#include "../files.h"
+#include "../files/seh.h"
+#include "../files/memory.h"
 
 class PEArchitecture;
 class PEDirectory;

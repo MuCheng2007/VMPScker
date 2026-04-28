@@ -4,7 +4,7 @@
  */
 
 #include "runtime_func.h"
-#include "../files.h"
+#include "architecture.h"
 
 /**
  * BaseRuntimeFunction

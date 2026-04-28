@@ -5,7 +5,7 @@
 #ifndef PE_FILE_H
 #define PE_FILE_H
 
-#include "../files.h"
+#include "../files/architecture.h"
 #include "PEArchitecture.h"
 
 class PEFile : public IFile

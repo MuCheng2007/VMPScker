@@ -2,6 +2,8 @@
 #define INTEL_FUNCTION_LIST_H
 
 #include "../../processors.h"
+#include "../../files/types.h"
+#include "../../files/markers.h"
 #include "IntelFunction.h"
 #include "IntelSDK.h"
 

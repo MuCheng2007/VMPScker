@@ -1,4 +1,6 @@
 #include "IntelVirtualMachine.h"
+#include "../../files/utils.h"
+#include "../../files/architecture.h"
 #include "IntelVirtualMachineList.h"
 #include "IntelVirtualMachineProcessor.h"
 #include "../ir/IntelCommand.h"
@@ -8,7 +10,8 @@
 #include "../ir/IntelFunctionList.h"
 #include "../../processors.h"
 #include "../../core_internal/core.h"
-#include "../../files.h"
+#include "../../files/architecture.h"
+#include "../../files/types.h"
 #include "../../lang.h"
 #include "../../../runtime/crypto.h"
 

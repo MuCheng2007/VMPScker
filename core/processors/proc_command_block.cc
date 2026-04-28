@@ -4,6 +4,9 @@
 #include "proc_info.h"
 #include "proc_function.h"
 #include "proc_vm.h"
+#include "../files/types.h"
+#include "../files/memory.h"
+#include "../files/sections.h"
 #include <stdexcept>
 #include <algorithm>
 

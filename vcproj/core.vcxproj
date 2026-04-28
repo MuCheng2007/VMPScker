@@ -58,7 +58,6 @@
     <ClCompile Include="..\core\core_internal\project_template.cc" />
     <ClCompile Include="..\core\core_internal\rsa.cc" />
     <ClCompile Include="..\core\core_internal\watermark.cc" />
-    <ClCompile Include="..\core\files.cc" />
     <ClCompile Include="..\core\files\utils.cc" />
     <ClCompile Include="..\core\files\references.cc" />
     <ClCompile Include="..\core\files\mapping.cc" />
@@ -146,7 +145,6 @@
     <ClInclude Include="..\core\core_internal\watermark.h" />
     <ClInclude Include="..\core\dotnet.h" />
     <ClInclude Include="..\core\elf.h" />
-    <ClInclude Include="..\core\files.h" />
     <ClInclude Include="..\core\files\types.h" />
     <ClInclude Include="..\core\files\utils.h" />
     <ClInclude Include="..\core\files\references.h" />
@@ -564,6 +562,8 @@
       <PreprocessorDefinitions>_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>false</TreatWarningAsError>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

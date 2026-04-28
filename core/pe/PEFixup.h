@@ -5,7 +5,10 @@
 #ifndef PE_FIXUP_H
 #define PE_FIXUP_H
 
-#include "../files.h"
+#include "../files/fixups.h"
+#include "../files/relocations.h"
+#include "../files/types.h"
+#include "../files/utils.h"
 
 class PEArchitecture;
 class PEFixupList;

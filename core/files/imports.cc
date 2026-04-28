@@ -4,7 +4,8 @@
  */
 
 #include "imports.h"
-#include "../files.h"
+#include "architecture.h"
+#include "mapping.h"
 #include "../objects.h"
 #include "../osutils.h"
 #include "../streams.h"

@@ -4,7 +4,7 @@
  */
 
 #include "fixups.h"
-#include "../files.h"
+#include "architecture.h"
 
 /**
  * BaseFixup

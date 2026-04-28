@@ -6,6 +6,8 @@
 #define PROC_INTERFACES_H
 
 #include "proc_types.h"
+#include "../files/types.h"
+#include "../files/architecture.h"
 
 // Type definitions
 typedef std::vector<uint8_t> ByteList;
@@ -30,6 +32,7 @@ class CommandInfo;
 class CommandInfoList;
 class AddressRange;
 class ISEHandler;
+class ValueCryptor;
 struct CompileContext;
 
 /**

@@ -4,7 +4,9 @@
 #include "../objects.h"
 #include "../osutils.h"
 #include "../streams.h"
-#include "../files.h"
+#include "../files/architecture.h"
+#include "../files/sections.h"
+#include "../files/utils.h"
 #include "PESegment.h"
 #include "PEArchitecture.h"
 

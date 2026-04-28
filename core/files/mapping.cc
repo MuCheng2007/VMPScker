@@ -2,9 +2,11 @@
  * Map file parsing and function address mapping implementations.
  * Rust mapping target: mod mapping
  */
-
+#include "sections.h" 
 #include "mapping.h"
-#include "../files.h"    // full IArchitecture, IFile, IExportList, IImportList
+#include "architecture.h"
+#include "exports.h"
+#include "imports.h"    // full IArchitecture, IFile, IExportList, IImportList
 #include "../objects.h"
 #include "../osutils.h"
 #include "../streams.h"

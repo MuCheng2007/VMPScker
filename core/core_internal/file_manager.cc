@@ -4,6 +4,8 @@
 #include "../osutils.h"
 #include "../streams.h"
 #include "../processors.h"
+#include "../files/types.h"
+#include "../files/architecture.h"
 
 #include "core.h"
 

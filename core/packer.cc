@@ -1,6 +1,6 @@
-﻿#include "../third-party/lzma/Alloc.h"
+#include "../third-party/lzma/Alloc.h"
 #include "objects.h"
-#include "files.h"
+#include "files/architecture.h"
 #include "packer.h"
 
 /**

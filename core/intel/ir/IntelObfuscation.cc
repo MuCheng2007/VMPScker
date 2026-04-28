@@ -1,4 +1,6 @@
 #include "IntelObfuscation.h"
+#include "../../files/utils.h"
+#include "../../files/architecture.h"
 #include "IntelFunction.h"
 #include "IntelFunctionList.h"
 #include "IntelCommand.h"

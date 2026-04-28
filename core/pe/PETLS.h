@@ -5,7 +5,8 @@
 #ifndef PE_TLS_H
 #define PE_TLS_H
 
-#include "../files.h"
+#include "../files/references.h"
+#include "../files/memory.h"
 
 class PEArchitecture;
 class PEDirectory;

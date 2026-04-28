@@ -8,6 +8,8 @@
 
 #include "proc_types.h"
 #include "proc_interfaces.h"
+#include "../files/types.h"
+#include "../files/architecture.h"
 
 class IFunctionList;
 class ICommandList;

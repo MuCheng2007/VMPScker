@@ -5,7 +5,9 @@
 #ifndef PE_IMPORT_H
 #define PE_IMPORT_H
 
-#include "../files.h"
+#include "../files/imports.h"
+#include "../files/memory.h"
+#include "../files/types.h"
 
 class PEArchitecture;
 class PEDirectory;

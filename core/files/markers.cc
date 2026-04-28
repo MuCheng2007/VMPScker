@@ -4,7 +4,7 @@
  */
 
 #include "markers.h"
-#include "../files.h"
+#include "architecture.h"
 
 /**
  * MarkerCommand

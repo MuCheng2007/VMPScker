@@ -5,6 +5,33 @@
 #include "../../runtime/common.h"
 
 // ---------------------------------------------------------------------------
+// Basic types
+// ---------------------------------------------------------------------------
+
+enum OperandSize : uint8_t {
+	osByte,
+	osWord,
+	osDWord,
+	osQWord,
+	osTByte,
+	osOWord,
+	osXMMWord,
+	osYMMWord,
+	osFWord,
+	osDefault = 0xff
+};
+
+enum MessageType {
+	mtInformation,
+	mtWarning,
+	mtError,
+	mtAdded,
+	mtChanged,
+	mtDeleted,
+	mtScript,
+};
+
+// ---------------------------------------------------------------------------
 // Bit conversion macros
 // ---------------------------------------------------------------------------
 

@@ -3,7 +3,7 @@
 #include "../../runtime/crypto.h"
 #include "../lang.h"
 #include "../osutils.h"
-#include "../files.h"
+#include "../files/utils.h"
 #include "core.h"
 #include "core_utils.h"
 

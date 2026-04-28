@@ -14,8 +14,8 @@
 #include "../objects.h"
 
 
-#include "../files/types.h"
-#include "../files/utils.h"
+#include "types.h"
+#include "utils.h"
 
 
 class Watermark;

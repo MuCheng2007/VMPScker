@@ -7,7 +7,10 @@
 
 #include "../objects.h"
 #include "../osutils.h"
-#include "../files.h"
+#include "../files/types.h"
+#include "../files/utils.h"
+#include "../files/memory.h"
+#include "../files/runtime_func.h"
 
 // Forward declarations
 class CommandLink;

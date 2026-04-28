@@ -5,7 +5,7 @@
 #ifndef PE_ARCHITECTURE_H
 #define PE_ARCHITECTURE_H
 
-#include "../files.h"
+#include "../files/architecture.h"
 #include "PEDirectory.h"
 #include "PESegment.h"
 #include "PEImport.h"

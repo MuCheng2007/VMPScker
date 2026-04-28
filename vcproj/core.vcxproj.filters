@@ -120,9 +120,6 @@
     <ClCompile Include="..\core\inifile.cc">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\script.cc">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\runtime\crypto.cc">
       <Filter>common</Filter>
     </ClCompile>
@@ -339,9 +336,6 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\core\inifile.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\core\script.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\runtime\crypto.h">

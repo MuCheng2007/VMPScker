@@ -28,7 +28,6 @@ enum MessageType {
 	mtAdded,
 	mtChanged,
 	mtDeleted,
-	mtScript,
 };
 
 // ---------------------------------------------------------------------------
@@ -277,9 +276,6 @@ enum CallingConvention {
 	ccStdcallToMSx64
 };
 
-// ---------------------------------------------------------------------------
-// Runtime resource descriptor (pure POD, no class deps)
-// ---------------------------------------------------------------------------
 
 struct ResourceInfo {
 	const uint8_t *file;

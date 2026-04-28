@@ -22,7 +22,7 @@ class Watermark;
 class WatermarkManager;
 class LicensingManager;
 class FileManager;
-class Script;
+
 class IArchitecture;
 class IFunctionList;
 class IFunction;
@@ -68,13 +68,13 @@ struct CompileOptions {
 	std::string messages[MESSAGE_COUNT];
 	
 	Watermark *watermark;
-	Script *script;
+
 	IArchitecture **architecture;
 	std::string hwid;
 	LicensingManager *licensing_manager;
 	FileManager *file_manager;
 
-	CompileOptions() : flags(0), vm_flags(0), sdk_flags(0), vm_count(1), watermark(NULL), script(NULL), architecture(NULL)
+	CompileOptions() : flags(0), vm_flags(0), sdk_flags(0), vm_count(1), watermark(NULL), architecture(NULL)
 		, licensing_manager(NULL), file_manager(NULL)
 		{}
 };

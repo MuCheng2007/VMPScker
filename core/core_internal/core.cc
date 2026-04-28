@@ -8,7 +8,7 @@
 #include "../files/utils.h"
 #include "../processors.h"
 #include "../inifile.h"
-#include "../script.h"
+
 #include "../pe/pefile.h"
 #include "../lang.h"
 #include "core.h"
@@ -63,7 +63,7 @@ Core::Core(ILog *log /*=NULL*/)
 	file_manager_ = new FileManager(this);
 	watermark_manager_ = new WatermarkManager(this);
 	template_manager_ = new ProjectTemplateManager(this);
-	script_ = new Script(this);
+
 
 	if (settings_file().watermarks_node_created()) {
 		// convert old settings file into new format
@@ -84,7 +84,7 @@ Core::~Core()
 {
 	Close();
 
-	delete script_;
+
 	delete watermark_manager_;
 	delete template_manager_;
 	delete file_manager_;
@@ -212,7 +212,7 @@ bool Core::Open(const std::string &file_name, const std::string &user_project_fi
 bool Core::LoadFromXML(const char *project_file_name)
 {
 	TiXmlDocument doc;
-	TiXmlElement *root_node, *script_node, *protection_node, *procedures_node, *procedure_node, *objects_node, *object_node,
+	TiXmlElement *root_node, *protection_node, *procedures_node, *procedure_node, *objects_node, *object_node,
 		*messages_node, *message_node, *folders_node, *folder_node, *ext_command_node;
 	size_t i, j;
 	CompilationType compilation_type;
@@ -524,16 +524,6 @@ bool Core::LoadFromXML(const char *project_file_name)
 		}
 	}
 
-	script_node = root_node ? root_node->FirstChildElement("Script") : NULL;
-	if (script_node) {
-		need_compile = true;
-		script_node->QueryBoolAttribute("IncludedInCompilation", &need_compile);
-		script_->set_need_compile(need_compile);
-
-		const char *str = script_node->GetText();
-		if (str)
-			script_->set_text(std::string(str));
-	}
 
 	return true;
 }
@@ -644,9 +634,7 @@ bool Core::LoadFromIni(const char *project_file_name)
 							faNone, NULL);
 	}
 
-	std::string script_file_name = os::ChangeFileExt(doc.file_name().c_str(), ".vms");
-	if (os::FileExists(script_file_name.c_str()))
-		script_->LoadFromFile(script_file_name);
+
 
 	return true;
 }
@@ -1189,26 +1177,7 @@ bool Core::Save()
 			}
 		}
 
-		TiXmlElement *script_node = root_node->FirstChildElement("Script");
-		if (!script_node) {
-			script_node = new TiXmlElement("Script");
-			root_node->LinkEndChild(script_node);
-		} else {
-			script_node->Clear();
-		}
-		if (!script_->need_compile())
-			script_node->SetAttribute("IncludedInCompilation", script_->need_compile());
-		else
-			script_node->RemoveAttribute("IncludedInCompilation");
 
-		if (!script_->text().empty())
-		{
-			std::string st = script_->text();
-			st.erase(std::remove(st.begin(), st.end(), '\r'), st.end());
-			TiXmlText *stn = new TiXmlText(st);
-			stn->SetCDATA(true); //readability improved
-			script_node->LinkEndChild(stn);
-		}
 
 		if (!doc.SaveFile(project_file_name_.c_str()))
 		return false;
@@ -1224,8 +1193,6 @@ void Core::Close()
 	input_file_name_.clear();
 	output_file_name_.clear();
 	watermark_name_.clear();
-	script_->clear();
-	script_->set_need_compile(true);
 	hwid_.clear();
 	licensing_manager_->clear();
 	file_manager_->clear();
@@ -1257,8 +1224,7 @@ bool Core::Compile()
 	
 	output_file_ = NULL;
 	output_architecture_ = NULL;
-	if (!script_->Compile())
-		return false;
+
 
 	Watermark *watermark = NULL;
 	if (!watermark_name_.empty()) {
@@ -1296,7 +1262,6 @@ bool Core::Compile()
 
 
 	options.watermark = watermark;
-	options.script = script_;
 	options.architecture = &output_architecture_;
 	options.hwid = hwid_;
 	options.licensing_manager = licensing_manager_;
@@ -1330,8 +1295,7 @@ bool Core::Compile()
 			static_cast<int>(100.0 * output_file_size / input_file_->size())
 			));
 
-		if (options.script)
-			options.script->DoAfterCompilation();
+
 	}
 	return res;
 }

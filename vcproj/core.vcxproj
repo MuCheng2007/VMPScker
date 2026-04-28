@@ -131,7 +131,6 @@
     <ClCompile Include="..\core\processors\proc_interfaces.cc" />
     <ClCompile Include="..\core\processors\proc_types.cc" />
     <ClCompile Include="..\core\processors\proc_vm.cc" />
-    <ClCompile Include="..\core\script.cc" />
     <ClCompile Include="..\core\streams.cc" />
     <ClCompile Include="..\runtime\crypto.cc" />
   </ItemGroup>
@@ -211,7 +210,6 @@
     <ClInclude Include="..\core\processors\proc_interfaces.h" />
     <ClInclude Include="..\core\processors\proc_types.h" />
     <ClInclude Include="..\core\processors\proc_vm.h" />
-    <ClInclude Include="..\core\script.h" />
     <ClInclude Include="..\core\streams.h" />
     <ClInclude Include="..\core\resources.h" />
     <ClInclude Include="..\runtime\common.h" />

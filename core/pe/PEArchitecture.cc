@@ -33,7 +33,7 @@
 #include "PEMapFile.h"
 #include "../lang.h"
 #include "../core_internal/core.h"
-#include "../script.h"
+
 #include "../pdb.h"
 
 // Intel module
@@ -1100,8 +1100,6 @@ void PEArchitecture::Save(CompileContext& ctx)
 		Resize(vmp_section->physical_offset() + vmp_section->physical_size());
 	}
 
-	if ((ctx.options.flags & cpPack) && ctx.options.script)
-		ctx.options.script->DoBeforePackFile();
 
 	// write memory CRC table
 	if (function_list_->crc_table()) {
@@ -1592,8 +1590,6 @@ void PEArchitecture::Save(CompileContext& ctx)
 		}
 	}
 
-	if (ctx.options.script)
-		ctx.options.script->DoAfterSaveFile();
 
 	// write header
 	if (ctx.options.flags & cpStripFixups) {

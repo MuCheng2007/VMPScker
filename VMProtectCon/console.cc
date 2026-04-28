@@ -37,7 +37,6 @@ void ConsoleLog::Notify(MessageType type, IObject *sender, const std::string &me
 		lsLoading,
 		lsChanging,
 		lsDeleting,
-		lsScript,
 	};
 
 	bool need_throw;
@@ -69,7 +68,7 @@ void ConsoleLog::Notify(MessageType type, IObject *sender, const std::string &me
 			}
 		}
 	}
-	if (type == mtInformation || type == mtWarning || type == mtError || type == mtScript)
+	if (type == mtInformation || type == mtWarning || type == mtError)
 		log_message = string_format("[%s] %s%s", message_type.c_str(), add.c_str(), message.c_str());
 
 	if (!log_message.empty()) {

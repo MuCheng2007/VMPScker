@@ -94,7 +94,7 @@ enum VMProtectProductId
 #define STR_HELPERWQ(x) L ## x
 #define STRWQ(x) STR_HELPERWQ(x)
 
-class Script;
+
 class ILog;
 class IFile;
 class IArchitecture;
@@ -141,7 +141,7 @@ public:
 	std::string project_file_name() const { return project_file_name_; }
 	WatermarkManager *watermark_manager() const { return watermark_manager_; }
 	ProjectTemplateManager *template_manager() const { return template_manager_; }
-	Script *script() const { return script_; }
+
 	static const char *copyright() { return "Copyright 2003-2021 VMProtect Software"; }
 	static const char *edition() { return "VMProtect " EDITION; }
 	static const char *version();
@@ -174,7 +174,7 @@ private:
 	ILog *log_;
 	Watermark *watermark_;
 	WatermarkManager *watermark_manager_;
-	Script *script_;
+
 	IArchitecture *output_architecture_;
 	std::string hwid_;
 	std::string license_data_file_name_;

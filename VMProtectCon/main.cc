@@ -3,7 +3,6 @@
 #include "../core/streams.h"
 #include "../core/files/architecture.h"
 #include "../core/core_internal/core.h"
-#include "../core/script.h"
 #include "../core/lang.h"
 
 #include "../core/core_internal/license.h"
@@ -93,7 +92,6 @@ int ConsoleApplication::Run()
 			language[lsFile].c_str(),
 			language[lsOutputFile].c_str(),
 			language[lsProjectFile].c_str(),
-			language[lsScriptFile].c_str(),
 #ifdef ULTIMATE
 			language[lsLicensingParametersFile].c_str(),
 			language[lsBuildDate].c_str(),
@@ -207,13 +205,6 @@ int ConsoleApplication::Run()
 		if (!output_file_name.empty())
 			core.set_output_file_name(os::CombinePaths(current_path.c_str(), output_file_name.c_str()));
 
-		if (!script_file_name.empty()) {
-			script_file_name = os::CombinePaths(current_path.c_str(), script_file_name.c_str());
-			if (!core.script()->LoadFromFile(script_file_name)) {
-				log_.Notify(mtError, NULL, string_format(language[os::FileExists(script_file_name.c_str()) ? lsOpenFileError : lsFileNotFound].c_str(), script_file_name.c_str()));
-				return 1;
-			}
-		}
 
 		if (!watermark_name.empty())
 			core.set_watermark_name(watermark_name);

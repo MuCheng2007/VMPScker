@@ -205,8 +205,6 @@ LangStringList::LangStringList()
 		default_values_[lsSaving] = replace_escape_chars(u8"正在保存");
 		default_values_[lsSerialNumberTooLong] = replace_escape_chars(u8"序列号太长");
 		default_values_[lsSavingStartupCode] = replace_escape_chars(u8"正在保存启动代码");
-		default_values_[lsScript] = replace_escape_chars(u8"脚本");
-		default_values_[lsScriptFile] = replace_escape_chars(u8"脚本文件");
 		default_values_[lsSearch] = replace_escape_chars(u8"搜索");
 		default_values_[lsSearchInFile] = replace_escape_chars(u8"在文件中搜索");
 		default_values_[lsSearching] = replace_escape_chars(u8"正在搜索");

@@ -32,7 +32,7 @@
 #include "../inifile.h"
 #include "../lang.h"
 #include "../core_internal/core.h"
-#include "../script.h"
+
 
 #include "../core_internal/watermark.h"
 #include "../core_internal/license.h"
@@ -513,9 +513,6 @@ bool BaseArchitecture::Compile(CompileOptions &options, IArchitecture *runtime)
 	}
 #endif
 
-	if (options.script)
-		options.script->DoBeforeCompilation();
-
 	CompileContext ctx;
 
 	ctx.options = options;
@@ -611,8 +608,6 @@ bool BaseArchitecture::Compile(CompileOptions &options, IArchitecture *runtime)
 	if (!list->Compile(ctx))
 		return false;
 
-	if (options.script)
-		options.script->DoBeforeSaveFile();
 
 	append_mode_ = true;
 	Save(ctx);

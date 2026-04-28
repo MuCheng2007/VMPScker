@@ -230,8 +230,7 @@ enum LangString {
 	lsSaving,
 	lsSerialNumberTooLong,
 	lsSavingStartupCode,
-	lsScript,
-	lsScriptFile,
+
 	lsSearch,
 	lsSearchInFile,
 	lsSearching,

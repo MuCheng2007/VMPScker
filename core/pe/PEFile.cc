@@ -14,7 +14,7 @@
 #include "../processors.h"
 #include "../lang.h"
 #include "../core_internal/core.h"
-#include "../script.h"
+
 #include "../pdb.h"
 
 #include "../win_runtime32.dll.inc"

@@ -7,7 +7,6 @@
 #include "../../files/architecture.h"
 #include "../../files/sections.h"
 #include "../../files/types.h"
-#include "../../lang.h"
 #include "../../../runtime/crypto.h"
 #include "../vm/IntelVirtualMachine.h"
 

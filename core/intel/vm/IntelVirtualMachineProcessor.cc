@@ -6,7 +6,6 @@
 #include "../ir/IntelCommand.h"
 #include "../ir/IntelObfuscation.h"
 #include "../../processors.h"
-#include "../../lang.h"
 
 /*
  * IntelVirtualMachineProcessor

@@ -11,9 +11,7 @@
 #include "../../files/memory.h"
 #include "../../files/types.h"
 #include "../../pe/pefile.h"
-#include "../../lang.h"
 #include "../../packer.h"
-#include "../../core_internal/file_manager.h"
 #include "../../core_internal/license.h"
 #include "../../../runtime/crypto.h"
 
@@ -27,7 +25,6 @@
 // - IntelCRCTable (lines: ~21159 - 21341)
 // - IntelRuntimeData (lines: ~21342 - 21365)
 // - IntelLoaderData (lines: ~21366 - 21919)
-// - IntelWatermark (lines: ~21920 - 22145)
 // - IntelRuntimeCRCTable (lines: ~22146 - 24075)
 
 
@@ -1096,56 +1093,10 @@ bool IntelRuntimeData::Init(const CompileContext& ctx)
 
 	files_entry_ = NULL;
 	files_size_ = 0;
-	if (ctx.options.file_manager) {
-		FileManager* file_manager = ctx.options.file_manager;
-		if (!file_manager->OpenFiles())
-			return false;
-
-		std::vector<FileFolder*> folder_list;
-		for (i = 0; i < file_manager->folder_list()->count(); i++) {
-			folder_list.push_back(file_manager->folder_list()->item(i));
-		}
-		for (i = 0; i < folder_list.size(); i++) {
-			FileFolder* file_folder = folder_list[i];
-			for (j = 0; j < file_folder->count(); j++) {
-				folder_list.push_back(file_folder->item(j));
-			}
-		}
-
-		// create root directory
-		index = count();
-		AddCommand(osDWord, file_manager->count() + folder_list.size());
-
-		for (i = 0; i < file_manager->count(); i++) {
-			file_manager->item(i)->WriteEntry(*this);
-		}
-		for (i = 0; i < folder_list.size(); i++) {
-			folder_list[i]->WriteEntry(*this);
-		}
-
-		files_entry_ = item(index);
-		files_entry_->include_option(roCreateNewBlock);
-		files_size_ = static_cast<uint32_t>((count() - index) * OperandSizeToValue(osDWord));
-
-		for (i = 0; i < file_manager->count(); i++) {
-			file_manager->item(i)->WriteName(*this, image_base, data_key_);
-		}
-		for (i = 0; i < folder_list.size(); i++) {
-			folder_list[i]->WriteName(*this, image_base, data_key_);
-		}
-
-		for (i = 0; i < file_manager->count(); i++) {
-			InternalFile* internal_file = file_manager->item(i);
-			Notify(mtInformation, NULL, string_format("%s %s", language[lsLoading].c_str(), os::ExtractFileName(internal_file->absolute_file_name().c_str()).c_str()));
-			internal_file->WriteData(*this, image_base, data_key_);
-		}
-
-		file_manager->CloseFiles();
-	}
 
 	registry_entry_ = NULL;
 	registry_size_ = 0;
-	if (ctx.options.file_manager && ctx.options.file_manager->server_count()) {
+	if (false) {
 		index = count();
 
 		// create root directory

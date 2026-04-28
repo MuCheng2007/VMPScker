@@ -1,4 +1,4 @@
-﻿#ifdef WIN_DRIVER
+#ifdef WIN_DRIVER
 #else
 #include "common.h"
 #include "utils.h"
@@ -6,7 +6,6 @@
 
 #include "crypto.h"
 #include "core.h"
-#include "file_manager.h"
 #include "registry_manager.h"
 #include "hook_manager.h"
 

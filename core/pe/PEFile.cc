@@ -12,7 +12,6 @@
 #include "PEFile.h"
 #include "PEArchitecture.h"
 #include "../processors.h"
-#include "../lang.h"
 #include "../core_internal/core.h"
 
 #include "../pdb.h"

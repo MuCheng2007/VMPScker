@@ -12,11 +12,9 @@
 #include "IntelVMCommand.h"
 #include "../../pe/pefile.h"
 #include "../../packer.h"
-#include "../../lang.h"
 #include "../../osutils.h"
 #include "../../../runtime/crypto.h"
 #include "../../../runtime/loader.h"
-#include "../../core_internal/watermark.h"
 
 // Copied from intel.cc: IntelFunction implementation
 // Line range: ~12749 - 16493 and ~20294 - 20419
@@ -2947,7 +2945,7 @@ bool IntelFunction::Prepare(const CompileContext& ctx)
 		for (size_t i = 0; i < count(); i++) {
 			IntelCommand* command = item(i);
 			if (command->options() & roInvalidOpcode) {
-				ctx.file->Notify(mtError, command, string_format(language[lsCommandNotSupported].c_str(), command->text().c_str()));
+				ctx.file->Notify(mtError, command, string_format("Command not supported \"%s\"", command->text().c_str()));
 				return false;
 			}
 
@@ -3133,7 +3131,7 @@ bool IntelFunction::PrepareExtCommands(const CompileContext& ctx)
 
 		if (ext_command->address()) {
 			if (!manager.Alloc(5, mtNone, ext_command->address())) {
-				ctx.file->Notify(mtError, ext_command->command(), ext_command->address() == address() ? language[lsMinimalFunctionSize] : language[lsNotEnoughPlace]);
+				ctx.file->Notify(mtError, ext_command->command(), ext_command->address() == address() ? "Minimal function size to compile is 5 bytes" : "Not enough place to create JMP command");
 				return false;
 			}
 		}
@@ -4541,41 +4539,6 @@ void IntelFunction::CompileLinks(const CompileContext& ctx)
 
 		IntelVirtualMachine* virtual_machine = reinterpret_cast<IntelVirtualMachine*>(block->virtual_machine());
 		virtual_machine->CompileBlock(*block, need_encrypt);
-	}
-}
-
-void IntelFunction::AddWatermarkReference(uint64_t address, const std::string& value)
-{
-	IntelCommand* ref_command = GetCommandByAddress(address);
-	if (!ref_command || value.empty())
-		return;
-
-	uint32_t key = rand32();
-	uint16_t len = static_cast<uint16_t>(value.size());
-	Data data;
-	data.PushDWord(key);
-	data.PushWord(len);
-	for (size_t i = 0; i < value.size(); i++) {
-		data.PushByte(value[i] ^ static_cast<uint8_t>(_rotl32(key, (int)i) + i));
-	}
-	IntelCommand* data_command = AddCommand(data);
-
-	switch (ref_command->type()) {
-	case cmLea:
-	{
-		IntelCommand* mem_command = AddCommand(cpu_address_size() == osDWord ? cmDD : cmDQ, IntelOperand(otValue, cpu_address_size(), 0, 0, NEED_FIXUP));
-		mem_command->AddLink(0, ltOffset, data_command);
-		mem_command->CompileToNative();
-
-		ref_command->AddLink(1, ltOffset, mem_command);
-	}
-	break;
-	case cmMov:
-		ref_command->Init(cmLea, ref_command->operand(0), ref_command->operand(1));
-		ref_command->AddLink(1, ltOffset, data_command);
-		break;
-	default:
-		throw std::runtime_error("Unknown reference command");
 	}
 }
 

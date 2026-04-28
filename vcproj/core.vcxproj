@@ -53,11 +53,8 @@
   <ItemGroup>
     <ClCompile Include="..\core\core_internal\core.cc" />
     <ClCompile Include="..\core\core_internal\core_utils.cc" />
-    <ClCompile Include="..\core\core_internal\file_manager.cc" />
     <ClCompile Include="..\core\core_internal\license.cc" />
-    <ClCompile Include="..\core\core_internal\project_template.cc" />
     <ClCompile Include="..\core\core_internal\rsa.cc" />
-    <ClCompile Include="..\core\core_internal\watermark.cc" />
     <ClCompile Include="..\core\files\utils.cc" />
     <ClCompile Include="..\core\files\references.cc" />
     <ClCompile Include="..\core\files\mapping.cc" />
@@ -73,7 +70,6 @@
     <ClCompile Include="..\core\files\memory.cc" />
     <ClCompile Include="..\core\files\markers.cc" />
     <ClCompile Include="..\core\files\architecture.cc" />
-    <ClCompile Include="..\core\inifile.cc" />
     <ClCompile Include="..\core\intel\crypto\SectionCryptor.cc" />
     <ClCompile Include="..\core\intel\ir\IntelCommand.cc" />
     <ClCompile Include="..\core\intel\ir\IntelCommandInfo.cc" />
@@ -90,7 +86,6 @@
     <ClCompile Include="..\core\intel\vm\IntelVirtualMachine.cc" />
     <ClCompile Include="..\core\intel\vm\IntelVirtualMachineList.cc" />
     <ClCompile Include="..\core\intel\vm\IntelVirtualMachineProcessor.cc" />
-    <ClCompile Include="..\core\lang.cc" />
     <ClCompile Include="..\core\objects.cc" />
     <ClCompile Include="..\core\osutils.cc" />
     <ClCompile Include="..\core\packer.cc" />
@@ -137,13 +132,8 @@
   <ItemGroup>
     <ClInclude Include="..\core\core_internal\core.h" />
     <ClInclude Include="..\core\core_internal\core_utils.h" />
-    <ClInclude Include="..\core\core_internal\file_manager.h" />
     <ClInclude Include="..\core\core_internal\license.h" />
-    <ClInclude Include="..\core\core_internal\project_template.h" />
     <ClInclude Include="..\core\core_internal\rsa.h" />
-    <ClInclude Include="..\core\core_internal\watermark.h" />
-    <ClInclude Include="..\core\dotnet.h" />
-    <ClInclude Include="..\core\elf.h" />
     <ClInclude Include="..\core\files\types.h" />
     <ClInclude Include="..\core\files\utils.h" />
     <ClInclude Include="..\core\files\references.h" />
@@ -160,7 +150,6 @@
     <ClInclude Include="..\core\files\memory.h" />
     <ClInclude Include="..\core\files\markers.h" />
     <ClInclude Include="..\core\files\architecture.h" />
-    <ClInclude Include="..\core\inifile.h" />
     <ClInclude Include="..\core\intel\crypto\SectionCryptor.h" />
     <ClInclude Include="..\core\intel\ir\IntelCommand.h" />
     <ClInclude Include="..\core\intel\ir\IntelCommandInfo.h" />
@@ -178,8 +167,6 @@
     <ClInclude Include="..\core\intel\vm\IntelVirtualMachine.h" />
     <ClInclude Include="..\core\intel\vm\IntelVirtualMachineList.h" />
     <ClInclude Include="..\core\intel\vm\IntelVirtualMachineProcessor.h" />
-    <ClInclude Include="..\core\lang.h" />
-    <ClInclude Include="..\core\mach-o.h" />
     <ClInclude Include="..\core\objects.h" />
     <ClInclude Include="..\core\osutils.h" />
     <ClInclude Include="..\core\packer.h" />

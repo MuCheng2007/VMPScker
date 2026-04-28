@@ -1,20 +1,14 @@
-﻿#ifndef CORE_H
+#ifndef CORE_H
 #define CORE_H
 
 #include "../../runtime/common.h"
 
 
-class WatermarkManager;
-class ProjectTemplateManager;
 class LicensingManager;
-class FileManager;
-class Watermark;
-class ProjectTemplate;
 
 enum ProjectOption {
 	cpDebugMode             = 0x00000002,
 	cpCryptValues           = 0x00000008,
-	cpIncludeWatermark      = 0x00000020,
 	cpRunnerCRC             = 0x00000040,
 	cpEncryptRegs           = 0x00000080,
 	cpStripFixups           = 0x00008000,
@@ -112,7 +106,6 @@ public:
 
 	uint32_t options() const { return options_; }
 	std::string vm_section_name() const { return vm_section_name_; }
-	std::string watermark_name() const { return watermark_name_; }
 	IFile *input_file() const { return input_file_; }
 	IFile *output_file() const { return output_file_; }
 	ILog *log() const  { return log_; }
@@ -122,14 +115,12 @@ public:
 	void include_option(ProjectOption option);
 	void exclude_option(ProjectOption option);
 	void set_vm_section_name(const std::string &vm_section_name);
-	void set_watermark_name(const std::string &watermark_name);
 	void set_output_file_name(const std::string &output_file_name);
 	std::string message(size_t type) const { return messages_[type]; }
 	void set_message(size_t type, const std::string &message);
 	std::string hwid() const { return hwid_; }
 	void set_hwid(const std::string &hwid);
 	LicensingManager *licensing_manager() const { return licensing_manager_; }
-	FileManager *file_manager() const { return file_manager_; }
 	std::string license_data_file_name() const { return license_data_file_name_; }
 	void set_license_data_file_name(const std::string &license_data_file_name);
 	std::string activation_server() const;
@@ -139,8 +130,6 @@ public:
 	void Notify(MessageType type, IObject *sender, const std::string &message = "");
 	std::string absolute_output_file_name() const;
 	std::string project_file_name() const { return project_file_name_; }
-	WatermarkManager *watermark_manager() const { return watermark_manager_; }
-	ProjectTemplateManager *template_manager() const { return template_manager_; }
 
 	static const char *copyright() { return "Copyright 2003-2021 VMProtect Software"; }
 	static const char *edition() { return "VMProtect " EDITION; }
@@ -149,13 +138,10 @@ public:
 	static bool check_license_edition(const VMProtectSerialNumberData &lic);
 	IArchitecture *input_architecture() const;
 	IArchitecture *output_architecture() const { return output_architecture_; }
-	void LoadFromTemplate(const ProjectTemplate &pt);
-	void SaveToTemplate(ProjectTemplate &pt);
 private:
 	HANDLE BeginCompileTransaction();
 	void EndCompileTransaction(HANDLE locked_file, bool commit);
 	bool LoadFromXML(const char *project_file_name);
-	bool LoadFromIni(const char *project_file_name);
 	void LoadDefaultFunctions();
 	std::string default_output_file_name() const;
 
@@ -166,20 +152,15 @@ private:
 	uint32_t options_;
 	uint32_t vm_options_;
 	std::string vm_section_name_;
-	ProjectTemplateManager *template_manager_;
 	std::string output_file_name_;
-	std::string watermark_name_;
 	std::string messages_[MESSAGE_COUNT];
 	IFile *output_file_;
 	ILog *log_;
-	Watermark *watermark_;
-	WatermarkManager *watermark_manager_;
 
 	IArchitecture *output_architecture_;
 	std::string hwid_;
 	std::string license_data_file_name_;
 	LicensingManager *licensing_manager_;
-	FileManager *file_manager_;
 
 	// no copy ctr or assignment op
 	Core(const Core &);

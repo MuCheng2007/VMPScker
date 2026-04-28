@@ -2,7 +2,6 @@
 #include "../core/osutils.h"
 #include "../core/files/types.h"
 #include "../core/files/architecture.h"
-#include "../core/lang.h"
 #include "../core/processors/proc_interfaces.h"
 #include "console.h"
 
@@ -30,13 +29,13 @@ bool IsUserFunction(const IFunction *func)
 
 void ConsoleLog::Notify(MessageType type, IObject *sender, const std::string &message)
 {
-	static const LangString message_lang_type[] = {
-		lsInformation,
-		lsWarning,
-		lsError,
-		lsLoading,
-		lsChanging,
-		lsDeleting,
+	static const char* message_type_names[] = {
+		"Information",
+		"Warning",
+		"Error",
+		"Loading",
+		"Changing",
+		"Deleting",
 	};
 
 	bool need_throw;
@@ -48,7 +47,7 @@ void ConsoleLog::Notify(MessageType type, IObject *sender, const std::string &me
 	}
 
 	std::string log_message, add;
-	std::string message_type = language[message_lang_type[type]];
+	std::string message_type = message_type_names[type];
 	if (sender) {
 		if (IFunction *func = dynamic_cast<IFunction *>(sender)) {
 			if (IsUserFunction(func) && (type == mtAdded || type == mtChanged || type == mtDeleted)) {

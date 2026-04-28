@@ -5,5 +5,6 @@
 
 void Base64ToVector(const char *src, size_t src_len, std::vector<uint8_t> &dst);
 std::string VectorToBase64(const std::vector<uint8_t> &src);
+uint64_t StrToInt64Def(const char *str, uint64_t default_value);
 
 #endif

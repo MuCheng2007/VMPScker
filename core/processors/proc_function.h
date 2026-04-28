@@ -16,7 +16,6 @@ class ICommandList;
 class CommandBlockList;
 class InternalLinkList;
 class ExtCommandList;
-class Watermark;
 
 /**
  * Base implementation of function
@@ -69,7 +68,6 @@ public:
 	virtual void AfterCompile(const CompileContext &ctx);
 	virtual void CompileLinks(const CompileContext &ctx);
 	virtual void CompileInfo(const CompileContext &ctx);
-	void AddWatermark(Watermark *watermark, int copy_count);
 	virtual void ReadFromBuffer(Buffer &buffer, IArchitecture &file);
 	virtual void Rebase(uint64_t delta_base);
 	bool FreeByManager(const CompileContext &ctx);

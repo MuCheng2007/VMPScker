@@ -1,7 +1,6 @@
 #include "license.h"
 
 #include "../../runtime/crypto.h"
-#include "../lang.h"
 #include "../osutils.h"
 #include "../files/utils.h"
 #include "core.h"
@@ -214,132 +213,14 @@ bool LicensingManager::GetLicenseData(Data &data) const
 
 bool LicensingManager::Open(const std::string &file_name)
 {
-	clear();
-
 	file_name_ = file_name;
-
-	TiXmlDocument doc;
-	if (!doc.LoadFile(file_name.c_str()))
-		return false;
-
-	unsigned int u;
-	TiXmlElement *root_node = doc.FirstChildElement("Document");
-	TiXmlElement *license_manager_node = root_node ? root_node->FirstChildElement("LicenseManager") : NULL;
-	if (license_manager_node) {
-		std::string str;
-		license_manager_node->QueryStringAttribute("Algorithm", &str);
-		if (str.compare("RSA") == 0) {
-			algorithm_ = alRSA;
-			str.clear();
-			license_manager_node->QueryStringAttribute("ProductCode", &str);
-			Base64ToVector(str.c_str(), str.size(), product_code_);
-			u = 0;
-			license_manager_node->QueryUnsignedAttribute("Bits", &u);
-			bits_ = u;
-			str.clear();
-			license_manager_node->QueryStringAttribute("PublicExp", &str);
-			Base64ToVector(str.c_str(), str.size(), public_exp_);
-			str.clear();
-			license_manager_node->QueryStringAttribute("PrivateExp", &str);
-			Base64ToVector(str.c_str(), str.size(), private_exp_);
-			str.clear();
-			license_manager_node->QueryStringAttribute("Modulus", &str);
-			Base64ToVector(str.c_str(), str.size(), modulus_);
-			license_manager_node->QueryStringAttribute("ActivationServer", &activation_server_);
-
-			if ((bits_ & 0xf) || bits_ < 1024 || bits_ > 16384 || public_exp_.empty() || private_exp_.empty() || modulus_.empty())
-				algorithm_ = alNone;
-		}
-
-		if (algorithm_ != alNone) {
-			TiXmlElement *license_node = license_manager_node->FirstChildElement("License");
-			while (license_node) {
-				std::string date_str;
-				std::string customer_name;
-				std::string customer_email;
-				std::string order_ref;
-				std::string serial_number;
-				std::string comments;
-				bool blocked = false;
-				
-				license_node->QueryStringAttribute("Date", &date_str);
-				license_node->QueryStringAttribute("CustomerName", &customer_name);
-				license_node->QueryStringAttribute("CustomerEmail", &customer_email);
-				license_node->QueryStringAttribute("OrderRef", &order_ref);
-				license_node->QueryStringAttribute("SerialNumber", &serial_number);
-				license_node->QueryBoolAttribute("Blocked", &blocked);
-				TiXmlElement *comments_node = license_node->FirstChildElement("Comments");
-				const char *str = comments_node ? comments_node->GetText() : license_node->GetText();
-				if (str)
-					comments = std::string(str);
-
-				Add(LicenseDate(atoi(date_str.substr(0, 4).c_str()), atoi(date_str.substr(5, 2).c_str()), atoi(date_str.substr(8, 2).c_str())),
-					customer_name, customer_email, order_ref, comments, serial_number, blocked);
-				license_node = license_node->NextSiblingElement("License");
-			}
-		}
-	}
-
-	changed();
+	// XML解析功能已移除
 	return true;
 }
 
 bool LicensingManager::Save()
 {
-	if (file_name_.empty())
-		return false;
-
-	TiXmlDocument doc;
-	if (!doc.LoadFile(file_name_.c_str()))
-		doc.LinkEndChild(new TiXmlDeclaration("1.0", "UTF-8", ""));
-
-	TiXmlElement *root_node = doc.FirstChildElement("Document");
-	if (!root_node) {
-		root_node = new TiXmlElement("Document");
-		doc.LinkEndChild(root_node);
-	}
-
-	TiXmlElement *license_manager_node = root_node->FirstChildElement("LicenseManager");
-	if (!license_manager_node) {
-		license_manager_node = new TiXmlElement("LicenseManager");
-		root_node->LinkEndChild(license_manager_node);
-	} else {
-		license_manager_node->Clear();
-	}
-
-	if (!product_code_.empty())
-		license_manager_node->SetAttribute("ProductCode", VectorToBase64(product_code_));
-	if (!activation_server_.empty())
-		license_manager_node->SetAttribute("ActivationServer", activation_server_);
-	if (algorithm_ != alNone) {
-		license_manager_node->SetAttribute("Algorithm", "RSA");
-		license_manager_node->SetAttribute("Bits", bits_);
-		license_manager_node->SetAttribute("PublicExp", VectorToBase64(public_exp_));
-		license_manager_node->SetAttribute("PrivateExp", VectorToBase64(private_exp_));
-		license_manager_node->SetAttribute("Modulus", VectorToBase64(modulus_));
-		for (size_t i = 0; i < count(); i++) {
-			License *license = item(i);
-
-			TiXmlElement *license_node = new TiXmlElement("License");
-			license_manager_node->LinkEndChild(license_node);
-			license_node->SetAttribute("Date", string_format("%.4d-%.2d-%.2d", license->date().Year, license->date().Month, license->date().Day));
-			if (!license->customer_name().empty())
-				license_node->SetAttribute("CustomerName", license->customer_name());
-			if (!license->customer_email().empty())
-				license_node->SetAttribute("CustomerEmail", license->customer_email());
-			if (!license->order_ref().empty())
-				license_node->SetAttribute("OrderRef", license->order_ref());
-			license_node->SetAttribute("SerialNumber", license->serial_number());
-			if (license->blocked())
-				license_node->SetAttribute("Blocked", license->blocked());
-			if (!license->comments().empty())
-				license_node->LinkEndChild(new TiXmlText(license->comments()));
-		}
-	}
-
-	if (!doc.SaveFile(file_name_.c_str()))
-		return false;
-
+	// XML保存功能已移除
 	return true;
 }
 
@@ -400,7 +281,7 @@ enum SerialNumberChunks {
 std::string LicensingManager::GenerateSerialNumber(const LicenseInfo &info)
 {
 	if (algorithm_ == alNone)
-		throw std::runtime_error(language[lsLicensingParametersNotInitialized]);
+		throw std::runtime_error("Licensing parameters not initialized");
 
 	Data data;
 
@@ -410,7 +291,7 @@ std::string LicensingManager::GenerateSerialNumber(const LicenseInfo &info)
 	if (info.Flags & HAS_USER_NAME)	{
 		data.PushByte(SERIAL_CHUNK_USER_NAME);
 		if (info.CustomerName.size() > 255)
-			throw std::runtime_error(language[lsCustomerNameTooLong]);
+			throw std::runtime_error("Customer name is too long");
 		data.PushByte((uint8_t)info.CustomerName.size());
 		data.PushBuff(info.CustomerName.c_str(), info.CustomerName.size());
 	}
@@ -418,7 +299,7 @@ std::string LicensingManager::GenerateSerialNumber(const LicenseInfo &info)
 	if (info.Flags & HAS_EMAIL)	{
 		data.PushByte(SERIAL_CHUNK_EMAIL);
 		if (info.CustomerEmail.size() > 255)
-			throw std::runtime_error(language[lsEmailTooLong]);
+			throw std::runtime_error("Email is too long");
 		data.PushByte((uint8_t)info.CustomerEmail.size());
 		data.PushBuff(info.CustomerEmail.c_str(), info.CustomerEmail.size());
 	}
@@ -428,7 +309,7 @@ std::string LicensingManager::GenerateSerialNumber(const LicenseInfo &info)
 		std::vector<uint8_t> hwid;
 		Base64ToVector(info.HWID.c_str(), info.HWID.size(), hwid);
 		if (!hwid.size() || hwid.size() > 255 || hwid.size() % 4 != 0)
-			throw std::runtime_error(language[lsInvalidHWID]);
+			throw std::runtime_error("Invalid HWID");
 		data.PushByte((uint8_t)hwid.size());
 		data.PushBuff(&hwid[0], hwid.size());
 	}
@@ -444,14 +325,14 @@ std::string LicensingManager::GenerateSerialNumber(const LicenseInfo &info)
 	}
 
 	if (product_code_.size() != 8)
-		throw std::runtime_error(language[lsInvalidProductCode]);
+		throw std::runtime_error("Invalid product code");
 	data.PushByte(SERIAL_CHUNK_PRODUCT_CODE);
 	data.PushBuff(&product_code_[0], product_code_.size());
 
 	if (info.Flags & HAS_USER_DATA)	{
 		data.PushByte(SERIAL_CHUNK_USER_DATA);
 		if (info.UserData.size() > 255)
-			throw std::runtime_error(language[lsUserDataTooLong]);
+			throw std::runtime_error("User data is too long");
 		data.PushByte((uint8_t)info.UserData.size());
 		data.PushBuff(info.UserData.c_str(), info.UserData.size());
 	}
@@ -477,7 +358,7 @@ std::string LicensingManager::GenerateSerialNumber(const LicenseInfo &info)
 	size_t max_padding = min_padding + 16;
 	size_t max_bytes = bits_ / 8;
 	if (data.size() + min_padding > max_bytes)
-		throw std::runtime_error(language[lsSerialNumberTooLong]);
+		throw std::runtime_error("Serial number is too long");
 
 	srand(os::GetTickCount());
 	size_t padding_bytes = min_padding + rand() % (max_padding - min_padding);
@@ -500,7 +381,7 @@ std::string LicensingManager::GenerateSerialNumber(const LicenseInfo &info)
 	{
 		RSA rsa(public_exp_, private_exp_, modulus_);
 		if (!rsa.Encrypt(data))
-			throw std::runtime_error(language[lsSerialNumberTooLong]);
+			throw std::runtime_error("Serial number is too long");
 	}
 
 	size_t len = Base64EncodeGetRequiredLength(data.size());

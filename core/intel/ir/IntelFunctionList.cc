@@ -9,10 +9,8 @@
 #include "../../files/mapping.h"
 #include "../../files/types.h"
 #include "../../pe/pefile.h"
-#include "../../lang.h"
 #include "../../osutils.h"
 #include "../../../runtime/crypto.h"
-#include "../../core_internal/watermark.h"
 
 // VM layer
 #include "../vm/IntelVirtualMachineProcessor.h"
@@ -102,16 +100,6 @@ IntelCRCTable* IntelFunctionList::AddCRCTable(OperandSize cpu_address_size)
 IntelLoaderData* IntelFunctionList::AddLoaderData(OperandSize cpu_address_size)
 {
 	IntelLoaderData* func = new IntelLoaderData(this, cpu_address_size);
-	AddObject(func);
-	return func;
-}
-
-IntelFunction* IntelFunctionList::AddWatermark(OperandSize cpu_address_size, Watermark* watermark, int copy_count)
-{
-	IntelFunction* func = new IntelFunction(this, cpu_address_size);
-	func->set_compilation_type(ctMutation);
-	func->set_memory_type(mtNone);
-	func->AddWatermark(watermark, copy_count);
 	AddObject(func);
 	return func;
 }
@@ -284,8 +272,6 @@ bool IntelFunctionList::Prepare(const CompileContext& ctx)
 	else {
 		loader_data_ = NULL;
 	}
-
-	AddWatermark(cpu_address_size, ctx.options.watermark, ctx.runtime ? 8 : 10);
 
 	return BaseFunctionList::Prepare(ctx);
 }

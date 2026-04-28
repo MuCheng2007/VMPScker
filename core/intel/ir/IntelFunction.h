@@ -51,7 +51,6 @@ public:
 	IntelCommand *Add(uint64_t address);
 	IntelCommand *AddCommand(IntelCommandType type, IntelOperand operand1 = IntelOperand(), IntelOperand operand2 = IntelOperand(), IntelOperand operand3 = IntelOperand());
 	SectionCryptorList *section_cryptor_list() { return section_cryptor_list_; }
-	void AddWatermarkReference(uint64_t address, const std::string &value);
 	IntelCommand *GetCommandByAddress(uint64_t address) const;
 	IntelCommand *GetCommandByNearAddress(uint64_t address) const;
 	virtual void ReadFromBuffer(Buffer &buffer, IArchitecture &file);

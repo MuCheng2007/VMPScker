@@ -117,15 +117,10 @@
     <ClCompile Include="..\core\packer.cc">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\inifile.cc">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\runtime\crypto.cc">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\lang.cc">
-      <Filter>src</Filter>
-    </ClCompile>
+
     <ClCompile Include="..\core\precompiled.cc">
       <Filter>common</Filter>
     </ClCompile>
@@ -135,19 +130,10 @@
     <ClCompile Include="..\core\core_internal\rsa.cc">
       <Filter>src\core_internal</Filter>
     </ClCompile>
-    <ClCompile Include="..\core\core_internal\watermark.cc">
-      <Filter>src\core_internal</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\core_internal\project_template.cc">
-      <Filter>src\core_internal</Filter>
-    </ClCompile>
     <ClCompile Include="..\core\core_internal\core.cc">
       <Filter>src\core_internal</Filter>
     </ClCompile>
     <ClCompile Include="..\core\core_internal\license.cc">
-      <Filter>src\core_internal</Filter>
-    </ClCompile>
-    <ClCompile Include="..\core\core_internal\file_manager.cc">
       <Filter>src\core_internal</Filter>
     </ClCompile>
     <ClCompile Include="..\core\intel\crypto\SectionCryptor.cc">
@@ -335,18 +321,13 @@
     <ClInclude Include="..\core\streams.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\core\inifile.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="..\runtime\crypto.h">
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\runtime\common.h">
       <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="..\core\lang.h">
-      <Filter>src</Filter>
-    </ClInclude>
+
     <ClInclude Include="..\core\precompiled.h">
       <Filter>common</Filter>
     </ClInclude>
@@ -371,19 +352,10 @@
     <ClInclude Include="..\core\core_internal\rsa.h">
       <Filter>src\core_internal</Filter>
     </ClInclude>
-    <ClInclude Include="..\core\core_internal\watermark.h">
-      <Filter>src\core_internal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\core\core_internal\project_template.h">
-      <Filter>src\core_internal</Filter>
-    </ClInclude>
     <ClInclude Include="..\core\core_internal\core.h">
       <Filter>src\core_internal</Filter>
     </ClInclude>
     <ClInclude Include="..\core\core_internal\license.h">
-      <Filter>src\core_internal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\core\core_internal\file_manager.h">
       <Filter>src\core_internal</Filter>
     </ClInclude>
     <ClInclude Include="..\core\intel\crypto\SectionCryptor.h">

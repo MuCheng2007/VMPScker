@@ -7,11 +7,9 @@
 #include "../../files/architecture.h"
 #include "../../files/types.h"
 #include "../../pe/pefile.h"
-#include "../../core_internal/file_manager.h"
 #include "../vm/IntelVirtualMachineList.h"
 #include "../vm/IntelVirtualMachine.h"
 #include "../../../runtime/crypto.h"
-#include "../../lang.h"
 #include "../../packer.h"
 
 // Copied from intel.cc:
@@ -414,24 +412,7 @@ import->AddObject(new_import_function);
 	for (i = 0; i < new_import_list.count(); i++) {
 import = new_import_list.item(i);
 
-		if (ctx.options.file_manager && i < file_dll_count) {
-			bool is_delay_import = false;
-			for (j = 0; j < ctx.options.file_manager->count(); j++) {
-				if (import->CompareName(ctx.options.file_manager->item(j)->name())) {
-					is_delay_import = true;
-					break;
-				}
-			}
 
-			if (is_delay_import) {
-				import_info.original_first_thunk = NULL;
-				import_info.name = NULL;
-				import_info.first_thunk = NULL;
-
-				import_info_list.push_back(import_info);
-				continue;
-			}
-		}
 
 		// IMAGE_IMPORT_DESCRIPTOR.OriginalFirstThunk
 		command = AddCommand(cmDD, IntelOperand(otValue, osDWord));
@@ -815,9 +796,6 @@ import = new_import_list.item(i);
 		}
 	}
 
-	// create watermarks
-	AddWatermark(ctx.options.watermark, 2);
-
 	// create section list for setting WRITABLE flag
 	PESegment* section;
 	std::vector<PESegment*> writable_section_list;
@@ -872,7 +850,7 @@ import = new_import_list.item(i);
 			}
 
 			if (!can_be_packed) {
-				//file->Notify(mtWarning, NULL, string_format(language[lsSegmentCanNotBePacked].c_str(), section->name().c_str()));
+				//file->Notify(mtWarning, NULL, string_format("Segment \"%s\" cannot be packed", section->name().c_str()));
 				continue;
 			}
 
@@ -915,7 +893,7 @@ import = new_import_list.item(i);
 		}
 		if (file->resource_list()->size() > file->resource_list()->store_size())
 			j += file->resource_list()->size() - file->resource_list()->store_size();
-		file->StartProgress(string_format("%s...", language[lsPacking].c_str()), j);
+		file->StartProgress(string_format("Packing..."), j);
 
 		Data data;
 		Packer packer;

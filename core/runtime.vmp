@@ -346,10 +346,12 @@ else
 	-- HardwareID
 	table.insert(procedure_lines, 'HardwareID:: L')
 	table.insert(procedure_lines, 'ExportedGetCurrentHWID LVR')
-	-- File Manager
+	-- File Manager (removed)
+	--[[
 	table.insert(procedure_lines, 'FileManager::ReadFile( BM')
 	table.insert(procedure_lines, 'FileManager::ReadImage( BM')
 	table.insert(procedure_lines, 'FileManager:: BVN')
+	--]]
 	table.insert(procedure_lines, 'HookedNtQueryAttributesFile( BM')
 	table.insert(procedure_lines, 'HookedNtCreateFile( BM')
 	table.insert(procedure_lines, 'HookedNtOpenFile( BM')

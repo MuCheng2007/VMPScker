@@ -8,7 +8,6 @@
 #include "../../files/compiler_func.h"
 #include "../../files/types.h"
 #include "../../pe/pefile.h"
-#include "../../lang.h"
 
 // Copied from intel.cc: IntelFileHelper implementation
 // Line range: ~92 - end of IntelFileHelper
@@ -251,7 +250,7 @@ void IntelFileHelper::Parse(IArchitecture& file)
 			j += static_cast<size_t>(segment->physical_size());
 	}
 	std::string arch_name = (file.owner()->visible_count() > 1) ? string_format(" (%s)", file.name().c_str()) : "";
-	file.StartProgress(string_format("%s %s%s...", language[lsLoading].c_str(), os::ExtractFileName(file.owner()->file_name().c_str()).c_str(), arch_name.c_str()), j);
+	file.StartProgress(string_format("Loading %s%s...", os::ExtractFileName(file.owner()->file_name().c_str()).c_str(), arch_name.c_str()), j);
 
 	if (compiler_function_signatures.count()) {
 		// search compiler functions

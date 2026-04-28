@@ -29,14 +29,9 @@
 #include "../processors/proc_interfaces.h"
 #include "../processors/proc_crypto.h"
 
-#include "../inifile.h"
-#include "../lang.h"
 #include "../core_internal/core.h"
 
-
-#include "../core_internal/watermark.h"
 #include "../core_internal/license.h"
-#include "../core_internal/file_manager.h"
 
 
 /**
@@ -185,13 +180,13 @@ std::string FunctionBundle::display_protection() const
 	if (need_compile()) {
 		switch (compilation_type()) {
 		case ctVirtualization:
-			res = language[lsVirtualization];
+			res = "Virtualization";
 			break;
 		case ctMutation:
-			res = language[lsMutation];
+			res = "Mutation";
 			break;
 		case ctUltra:
-			res = string_format("%s (%s + %s)", language[lsUltra].c_str(), language[lsMutation].c_str(), language[lsVirtualization].c_str());
+			res = "Ultra (Mutation + Virtualization)";
 			break;
 		default:
 			res = "?";
@@ -199,10 +194,10 @@ std::string FunctionBundle::display_protection() const
 		}
 		if (compilation_type() != ctMutation && (compilation_options() & coLockToKey)) {
 			res += ", ";
-			res += language[lsLockToSerialNumber];
+			res += "Lock to Serial Number";
 		}
 	} else {
-		res = language[lsNone];
+		res = "None";
 	}
 	return res;
 }
@@ -411,9 +406,6 @@ bool BaseArchitecture::Prepare(CompileContext &ctx)
 	if (ctx.options.flags & cpInternalMemoryProtection)
 		runtime_options |= roMemoryProtection;
 
-	if (ctx.options.file_manager)
-		runtime_options |= ctx.options.file_manager->GetRuntimeOptions();
-
 	if ((runtime_options & roKey) == 0) {
 		for (i = 0; i < function_list()->count(); i++) {
 			IFunction *func = function_list()->item(i);
@@ -435,11 +427,11 @@ bool BaseArchitecture::Prepare(CompileContext &ctx)
 
 	if (runtime_options & (roKey | roActivation)) {
 		if  (!ctx.options.licensing_manager || ctx.options.licensing_manager->empty()) {
-			Notify(mtError, ctx.options.licensing_manager, language[lsLicensingParametersNotInitialized]);
+			Notify(mtError, ctx.options.licensing_manager, "Licensing parameters not initialized");
 			return false;
 		}
 		if ((runtime_options & roActivation) && ctx.options.licensing_manager->activation_server().empty()) {
-			Notify(mtError, NULL, language[lsActivationServerNotSpecified]);
+			Notify(mtError, NULL, "Activation server not specified");
 			return false;
 		}
 	} else {
@@ -742,18 +734,18 @@ uint64_t BaseArchitecture::CopyFrom(const IArchitecture &src, uint64_t count)
 bool BaseArchitecture::ReadMapFile(IMapFile &map_file)
 {
 	if (time_stamp() && map_file.time_stamp()) {
-		if (time_stamp() != map_file.time_stamp()) {
-			Notify(mtWarning, NULL, string_format(language[lsMAPFileHasIncorrectTimeStamp].c_str(), os::ExtractFileName(map_file.file_name().c_str()).c_str()));
-			return false;
+			if (time_stamp() != map_file.time_stamp()) {
+				Notify(mtWarning, NULL, string_format("MAP file has incorrect timestamp: %s", os::ExtractFileName(map_file.file_name().c_str()).c_str()));
+				return false;
+			}
+		} else {
+			uint64_t file_time_stamp = os::GetLastWriteTime(owner_->file_name().c_str());
+			uint64_t map_time_stamp = os::GetLastWriteTime(map_file.file_name().c_str());
+			if (abs(static_cast<int64_t>(file_time_stamp - map_time_stamp)) > 30) {
+				Notify(mtWarning, NULL, string_format("MAP file has incorrect timestamp: %s", os::ExtractFileName(map_file.file_name().c_str()).c_str()));
+				return false;
+			}
 		}
-	} else {
-		uint64_t file_time_stamp = os::GetLastWriteTime(owner_->file_name().c_str());
-		uint64_t map_time_stamp = os::GetLastWriteTime(map_file.file_name().c_str());
-		if (abs(static_cast<int64_t>(file_time_stamp - map_time_stamp)) > 30) {
-			Notify(mtWarning, NULL, string_format(language[lsMAPFileHasIncorrectTimeStamp].c_str(), os::ExtractFileName(map_file.file_name().c_str()).c_str()));
-			return false;
-		}
-	}
 
 	MapSection *functions = map_file.GetSectionByType(msFunctions);
 	if (functions) {
@@ -984,11 +976,11 @@ IFile::IFile(const IFile &src, const char *file_name)
 	if (src.file_name().compare(file_name) == 0)
 	{
 		if  (!stream->Open(file_name, fmOpenRead | fmShareDenyWrite))
-			throw std::runtime_error(string_format(language[os::FileExists(file_name) ? lsOpenFileError : lsFileNotFound].c_str(), file_name));
+			throw std::runtime_error(string_format("Cannot open file \"%s\"", file_name));
 	} else 
 	{
 		if (!stream->Open(file_name, fmCreate | fmOpenReadWrite | fmShareDenyWrite))
-			throw std::runtime_error(string_format(language[lsCreateFileError].c_str(), file_name));
+			throw std::runtime_error(string_format("Cannot create file \"%s\"", file_name));
 	}
 	folder_list_ = src.folder_list()->Clone(this);
 	map_function_list_ = new MapFunctionBundleList(this);
@@ -1247,9 +1239,6 @@ bool IFile::Compile(CompileOptions &options)
 	if (options.architecture)
 		*options.architecture = NULL;
 
-	if (options.watermark)
-		options.watermark->inc_use_count();
-
 	return true;
 }
 
@@ -1294,73 +1283,6 @@ void IFile::EndProgress() const
 {
 	if (log_)
 		log_->EndProgress();
-}
-
-std::map<Watermark *, size_t> IFile::SearchWatermarks(const WatermarkManager &watermark_list)
-{
-	std::map<Watermark *, size_t> res;
-
-	uint64_t read_size;
-	size_t i, j, n, k, r;
-	uint8_t buf[4096];
-
-	if (count() == 0) {
-		uint64_t file_size = size();
-		StartProgress(string_format("%s...", language[lsSearching].c_str()), static_cast<size_t>(file_size));
-
-		watermark_list.InitSearch();
-		Seek(0);
-		for (read_size = 0; read_size < file_size; read_size += n) {
-			n = Read(buf, std::min(static_cast<size_t>(file_size - read_size), sizeof(buf)));
-			StepProgress(n);
-			for (k = 0; k < n; k++) {
-				uint8_t b = buf[k];
-				for (r = 0; r < watermark_list.count(); r++) {
-					Watermark *watermark = watermark_list.item(r);
-					if (watermark->SearchByte(b)) {
-						res[watermark]++;
-					}
-				}
-			}
-		}
-		EndProgress();
-	} else {
-		for (i = 0; i < count(); i++) {
-			IArchitecture *file = item(i);
-
-			n = 0;
-			for (j = 0; j < file->segment_list()->count(); j++) {
-				ISection *segment = file->segment_list()->item(j);
-				n += static_cast<size_t>(segment->physical_size());
-			}
-
-			StartProgress(string_format("%s...", language[lsSearching].c_str()), n);
-			for (j = 0; j < file->segment_list()->count(); j++) {
-				ISection *segment = file->segment_list()->item(j);
-				if (!segment->physical_size())
-					continue;
-
-				watermark_list.InitSearch();
-				file->Seek(segment->physical_offset());
-				for (read_size = 0; read_size < segment->physical_size(); read_size += n) {
-					n = file->Read(buf, std::min(static_cast<size_t>(segment->physical_size() - read_size), sizeof(buf)));
-					StepProgress(n);
-					for (k = 0; k < n; k++) {
-						uint8_t b = buf[k];
-						for (r = 0; r < watermark_list.count(); r++) {
-							Watermark *watermark = watermark_list.item(r);
-							if (watermark->SearchByte(b)) {
-								res[watermark]++;
-							}
-						}
-					}
-				}
-			}
-			EndProgress();
-		}
-	}
-
-	return res;
 }
 
 size_t IFile::visible_count() const

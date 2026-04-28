@@ -27,7 +27,6 @@ class FunctionInfoList;
 class FunctionInfo;
 class IArchitecture;
 class IRuntimeFunction;
-class Watermark;
 class IVirtualMachineList;
 
 // Type aliases

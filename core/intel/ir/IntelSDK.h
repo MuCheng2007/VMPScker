@@ -106,13 +106,6 @@ public:
 	bool Init(const CompileContext &ctx);
 };
 
-class IntelWatermark : public IntelFunction
-{
-public:
-	explicit IntelWatermark(IFunctionList *owner, OperandSize cpu_address_size);
-	bool Init(const CompileContext &ctx);
-};
-
 class IntelRuntimeCRCTable : public IntelFunction
 {
 public:

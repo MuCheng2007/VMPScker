@@ -60,6 +60,5 @@
 #endif
 
 #include "pe.h"
-#include "../third-party/tinyxml/tinyxml.h"
 
 #endif //CORE_PCH

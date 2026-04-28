@@ -12,7 +12,6 @@
 #include "../../core_internal/core.h"
 #include "../../files/architecture.h"
 #include "../../files/types.h"
-#include "../../lang.h"
 #include "../../../runtime/crypto.h"
 
 // Copied from intel.cc: IntelVirtualMachine implementation

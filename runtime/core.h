@@ -31,7 +31,6 @@ typedef struct _PUBLIC_OBJECT_BASIC_INFORMATION {
 #endif
 
 class ResourceManager;
-class FileManager;
 class RegistryManager;
 class HookManager;
 
@@ -113,7 +112,6 @@ public:
 	NTSTATUS NtQueryObject(HANDLE Handle, OBJECT_INFORMATION_CLASS ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength, PULONG ReturnLength);
 	NTSTATUS TrueNtQueryObject(HANDLE Handle, OBJECT_INFORMATION_CLASS ObjectInformationClass, PVOID ObjectInformation, ULONG ObjectInformationLength, PULONG ReturnLength);
 	ResourceManager *resource_manager() const { return resource_manager_; }
-	FileManager *file_manager() const { return file_manager_; }
 	RegistryManager *registry_manager() const { return registry_manager_; }
 #endif
 protected:
@@ -131,7 +129,6 @@ private:
 	void UnhookAPIs(HookManager &hook_manager);
 	VirtualObjectList objects_;
 	ResourceManager *resource_manager_;
-	FileManager *file_manager_;
 	RegistryManager *registry_manager_;
 	HookManager *hook_manager_;
 	void *nt_protect_virtual_memory_;

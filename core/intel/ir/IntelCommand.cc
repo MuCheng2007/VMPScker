@@ -10,9 +10,7 @@
 #include "../../pe/pefile.h"
 #include "../../packer.h"
 #include "../../streams.h"
-#include "../../core_internal/watermark.h"
 #include "../../../runtime/crypto.h"
-#include "../../core_internal/file_manager.h"
 #include "../../core_internal/license.h"
 
 // VM layer

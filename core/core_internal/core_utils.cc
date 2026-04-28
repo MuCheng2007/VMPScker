@@ -2,6 +2,23 @@
 
 #include "../../runtime/crypto.h"
 
+#include <cstdlib>
+#include <cstring>
+
+uint64_t StrToInt64Def(const char *str, uint64_t default_value)
+{
+	size_t len = strlen(str);
+	if (len == 0)
+		return default_value;
+
+	char *end;
+	uint64_t res = _strtoi64(str, &end, 0);
+	if (end != str + len)
+		return default_value;
+
+	return res;
+}
+
 void Base64ToVector(const char *src, size_t src_len, std::vector<uint8_t> &dst)
 {
 	if (!src || !src_len) {

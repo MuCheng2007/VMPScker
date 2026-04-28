@@ -13,7 +13,6 @@ class IntelCRCTable;
 class IntelLoaderData;
 class IntelRuntimeCRCTable;
 class IntelVirtualMachineProcessor;
-class Watermark;
 class MacImportFunction;
 struct CompileContext;
 
@@ -45,7 +44,6 @@ private:
 	IntelRuntimeData *AddRuntimeData(OperandSize cpu_address_size);
 	IntelCRCTable *AddCRCTable(OperandSize cpu_address_size);
 	IntelLoaderData *AddLoaderData(OperandSize cpu_address_size);
-	IntelFunction *AddWatermark(OperandSize cpu_address_size, Watermark *watermark, int copy_count);
 	IntelRuntimeCRCTable *AddRuntimeCRCTable(OperandSize cpu_address_size);
 
 	ValueCryptor *crc_cryptor_;

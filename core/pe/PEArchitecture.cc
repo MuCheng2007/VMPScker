@@ -31,7 +31,6 @@
 #include "PETLS.h"
 #include "PEDebug.h"
 #include "PEMapFile.h"
-#include "../lang.h"
 #include "../core_internal/core.h"
 
 #include "../pdb.h"
@@ -467,7 +466,7 @@ OpenStatus PEArchitecture::ReadFromFile(uint32_t mode)
 							ReadMapFile(pdb_file);
 						}
 						else
-							Notify(mtWarning, NULL, string_format(language[lsMAPFileHasIncorrectTimeStamp].c_str(), os::ExtractFileName(pdb_file.file_name().c_str()).c_str()));
+							Notify(mtWarning, NULL, string_format("MAP file has incorrect timestamp: %s", os::ExtractFileName(pdb_file.file_name().c_str()).c_str()));
 						break;
 					}
 				}
@@ -611,7 +610,7 @@ bool PEArchitecture::Prepare(CompileContext& ctx)
 {
 	if ((ctx.options.flags & cpPack) && segment_alignment_ < 0x1000) {
 		ctx.options.flags &= ~cpPack;
-		Notify(mtWarning, NULL, language[lsFileCanNotBePacked].c_str());
+		Notify(mtWarning, NULL, "File cannot be packed");
 	}
 
 	if (image_type() == itExe && (dll_characteristics_ & IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0)
@@ -637,8 +636,6 @@ bool PEArchitecture::Prepare(CompileContext& ctx)
 	else {
 		if (ctx.options.flags & cpResourceProtection)
 			ctx.options.flags &= ~cpResourceProtection;
-		if (ctx.options.file_manager)
-			ctx.options.file_manager = NULL;
 	}
 
 	if (!BaseArchitecture::Prepare(ctx))
@@ -702,7 +699,7 @@ bool PEArchitecture::Prepare(CompileContext& ctx)
 			new_header_size -= low_resize_header_;
 		}
 		if (new_header_size > rva) {
-			Notify(mtError, NULL, language[lsCreateSegmentError]);
+			Notify(mtError, NULL, "Not enough space in the file header to create a new segment");
 			return false;
 		}
 	}
@@ -721,7 +718,7 @@ bool PEArchitecture::Prepare(CompileContext& ctx)
 			aligned_header_size = AlignValue(new_header_size, file_alignment_);
 		}
 		if (aligned_header_size > rva) {
-			Notify(mtError, NULL, language[lsCreateSegmentError]);
+			Notify(mtError, NULL, "Not enough space in the file header to create a new segment");
 			return false;
 		}
 		if (aligned_header_size > section->physical_offset())
@@ -909,7 +906,7 @@ void PEArchitecture::Save(CompileContext& ctx)
 			c += block->end_index() - block->start_index() + 1;
 		}
 	}
-	StartProgress(string_format("%s...", language[lsSaving].c_str()), c);
+	StartProgress(string_format("Saving..."), c);
 
 	if (resource_list_->count()) {
 		if (ctx.options.flags & cpResourceProtection) {
@@ -1306,7 +1303,7 @@ void PEArchitecture::Save(CompileContext& ctx)
 		for (i = 0; i < processor_list.size(); i++) {
 			processor_count += processor_list[i]->count();
 		}
-		ctx.file->StartProgress(string_format("%s...", language[lsSavingStartupCode].c_str()), loader->count() + write_count + processor_count);
+		ctx.file->StartProgress(string_format("Saving startup code..."), loader->count() + write_count + processor_count);
 		loader->Compile(ctx);
 
 		pos = Resize(AlignValue(this->size(), file_alignment_));

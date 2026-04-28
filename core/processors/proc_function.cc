@@ -9,8 +9,6 @@
 #include "../files/sections.h"
 #include "../streams.h"
 #include "../core_internal/core.h"
-#include "../core_internal/watermark.h"
-#include "../lang.h"
 #include "../../runtime/crypto.h"
 #include <intrin.h>
 #include <stdexcept>
@@ -460,7 +458,7 @@ bool BaseFunction::FreeByManager(const CompileContext& ctx)
 					}
 					if (func_name.empty())
 						func_name = string_format("%.8llX", func_address);
-					ctx.file->Notify(mtError, command, string_format(language[lsAddressUsedByFunction].c_str(), func_name.c_str()));
+					ctx.file->Notify(mtError, command, string_format("Address used by function \"%s\"", func_name.c_str()));
 					return false;
 				}
 			}
@@ -504,12 +502,12 @@ bool BaseFunction::PrepareLinks(const CompileContext& ctx)
 			ICommand* command = function_list->GetCommandByAddress(link->to_address(), true);
 			if (is_breaked_address(link->from_command()->address())) {
 				if (command && command->owner()->address() != link->to_address() && !command->owner()->ext_command_list()->GetCommandByAddress(link->to_address()))
-					ctx.file->Notify(mtWarning, link->from_command(), string_format(language[lsJumpToInternalAddress].c_str(), link->to_address()));
+					ctx.file->Notify(mtWarning, link->from_command(), string_format("Jump to internal address: %.8llX", link->to_address()));
 				continue;
 			}
 			else {
 				if (!command && function_list->GetCommandByNearAddress(link->to_address(), true)) {
-					ctx.file->Notify(mtError, link->from_command(), language[lsJumpToCommandPart]);
+					ctx.file->Notify(mtError, link->from_command(), "Jump to command part");
 					return false;
 				}
 				link->set_to_command(command && (command->options() & roNeedCompile) ? command : NULL);
@@ -712,43 +710,6 @@ void BaseFunction::ReadFromBuffer(Buffer& buffer, IArchitecture& file)
 CommandBlock* BaseFunction::AddBlock(size_t start_index, bool is_executable)
 {
 	return block_list_->Add((memory_type_ & (mtDiscardable | mtNotPaged)) | (is_executable ? mtExecutable : mtReadable), start_index);
-}
-
-uint8_t* version_watermark = NULL;
-uint8_t* owner_watermark = NULL;
-
-void BaseFunction::AddWatermark(Watermark* watermark, int copy_count)
-{
-	Watermark secure_watermark(NULL);
-	std::string value;
-	uint8_t* internal_watermarks[] = { version_watermark, owner_watermark };
-
-	for (size_t k = 0; k < 1 + _countof(internal_watermarks); k++) {
-		if (k == 0) {
-			if (!watermark)
-				continue;
-		}
-		else {
-			uint8_t* ptr = internal_watermarks[k - 1];
-			if (!ptr)
-				continue;
-
-			uint32_t key = *reinterpret_cast<uint32_t*>(ptr);
-			uint16_t len = *reinterpret_cast<uint16_t*>(ptr + 4);
-			value.resize(len);
-			for (size_t i = 0; i < value.size(); i++) {
-				value[i] = ptr[6 + i] ^ static_cast<uint8_t>(_rotl32(key, (int)i) + i);
-			}
-			secure_watermark.set_value(value);
-			watermark = &secure_watermark;
-		}
-
-		for (int i = 0; i < copy_count; i++) {
-			watermark->Compile();
-			ICommand* command = AddCommand(Data(watermark->dump()));
-			command->include_option(roCreateNewBlock);
-		}
-	}
 }
 
 void BaseFunction::Rebase(uint64_t delta_base)
@@ -1051,7 +1012,7 @@ bool BaseFunctionList::Prepare(const CompileContext& ctx)
 			switch (j) {
 			case 0:
 				if (func->type() == otUnknown) {
-					ctx.file->Notify(mtWarning, func, string_format(language[lsFunctionNotFound].c_str(), func->name().c_str()));
+					ctx.file->Notify(mtWarning, func, string_format("Function \"%s\" not found in the object list", func->name().c_str()));
 					continue;
 				}
 				if (!func->Init(ctx))
@@ -1091,7 +1052,7 @@ bool BaseFunctionList::Compile(const CompileContext& ctx)
 		if (func->compilation_type() == ctUltra)
 			j += func->count();
 	}
-	ctx.file->StartProgress(string_format("%s...", language[lsCompiling].c_str()), j);
+	ctx.file->StartProgress(string_format("Compiling..."), j);
 
 	for (i = 0; i < count(); i++) {
 		func = item(i);

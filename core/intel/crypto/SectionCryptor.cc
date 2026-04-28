@@ -3,7 +3,6 @@
 #include "../ir/IntelCommandType.h"
 #include "../ir/IntelFunction.h"
 #include "../ir/IntelCommand.h"
-#include "../../lang.h"
 
 // Copied from intel.cc:
 // - SectionCryptor (lines: ~19063 - 19985)

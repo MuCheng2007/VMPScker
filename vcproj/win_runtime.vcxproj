@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -67,7 +67,6 @@
     </ClCompile>
     <ClCompile Include="..\runtime\resource_manager.cc" />
     <ClCompile Include="..\runtime\string_manager.cc" />
-    <ClCompile Include="..\runtime\file_manager.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\runtime\precommon.h" />
@@ -85,7 +84,6 @@
     <ClInclude Include="..\runtime\precompiled.h" />
     <ClInclude Include="..\runtime\resource_manager.h" />
     <ClInclude Include="..\runtime\string_manager.h" />
-    <ClInclude Include="..\runtime\file_manager.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\runtime\runtime.def" />

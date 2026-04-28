@@ -3,7 +3,6 @@
 #include "../core/streams.h"
 #include "../core/files/architecture.h"
 #include "../core/core_internal/core.h"
-#include "../core/lang.h"
 
 #include "../core/core_internal/license.h"
 
@@ -58,15 +57,15 @@ static bool checkdate(int y, int m, int d)
 int ConsoleApplication::Run()
 {
 #ifdef DEMO
-	log_ << language[lsDemoVersion] << endl;
+	log_ << "Demo Version" << endl;
 #else
 	bool is_registered = false;
 	{
 		VMProtectSerialNumberData serial_data;
 		if (VMProtectSetSerialNumber(VMProtectDecryptStringA("SerialNumber")) == SERIAL_STATE_SUCCESS && VMProtectGetSerialNumberData(&serial_data, sizeof(serial_data))) {
 			if (Core::check_license_edition(serial_data)) {
-				log_ << string_format("%s: %s [%s], %s", language[lsRegisteredTo].c_str(),
-					os::ToUTF8(serial_data.wUserName).c_str(), os::ToUTF8(serial_data.wEMail).c_str(), (serial_data.bUserData[0] & 1) ? "Personal License" : "Company License") << endl;
+				log_ << string_format("Registered To: %s [%s], %s",
+				os::ToUTF8(serial_data.wUserName).c_str(), os::ToUTF8(serial_data.wEMail).c_str(), (serial_data.bUserData[0] & 1) ? "Personal License" : "Company License") << endl;
 				is_registered = true;
 			}
 			else {
@@ -75,28 +74,19 @@ int ConsoleApplication::Run()
 		}
 	}
 	if (!is_registered) {
-		log_ << language[lsUnregisteredVersion] << endl;
+		log_ << "Unregistered Version" << endl;
 	}
 #endif
 	log_ << endl;
 
 	if (args_.size() < 2) {
-		log_ << string_format("%s: %s %s [%s] [-pf %s] [-sf %s]"
+		log_ << string_format("Usage: %s <File> [<Output File>] [-pf <Project File>] [-sf <Script File>]"
 #ifdef ULTIMATE
-			" [-lf %s]"
-			" [-bd %s]"
+			" [-lf <Licensing Parameters File>]"
+			" [-bd <Build Date>]"
 #endif
-			" [-wm %s] [-we]",
-			language[lsUsage].c_str(),
-			os::ExtractFileName(args_[0].c_str()).c_str(),
-			language[lsFile].c_str(),
-			language[lsOutputFile].c_str(),
-			language[lsProjectFile].c_str(),
-#ifdef ULTIMATE
-			language[lsLicensingParametersFile].c_str(),
-			language[lsBuildDate].c_str(),
-#endif
-			language[lsWatermark].c_str()
+			" [-wm <Watermark>] [-we]",
+			os::ExtractFileName(args_[0].c_str()).c_str()
 		) << endl;
 		return 1;
 	}
@@ -168,7 +158,7 @@ int ConsoleApplication::Run()
 		}
 
 		if (invalid_value) {
-			log_.Notify(mtError, NULL, string_format(language[lsInvalidParameterValue].c_str(), param.c_str()));
+			log_.Notify(mtError, NULL, string_format("Invalid value of parameter \"%s\"", param.c_str()));
 			return 1;
 		}
 	}
@@ -179,7 +169,7 @@ int ConsoleApplication::Run()
 	if (!project_file_name.empty()) {
 		project_file_name = os::CombinePaths(current_path.c_str(), project_file_name.c_str());
 		if (!os::FileExists(project_file_name.c_str())) {
-			log_.Notify(mtError, NULL, string_format(language[lsFileNotFound].c_str(), project_file_name.c_str()));
+			log_.Notify(mtError, NULL, string_format("File \"%s\" not found", project_file_name.c_str()));
 			return 1;
 		}
 	}
@@ -187,7 +177,7 @@ int ConsoleApplication::Run()
 	if (!licensing_params_file_name.empty()) {
 		licensing_params_file_name = os::CombinePaths(current_path.c_str(), licensing_params_file_name.c_str());
 		if (!os::FileExists(licensing_params_file_name.c_str())) {
-			log_.Notify(mtError, NULL, string_format(language[lsFileNotFound].c_str(), licensing_params_file_name.c_str()));
+			log_.Notify(mtError, NULL, string_format("File \"%s\" not found", licensing_params_file_name.c_str()));
 			return 1;
 		}
 	}
@@ -206,8 +196,6 @@ int ConsoleApplication::Run()
 			core.set_output_file_name(os::CombinePaths(current_path.c_str(), output_file_name.c_str()));
 
 
-		if (!watermark_name.empty())
-			core.set_watermark_name(watermark_name);
 
 #ifdef ULTIMATE
 		if (build_date)
@@ -227,6 +215,6 @@ int ConsoleApplication::Run()
 		return 1;
 	}
 
-	log_ << endl << language[lsCompiled] << endl;
+	log_ << endl << "Compiled" << endl;
 	return 0;
 }

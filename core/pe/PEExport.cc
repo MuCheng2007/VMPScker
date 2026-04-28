@@ -10,7 +10,6 @@
 #include "PEExport.h"
 #include "PEDirectory.h"
 #include "PEArchitecture.h"
-#include "../lang.h"
 #include "../core_internal/core.h"
 
 // Intel module

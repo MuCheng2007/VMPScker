@@ -14,7 +14,6 @@
 #include "loader.h"
 #else
 #include "resource_manager.h"
-#include "file_manager.h"
 #include "registry_manager.h"
 #include "hook_manager.h"
 #endif
@@ -1068,7 +1067,7 @@ Core::Core()
 #ifdef VMP_GNU
 #elif defined(WIN_DRIVER)
 #else
-	, resource_manager_(NULL), file_manager_(NULL), registry_manager_(NULL)
+	, resource_manager_(NULL), registry_manager_(NULL)
 	, hook_manager_(NULL), nt_protect_virtual_memory_(NULL), nt_close_(NULL)
 	, nt_query_object_(NULL), dbg_ui_remote_breakin_(NULL)
 #endif
@@ -1088,10 +1087,6 @@ Core::~Core()
 	if (resource_manager_) {
 		resource_manager_->UnhookAPIs(*hook_manager_);
 		delete resource_manager_;
-	}
-	if (file_manager_) {
-		file_manager_->UnhookAPIs(*hook_manager_);
-		delete file_manager_;
 	}
 	if (registry_manager_) {
 		registry_manager_->UnhookAPIs(*hook_manager_);
@@ -1186,20 +1181,12 @@ bool Core::Init(HMODULE instance)
 		resource_manager_ = new ResourceManager(reinterpret_cast<uint8_t *>(instance) + data.Resources, instance, key);
 		resource_manager_->HookAPIs(*hook_manager_); //-V595
 	}
-	if (data.Storage) {
-		file_manager_ = new FileManager(reinterpret_cast<uint8_t *>(instance) + data.Storage, instance, key, &objects_);
-		file_manager_->HookAPIs(*hook_manager_);
-	}
 	if (data.Registry) {
 		registry_manager_ = new RegistryManager(reinterpret_cast<uint8_t *>(instance) + data.Registry, instance, key, &objects_);
 		registry_manager_->HookAPIs(*hook_manager_);
 	}
 	if (hook_manager_)
 		HookAPIs(*hook_manager_, data.Options);
-	if (file_manager_) {
-		if (!file_manager_->OpenFiles(*registry_manager_))
-			return false;
-	}
 #endif
 
 	return true;
@@ -1246,7 +1233,7 @@ void Core::HookAPIs(HookManager &hook_manager, uint32_t options)
 		hook_manager.HookAPI(dll, VMProtectDecryptStringA("NtProtectVirtualMemory"), &HookedNtProtectVirtualMemory, true, &nt_protect_virtual_memory_);
 	if (options & CORE_OPTION_CHECK_DEBUGGER)
 		dbg_ui_remote_breakin_ = hook_manager.HookAPI(dll, VMProtectDecryptStringA("DbgUiRemoteBreakin"), &HookedDbgUiRemoteBreakin, false);
-	if (file_manager_ || registry_manager_) {
+	if (registry_manager_) {
 		nt_close_ = hook_manager.HookAPI(dll, VMProtectDecryptStringA("NtClose"), &HookedNtClose);
 		nt_query_object_ = hook_manager.HookAPI(dll, VMProtectDecryptStringA("NtQueryObject"), &HookedNtQueryObject);
 	}

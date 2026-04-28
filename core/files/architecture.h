@@ -18,10 +18,7 @@
 #include "utils.h"
 
 
-class Watermark;
-class WatermarkManager;
 class LicensingManager;
-class FileManager;
 
 class IArchitecture;
 class IFunctionList;
@@ -66,16 +63,13 @@ struct CompileOptions {
 	size_t vm_count;
 	std::string section_name;
 	std::string messages[MESSAGE_COUNT];
-	
-	Watermark *watermark;
 
 	IArchitecture **architecture;
 	std::string hwid;
 	LicensingManager *licensing_manager;
-	FileManager *file_manager;
 
-	CompileOptions() : flags(0), vm_flags(0), sdk_flags(0), vm_count(1), watermark(NULL), architecture(NULL)
-		, licensing_manager(NULL), file_manager(NULL)
+	CompileOptions() : flags(0), vm_flags(0), sdk_flags(0), vm_count(1), architecture(NULL)
+		, licensing_manager(NULL)
 		{}
 };
 
@@ -259,7 +253,6 @@ public:
 	void StepProgress(unsigned long long value = 1ull) const;
 	void EndProgress() const;
 	void set_log(ILog *log) { log_ = log; }
-	std::map<Watermark *, size_t> SearchWatermarks(const WatermarkManager &watermark_list);
 	virtual bool is_executable() const { return false; }
 	size_t visible_count() const;
 	IArchitecture *GetArchitectureByType(uint32_t type) const;

@@ -73,6 +73,7 @@
     <ClCompile Include="..\core\files\compiler_func.cc" />
     <ClCompile Include="..\core\files\memory.cc" />
     <ClCompile Include="..\core\files\markers.cc" />
+    <ClCompile Include="..\core\files\architecture.cc" />
     <ClCompile Include="..\core\inifile.cc" />
     <ClCompile Include="..\core\intel\crypto\SectionCryptor.cc" />
     <ClCompile Include="..\core\intel\ir\IntelCommand.cc" />
@@ -161,6 +162,7 @@
     <ClInclude Include="..\core\files\compiler_func.h" />
     <ClInclude Include="..\core\files\memory.h" />
     <ClInclude Include="..\core\files\markers.h" />
+    <ClInclude Include="..\core\files\architecture.h" />
     <ClInclude Include="..\core\inifile.h" />
     <ClInclude Include="..\core\intel\crypto\SectionCryptor.h" />
     <ClInclude Include="..\core\intel\ir\IntelCommand.h" />

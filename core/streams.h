@@ -1,10 +1,11 @@
-﻿/**
+#pragma once
+/**
  * Stream implementation.
  */
-
 #ifndef STREAMS_H
 #define STREAMS_H
 
+#include "osutils.h" 
 class AbstractStream
 {
 public:

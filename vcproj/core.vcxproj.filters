@@ -78,6 +78,9 @@
     <ClCompile Include="..\core\files\markers.cc">
       <Filter>src\files</Filter>
     </ClCompile>
+    <ClCompile Include="..\core\files\architecture.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
     <ClCompile Include="..\core\objects.cc">
       <Filter>src</Filter>
     </ClCompile>
@@ -310,6 +313,9 @@
       <Filter>src\files</Filter>
     </ClInclude>
     <ClInclude Include="..\core\files\markers.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\architecture.h">
       <Filter>src\files</Filter>
     </ClInclude>
     <ClInclude Include="..\core\processors\proc_types.h">

@@ -68,6 +68,11 @@
     <ClCompile Include="..\core\files\fixups.cc" />
     <ClCompile Include="..\core\files\relocations.cc" />
     <ClCompile Include="..\core\files\seh.cc" />
+    <ClCompile Include="..\core\files\resources.cc" />
+    <ClCompile Include="..\core\files\runtime_func.cc" />
+    <ClCompile Include="..\core\files\compiler_func.cc" />
+    <ClCompile Include="..\core\files\memory.cc" />
+    <ClCompile Include="..\core\files\markers.cc" />
     <ClCompile Include="..\core\inifile.cc" />
     <ClCompile Include="..\core\intel\crypto\SectionCryptor.cc" />
     <ClCompile Include="..\core\intel\ir\IntelCommand.cc" />
@@ -151,6 +156,11 @@
     <ClInclude Include="..\core\files\fixups.h" />
     <ClInclude Include="..\core\files\relocations.h" />
     <ClInclude Include="..\core\files\seh.h" />
+    <ClInclude Include="..\core\files\resources.h" />
+    <ClInclude Include="..\core\files\runtime_func.h" />
+    <ClInclude Include="..\core\files\compiler_func.h" />
+    <ClInclude Include="..\core\files\memory.h" />
+    <ClInclude Include="..\core\files\markers.h" />
     <ClInclude Include="..\core\inifile.h" />
     <ClInclude Include="..\core\intel\crypto\SectionCryptor.h" />
     <ClInclude Include="..\core\intel\ir\IntelCommand.h" />

@@ -63,6 +63,21 @@
     <ClCompile Include="..\core\files\seh.cc">
       <Filter>src\files</Filter>
     </ClCompile>
+    <ClCompile Include="..\core\files\resources.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\runtime_func.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\compiler_func.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\memory.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\markers.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
     <ClCompile Include="..\core\objects.cc">
       <Filter>src</Filter>
     </ClCompile>
@@ -280,6 +295,21 @@
       <Filter>src\files</Filter>
     </ClInclude>
     <ClInclude Include="..\core\files\seh.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\resources.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\runtime_func.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\compiler_func.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\memory.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\markers.h">
       <Filter>src\files</Filter>
     </ClInclude>
     <ClInclude Include="..\core\processors\proc_types.h">

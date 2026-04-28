@@ -25,6 +25,9 @@
     <Filter Include="src\pe">
       <UniqueIdentifier>{e5f6a7b8-9012-3456-ef56-789012345678}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\files">
+      <UniqueIdentifier>{a7b8c9d0-1234-5678-fa78-012345678901}</UniqueIdentifier>
+    </Filter>
     <Filter Include="src\processors">
       <UniqueIdentifier>{f6a7b8c9-0123-4567-0678-901234567890}</UniqueIdentifier>
     </Filter>
@@ -33,7 +36,33 @@
     <ClCompile Include="..\core\files.cc">
       <Filter>src</Filter>
     </ClCompile>
-
+    <ClCompile Include="..\core\files\utils.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\references.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\mapping.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\sections.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\imports.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\exports.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\fixups.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\relocations.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\seh.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
     <ClCompile Include="..\core\objects.cc">
       <Filter>src</Filter>
     </ClCompile>
@@ -222,6 +251,36 @@
     </ClInclude>
     <ClInclude Include="..\core\files.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\types.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\utils.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\references.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\mapping.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\sections.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\imports.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\exports.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\fixups.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\relocations.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\seh.h">
+      <Filter>src\files</Filter>
     </ClInclude>
     <ClInclude Include="..\core\processors\proc_types.h">
       <Filter>src\processors</Filter>

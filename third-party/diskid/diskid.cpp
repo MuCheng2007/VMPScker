@@ -1,4 +1,4 @@
-﻿//  diskid.cpp
+//  diskid.cpp
 //  for displaying the details of hard drives in a command window
 
 //  06/11/00  Lynn McGuire  written with many contributions from others,

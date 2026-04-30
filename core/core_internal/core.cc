@@ -232,7 +232,6 @@ bool Core::SaveAs(const std::string &file_name)
 
 bool Core::Save()
 {
-	// XML保存功能已移除
 	return true;
 }
 

@@ -27,6 +27,10 @@ pub enum InstructionCategory {
     Return,
     /// 条件移动（cmov）
     ConditionalMove,
+    /// 移位指令（shl, shr, sar, rol, ror 等）
+    Shift,
+    /// 标志操作（pushf, popf, lahf, sahf, cld, std 等）
+    Flags,
     /// 系统指令（syscall, sysret, int 等）
     System,
     /// 字符串操作（movs, cmps, scas 等）
@@ -199,6 +203,8 @@ impl Instruction {
             Mnemonic::Syscall
             | Mnemonic::Sysret
             | Mnemonic::Int
+            | Mnemonic::Int3
+            | Mnemonic::Ud2
             | Mnemonic::Into
             | Mnemonic::Iret
             | Mnemonic::Iretd
@@ -233,6 +239,30 @@ impl Instruction {
             | Mnemonic::Bsf
             | Mnemonic::Bsr
             | Mnemonic::Bswap => InstructionCategory::Bit,
+            Mnemonic::Shl
+            | Mnemonic::Shr
+            | Mnemonic::Sar
+            | Mnemonic::Rol
+            | Mnemonic::Ror
+            | Mnemonic::Rcl
+            | Mnemonic::Rcr
+            | Mnemonic::Shld
+            | Mnemonic::Shrd => InstructionCategory::Shift,
+            Mnemonic::Pushf
+            | Mnemonic::Pushfd
+            | Mnemonic::Pushfq
+            | Mnemonic::Popf
+            | Mnemonic::Popfd
+            | Mnemonic::Popfq
+            | Mnemonic::Lahf
+            | Mnemonic::Sahf
+            | Mnemonic::Cld
+            | Mnemonic::Std
+            | Mnemonic::Clc
+            | Mnemonic::Stc
+            | Mnemonic::Cmc
+            | Mnemonic::Cli
+            | Mnemonic::Sti => InstructionCategory::Flags,
             Mnemonic::Addss
             | Mnemonic::Subss
             | Mnemonic::Mulss

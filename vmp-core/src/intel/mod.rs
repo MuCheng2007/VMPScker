@@ -3,6 +3,7 @@
 //! 使用 iced-x86 库提供高性能的反汇编功能，并构建 VMProtect 特定的 IR 层。
 
 pub mod decoder;
+pub mod encoder;
 pub mod instruction;
 pub mod formatter;
 pub mod ir;
@@ -12,6 +13,7 @@ pub mod function;
 pub mod cfg;
 
 pub use decoder::{Decoder, DecoderConfig};
+pub use encoder::{Encoder, EncoderConfig, EncodedInstruction, encode_single, encode_all};
 pub use instruction::{Instruction, InstructionInfo, InstructionCategory};
 pub use formatter::{Formatter, FormatterOptions};
 pub use ir::{IrInstruction, IrOperand, IrRegister, IrMemoryOperand, IrImmediate};
@@ -104,6 +106,14 @@ pub fn disassemble_to_ir(data: &[u8], mode: DisassemblyMode, base_address: u64) 
     let instructions = disassemble(data, mode, base_address)?;
     let converter = IrConverter::new(mode);
     converter.convert_instructions(&instructions)
+}
+
+/// 将 IR 指令编码为机器码
+pub fn encode_ir(instructions: &[ir::IrInstruction], mode: DisassemblyMode, base_address: u64) -> Result<Vec<u8>> {
+    let config = EncoderConfig::new(mode, base_address);
+    let mut encoder = Encoder::new(config);
+    encoder.encode_all(instructions)?;
+    Ok(encoder.into_bytes())
 }
 
 #[cfg(test)]

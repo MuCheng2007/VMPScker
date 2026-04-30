@@ -568,3 +568,11 @@ bin/64/Release/VMProtectSDK64.map
 .trae/documents/phase4-disassembly-ir-plan.md
 .trae/documents/rust-cpp-comparison-plan.md
 .trae/documents/rust-cpp-comparison-report.md
+.trae/documents/完善IR转换器计划.md
+.trae/documents/processors-basic-fix-plan.md
+.trae/documents/processors-refactor-plan.md
+.trae/documents/processors-refactor-progress.md
+.trae/documents/processors-vm-refactor-plan.md
+.trae/specs/implement-encoder/checklist.md
+.trae/specs/implement-encoder/spec.md
+.trae/specs/implement-encoder/tasks.md

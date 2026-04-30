@@ -275,6 +275,22 @@ impl PeRebuilder {
             image_base: self.original.image_base(),
             entry_point: self.new_entry_point
                 .unwrap_or_else(|| self.original.entry_point()),
+            // 数据目录信息初始化为None，在重建过程中填充
+            export_dir: None,
+            import_dir: None,
+            resource_dir: None,
+            exception_dir: None,
+            security_dir: None,
+            relocation_dir: None,
+            debug_dir: None,
+            architecture_dir: None,
+            global_ptr_dir: None,
+            tls_dir: None,
+            load_config_dir: None,
+            bound_import_dir: None,
+            iat_dir: None,
+            delay_import_dir: None,
+            com_descriptor_dir: None,
         })
     }
 
@@ -535,9 +551,87 @@ impl PeRebuilder {
     }
 
     /// 写入数据目录
-    fn write_data_directories(&self, _output: &mut [u8], _layout: &PeLayout) -> Result<()> {
-        // TODO: 实现数据目录写入
-        // 包括导入表、导出表、重定位表等
+    fn write_data_directories(&self, output: &mut [u8], layout: &PeLayout) -> Result<()> {
+        // 数据目录位于可选头部之后
+        // DOS header (0x40) + PE signature (4) + COFF header (20) + Optional header
+        let data_dir_offset = if layout.is_64bit {
+            0x40 + 4 + 24 + 240 // DOS + PE sig + COFF (24 for PE32+) + Optional (64-bit: 240)
+        } else {
+            0x40 + 4 + 20 + 224 // DOS + PE sig + COFF (20 for PE32) + Optional (32-bit: 224)
+        };
+
+        // 写入导出表目录 (索引 0)
+        if let Some(ref dir) = layout.export_dir {
+            let offset = data_dir_offset + 0 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入导入表目录 (索引 1)
+        if let Some(ref dir) = layout.import_dir {
+            let offset = data_dir_offset + 1 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入资源表目录 (索引 2)
+        if let Some(ref dir) = layout.resource_dir {
+            let offset = data_dir_offset + 2 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入异常表目录 (索引 3)
+        if let Some(ref dir) = layout.exception_dir {
+            let offset = data_dir_offset + 3 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入安全证书目录 (索引 4) - 通常不重建
+
+        // 写入重定位表目录 (索引 5)
+        if let Some(ref dir) = layout.relocation_dir {
+            let offset = data_dir_offset + 5 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入调试目录 (索引 6) - 通常移除或保留原样
+
+        // 写入架构特定数据 (索引 7) - 通常为0
+
+        // 写入全局指针目录 (索引 8) - 通常为0
+
+        // 写入TLS表目录 (索引 9)
+        if let Some(ref dir) = layout.tls_dir {
+            let offset = data_dir_offset + 9 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入加载配置目录 (索引 10)
+        if let Some(ref dir) = layout.load_config_dir {
+            let offset = data_dir_offset + 10 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入绑定导入目录 (索引 11)
+        if let Some(ref dir) = layout.bound_import_dir {
+            let offset = data_dir_offset + 11 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入IAT目录 (索引 12)
+        if let Some(ref dir) = layout.iat_dir {
+            let offset = data_dir_offset + 12 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入延迟导入描述符目录 (索引 13)
+        if let Some(ref dir) = layout.delay_import_dir {
+            let offset = data_dir_offset + 13 * 8;
+            output[offset..offset + 8].copy_from_slice(&dir.to_bytes());
+        }
+
+        // 写入COM描述符目录 (索引 14) - .NET程序集
+
+        // 写入保留目录 (索引 15) - 必须为0
+
         Ok(())
     }
 
@@ -567,6 +661,26 @@ impl PeRebuilder {
     }
 }
 
+/// 数据目录信息
+#[derive(Debug, Clone, Copy)]
+struct DataDirectoryInfo {
+    rva: u32,
+    size: u32,
+}
+
+impl DataDirectoryInfo {
+    fn new(rva: u32, size: u32) -> Self {
+        Self { rva, size }
+    }
+
+    fn to_bytes(&self) -> [u8; 8] {
+        let mut bytes = [0u8; 8];
+        bytes[0..4].copy_from_slice(&self.rva.to_le_bytes());
+        bytes[4..8].copy_from_slice(&self.size.to_le_bytes());
+        bytes
+    }
+}
+
 /// PE 布局信息
 #[derive(Debug)]
 struct PeLayout {
@@ -577,6 +691,22 @@ struct PeLayout {
     sections: Vec<SectionLayout>,
     image_base: u64,
     entry_point: u64,
+    // 数据目录信息
+    export_dir: Option<DataDirectoryInfo>,
+    import_dir: Option<DataDirectoryInfo>,
+    resource_dir: Option<DataDirectoryInfo>,
+    exception_dir: Option<DataDirectoryInfo>,
+    security_dir: Option<DataDirectoryInfo>,
+    relocation_dir: Option<DataDirectoryInfo>,
+    debug_dir: Option<DataDirectoryInfo>,
+    architecture_dir: Option<DataDirectoryInfo>,
+    global_ptr_dir: Option<DataDirectoryInfo>,
+    tls_dir: Option<DataDirectoryInfo>,
+    load_config_dir: Option<DataDirectoryInfo>,
+    bound_import_dir: Option<DataDirectoryInfo>,
+    iat_dir: Option<DataDirectoryInfo>,
+    delay_import_dir: Option<DataDirectoryInfo>,
+    com_descriptor_dir: Option<DataDirectoryInfo>,
 }
 
 /// 节区布局信息

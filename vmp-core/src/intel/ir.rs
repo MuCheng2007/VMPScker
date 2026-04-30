@@ -9,6 +9,8 @@ use std::fmt;
 pub enum IrRegister {
     // 8-bit registers
     Al, Cl, Dl, Bl, Ah, Ch, Dh, Bh,
+    // x86-64 low byte registers (require REX prefix)
+    Spl, Bpl, Sil, Dil,
     R8b, R9b, R10b, R11b, R12b, R13b, R14b, R15b,
     
     // 16-bit registers
@@ -40,6 +42,7 @@ impl IrRegister {
         match self {
             IrRegister::Al | IrRegister::Cl | IrRegister::Dl | IrRegister::Bl |
             IrRegister::Ah | IrRegister::Ch | IrRegister::Dh | IrRegister::Bh |
+            IrRegister::Spl | IrRegister::Bpl | IrRegister::Sil | IrRegister::Dil |
             IrRegister::R8b | IrRegister::R9b | IrRegister::R10b | IrRegister::R11b |
             IrRegister::R12b | IrRegister::R13b | IrRegister::R14b | IrRegister::R15b => 8,
             
@@ -102,6 +105,7 @@ impl IrRegister {
             self,
             IrRegister::Al | IrRegister::Cl | IrRegister::Dl | IrRegister::Bl |
             IrRegister::Ah | IrRegister::Ch | IrRegister::Dh | IrRegister::Bh |
+            IrRegister::Spl | IrRegister::Bpl | IrRegister::Sil | IrRegister::Dil |
             IrRegister::R8b | IrRegister::R9b | IrRegister::R10b | IrRegister::R11b |
             IrRegister::R12b | IrRegister::R13b | IrRegister::R14b | IrRegister::R15b |
             IrRegister::Ax | IrRegister::Cx | IrRegister::Dx | IrRegister::Bx |

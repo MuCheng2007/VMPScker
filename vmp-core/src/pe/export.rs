@@ -222,6 +222,111 @@ impl ExportDirectory {
         let total = dir + eat + npt + ot + nt;
         (total + 3) & !3
     }
+
+    /// 重建导出表
+    /// 
+    /// # Arguments
+    /// * `base_rva` - 导出表基址RVA
+    /// 
+    /// 返回重建后的导出表数据和目录信息
+    pub fn rebuild(&self, base_rva: u32) -> ExportRebuildResult {
+        let (dir_size, eat_size, npt_size, ot_size, nt_size) = self.calculate_rebuild_size();
+        let total_size = dir_size + eat_size + npt_size + ot_size + nt_size;
+        
+        let mut data = vec![0u8; total_size];
+        
+        // 计算各表偏移
+        let dir_offset = 0;
+        let eat_offset = dir_offset + dir_size;
+        let npt_offset = eat_offset + eat_size;
+        let ot_offset = npt_offset + npt_size;
+        let nt_offset = ot_offset + ot_size;
+        
+        // 写入导出目录 (40字节)
+        let export_dir_rva = base_rva;
+        data[dir_offset..dir_offset + 4].copy_from_slice(&self.export_flags.to_le_bytes());
+        data[dir_offset + 4..dir_offset + 8].copy_from_slice(&self.time_date_stamp.to_le_bytes());
+        data[dir_offset + 8..dir_offset + 10].copy_from_slice(&self.major_version.to_le_bytes());
+        data[dir_offset + 10..dir_offset + 12].copy_from_slice(&self.minor_version.to_le_bytes());
+        
+        // DLL名称RVA
+        let dll_name_rva = base_rva + nt_offset as u32;
+        data[dir_offset + 12..dir_offset + 16].copy_from_slice(&dll_name_rva.to_le_bytes());
+        
+        // Ordinal Base
+        data[dir_offset + 16..dir_offset + 20].copy_from_slice(&self.ordinal_base.to_le_bytes());
+        
+        // Address Table Entries (EAT条目数)
+        let eat_entries = self.functions.len() as u32;
+        data[dir_offset + 20..dir_offset + 24].copy_from_slice(&eat_entries.to_le_bytes());
+        
+        // Number of Name Pointers (有名称的导出数量)
+        let name_ptr_count = self.named_export_count() as u32;
+        data[dir_offset + 24..dir_offset + 28].copy_from_slice(&name_ptr_count.to_le_bytes());
+        
+        // Export Address Table RVA
+        let eat_rva = base_rva + eat_offset as u32;
+        data[dir_offset + 28..dir_offset + 32].copy_from_slice(&eat_rva.to_le_bytes());
+        
+        // Name Pointer RVA
+        let npt_rva = base_rva + npt_offset as u32;
+        data[dir_offset + 32..dir_offset + 36].copy_from_slice(&npt_rva.to_le_bytes());
+        
+        // Ordinal Table RVA
+        let ot_rva = base_rva + ot_offset as u32;
+        data[dir_offset + 36..dir_offset + 40].copy_from_slice(&ot_rva.to_le_bytes());
+        
+        // 写入导出地址表 (EAT)
+        for (i, func) in self.functions.iter().enumerate() {
+            let offset = eat_offset + i * 4;
+            let addr = if func.is_forwarder() {
+                // 转发器：写入转发器名称RVA
+                0 // 简化处理，实际需要计算转发器名称RVA
+            } else {
+                func.address as u32
+            };
+            data[offset..offset + 4].copy_from_slice(&addr.to_le_bytes());
+        }
+        
+        // 写入名称指针表和序号表
+        let mut name_table_offset = nt_offset;
+        let mut name_ptr_index = 0;
+        
+        // 先写入DLL名称
+        let dll_name_bytes = self.dll_name.as_bytes();
+        data[name_table_offset..name_table_offset + dll_name_bytes.len()].copy_from_slice(dll_name_bytes);
+        data[name_table_offset + dll_name_bytes.len()] = 0; // null terminator
+        name_table_offset += dll_name_bytes.len() + 1;
+        
+        // 写入有名称的函数
+        for (i, func) in self.functions.iter().enumerate() {
+            if let Some(name) = &func.name {
+                // 写入名称指针
+                let name_rva = base_rva + name_table_offset as u32;
+                let npt_entry_offset = npt_offset + name_ptr_index * 4;
+                data[npt_entry_offset..npt_entry_offset + 4].copy_from_slice(&name_rva.to_le_bytes());
+                
+                // 写入序号
+                let ordinal = (func.ordinal - self.ordinal_base as u16) as u16;
+                let ot_entry_offset = ot_offset + name_ptr_index * 2;
+                data[ot_entry_offset..ot_entry_offset + 2].copy_from_slice(&ordinal.to_le_bytes());
+                
+                // 写入名称到名称表
+                let name_bytes = name.as_bytes();
+                data[name_table_offset..name_table_offset + name_bytes.len()].copy_from_slice(name_bytes);
+                data[name_table_offset + name_bytes.len()] = 0;
+                name_table_offset += name_bytes.len() + 1;
+                
+                name_ptr_index += 1;
+            }
+        }
+        
+        ExportRebuildResult {
+            data,
+            export_directory_rva: export_dir_rva,
+            export_directory_size: dir_size as u32,
+        }
+    }
 }
 
 /// 导出列表（用于管理多个导出表，虽然通常只有一个）

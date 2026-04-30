@@ -7,5 +7,6 @@ pub mod crypto;
 pub mod pack;
 pub mod core;
 pub mod intel;
+pub mod processors;
 
 pub use error::VmpError;

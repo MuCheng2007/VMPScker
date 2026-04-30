@@ -44,6 +44,10 @@ impl IrConverter {
             InstructionCategory::Call => self.convert_call(instruction),
             InstructionCategory::Return => self.convert_return(instruction),
             InstructionCategory::ConditionalMove => self.convert_conditional_move(instruction),
+            InstructionCategory::Shift => self.convert_shift(instruction),
+            InstructionCategory::Bit => self.convert_bit(instruction),
+            InstructionCategory::Flags => self.convert_flags(instruction),
+            InstructionCategory::System => self.convert_system(instruction),
             _ => self.convert_generic(instruction),
         };
 
@@ -171,6 +175,21 @@ impl IrConverter {
                         src2: Some(src2),
                     }))
                 }
+            }
+            Mnemonic::Mul => {
+                // 无符号乘法 - 单操作数形式
+                let src = self.convert_operand(instruction, 0)?;
+                Ok(Some(IrInstruction::Mul { src }))
+            }
+            Mnemonic::Div => {
+                // 无符号除法 - 单操作数形式
+                let src = self.convert_operand(instruction, 0)?;
+                Ok(Some(IrInstruction::Div { src }))
+            }
+            Mnemonic::Idiv => {
+                // 有符号除法 - 单操作数形式
+                let src = self.convert_operand(instruction, 0)?;
+                Ok(Some(IrInstruction::Idiv { src }))
             }
             _ => Ok(None),
         }
@@ -301,6 +320,97 @@ impl IrConverter {
         let src = self.convert_operand(instruction, 1)?;
         
         Ok(Some(IrInstruction::Cmov { condition, dst, src }))
+    }
+
+    /// 转换移位指令
+    fn convert_shift(&self, instruction: &Instruction) -> DisassemblyResult<Option<IrInstruction>> {
+        use iced_x86::Mnemonic;
+
+        // 获取操作数
+        let dst = self.convert_operand(instruction, 0)?;
+        let count = if instruction.op_count() > 1 {
+            self.convert_operand(instruction, 1)?
+        } else {
+            // 单操作数形式，使用 1 作为默认计数
+            IrOperand::Immediate(IrImmediate::U8(1))
+        };
+
+        match instruction.iced().mnemonic() {
+            Mnemonic::Shl => Ok(Some(IrInstruction::Shl { dst, count })),
+            Mnemonic::Shr => Ok(Some(IrInstruction::Shr { dst, count })),
+            Mnemonic::Sar => Ok(Some(IrInstruction::Sar { dst, count })),
+            Mnemonic::Rol => Ok(Some(IrInstruction::Rol { dst, count })),
+            Mnemonic::Ror => Ok(Some(IrInstruction::Ror { dst, count })),
+            _ => Ok(None),
+        }
+    }
+
+    /// 转换位操作指令
+    fn convert_bit(&self, instruction: &Instruction) -> DisassemblyResult<Option<IrInstruction>> {
+        use iced_x86::Mnemonic;
+
+        match instruction.iced().mnemonic() {
+            Mnemonic::Bt => {
+                let base = self.convert_operand(instruction, 0)?;
+                let offset = self.convert_operand(instruction, 1)?;
+                Ok(Some(IrInstruction::Bt { base, offset }))
+            }
+            Mnemonic::Bts => {
+                let base = self.convert_operand(instruction, 0)?;
+                let offset = self.convert_operand(instruction, 1)?;
+                Ok(Some(IrInstruction::Bts { base, offset }))
+            }
+            Mnemonic::Btr => {
+                let base = self.convert_operand(instruction, 0)?;
+                let offset = self.convert_operand(instruction, 1)?;
+                Ok(Some(IrInstruction::Btr { base, offset }))
+            }
+            Mnemonic::Bsf => {
+                let dst = self.convert_register(instruction.iced().op_register(0))?;
+                let src = self.convert_operand(instruction, 1)?;
+                Ok(Some(IrInstruction::Bsf { dst, src }))
+            }
+            Mnemonic::Bsr => {
+                let dst = self.convert_register(instruction.iced().op_register(0))?;
+                let src = self.convert_operand(instruction, 1)?;
+                Ok(Some(IrInstruction::Bsr { dst, src }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// 转换标志操作指令
+    fn convert_flags(&self, instruction: &Instruction) -> DisassemblyResult<Option<IrInstruction>> {
+        use iced_x86::Mnemonic;
+
+        match instruction.iced().mnemonic() {
+            Mnemonic::Pushf | Mnemonic::Pushfd | Mnemonic::Pushfq => Ok(Some(IrInstruction::Pushf)),
+            Mnemonic::Popf | Mnemonic::Popfd | Mnemonic::Popfq => Ok(Some(IrInstruction::Popf)),
+            Mnemonic::Lahf => Ok(Some(IrInstruction::Lahf)),
+            Mnemonic::Sahf => Ok(Some(IrInstruction::Sahf)),
+            Mnemonic::Cld => Ok(Some(IrInstruction::Cld)),
+            Mnemonic::Std => Ok(Some(IrInstruction::Std)),
+            Mnemonic::Clc => Ok(Some(IrInstruction::Clc)),
+            Mnemonic::Stc => Ok(Some(IrInstruction::Stc)),
+            _ => Ok(None),
+        }
+    }
+
+    /// 转换系统指令
+    fn convert_system(&self, instruction: &Instruction) -> DisassemblyResult<Option<IrInstruction>> {
+        use iced_x86::Mnemonic;
+
+        match instruction.iced().mnemonic() {
+            Mnemonic::Syscall => Ok(Some(IrInstruction::Syscall)),
+            Mnemonic::Sysret => Ok(Some(IrInstruction::Sysret)),
+            Mnemonic::Int => {
+                let vector = instruction.iced().immediate8();
+                Ok(Some(IrInstruction::Int { vector }))
+            }
+            Mnemonic::Int3 => Ok(Some(IrInstruction::Int3)),
+            Mnemonic::Ud2 => Ok(Some(IrInstruction::Ud2)),
+            _ => Ok(None),
+        }
     }
 
     /// 通用转换（对于未特殊处理的指令）
@@ -637,5 +747,241 @@ mod tests {
         assert_eq!(converter.convert_condition_code(ConditionCode::ne), IrCondition::Ne);
         assert_eq!(converter.convert_condition_code(ConditionCode::g), IrCondition::G);
         assert_eq!(converter.convert_condition_code(ConditionCode::l), IrCondition::L);
+    }
+
+    // ========== 新增测试：乘除法指令 ==========
+    #[test]
+    fn test_convert_mul() {
+        // mul rax (48 F7 E0)
+        let data = vec![0x48, 0xF7, 0xE0];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Mul { .. })));
+    }
+
+    #[test]
+    fn test_convert_div() {
+        // div rbx (48 F7 F3)
+        let data = vec![0x48, 0xF7, 0xF3];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Div { .. })));
+    }
+
+    #[test]
+    fn test_convert_idiv() {
+        // idiv rcx (48 F7 F9)
+        let data = vec![0x48, 0xF7, 0xF9];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Idiv { .. })));
+    }
+
+    // ========== 新增测试：移位指令 ==========
+    #[test]
+    fn test_convert_shl() {
+        // shl rax, 1 (48 D1 E0)
+        let data = vec![0x48, 0xD1, 0xE0];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Shl { .. })));
+    }
+
+    #[test]
+    fn test_convert_shr() {
+        // shr rax, 1 (48 D1 E8)
+        let data = vec![0x48, 0xD1, 0xE8];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Shr { .. })));
+    }
+
+    #[test]
+    fn test_convert_sar() {
+        // sar rax, 4 (48 C1 F8 04)
+        let data = vec![0x48, 0xC1, 0xF8, 0x04];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Sar { .. })));
+    }
+
+    #[test]
+    fn test_convert_rol() {
+        // rol eax, 5 (C1 C0 05)
+        let data = vec![0xC1, 0xC0, 0x05];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Rol { .. })));
+    }
+
+    #[test]
+    fn test_convert_ror() {
+        // ror eax, 3 (C1 C8 03)
+        let data = vec![0xC1, 0xC8, 0x03];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Ror { .. })));
+    }
+
+    // ========== 新增测试：位操作指令 ==========
+    #[test]
+    fn test_convert_bt() {
+        // bt rax, rbx (48 0F A3 D8)
+        let data = vec![0x48, 0x0F, 0xA3, 0xD8];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Bt { .. })));
+    }
+
+    #[test]
+    fn test_convert_bts() {
+        // bts rax, rbx (48 0F AB D8)
+        let data = vec![0x48, 0x0F, 0xAB, 0xD8];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Bts { .. })));
+    }
+
+    #[test]
+    fn test_convert_btr() {
+        // btr rax, rbx (48 0F B3 D8)
+        let data = vec![0x48, 0x0F, 0xB3, 0xD8];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Btr { .. })));
+    }
+
+    #[test]
+    fn test_convert_bsf() {
+        // bsf rax, rbx (48 0F BC C3)
+        let data = vec![0x48, 0x0F, 0xBC, 0xC3];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Bsf { .. })));
+    }
+
+    #[test]
+    fn test_convert_bsr() {
+        // bsr rax, rbx (48 0F BD C3)
+        let data = vec![0x48, 0x0F, 0xBD, 0xC3];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Bsr { .. })));
+    }
+
+    // ========== 新增测试：标志操作指令 ==========
+    #[test]
+    fn test_convert_pushf() {
+        // pushf (9C)
+        let data = vec![0x9C];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Pushf)));
+    }
+
+    #[test]
+    fn test_convert_popf() {
+        // popf (9D)
+        let data = vec![0x9D];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Popf)));
+    }
+
+    #[test]
+    fn test_convert_lahf() {
+        // lahf (9F)
+        let data = vec![0x9F];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Lahf)));
+    }
+
+    #[test]
+    fn test_convert_sahf() {
+        // sahf (9E)
+        let data = vec![0x9E];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Sahf)));
+    }
+
+    #[test]
+    fn test_convert_cld() {
+        // cld (FC)
+        let data = vec![0xFC];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Cld)));
+    }
+
+    #[test]
+    fn test_convert_std() {
+        // std (FD)
+        let data = vec![0xFD];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Std)));
+    }
+
+    // ========== 新增测试：系统指令 ==========
+    #[test]
+    fn test_convert_syscall() {
+        // syscall (0F 05)
+        let data = vec![0x0F, 0x05];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Syscall)));
+    }
+
+    #[test]
+    fn test_convert_int3() {
+        // int3 (CC)
+        let data = vec![0xCC];
+        let insn = decode_single(&data, DisassemblyMode::Mode64, 0x1000).unwrap().unwrap();
+        let mut converter = IrConverter::new(DisassemblyMode::Mode64);
+        let ir = converter.convert(&insn).unwrap();
+
+        assert!(ir.iter().any(|i| matches!(i, IrInstruction::Int3)));
     }
 }

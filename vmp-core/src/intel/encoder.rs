@@ -477,6 +477,132 @@ impl Encoder {
         Ok(iced_reg)
     }
 
+    /// 编码内存操作数的 ModR/M 和 SIB 字节
+    ///
+    /// 支持多种寻址模式：
+    /// - [base]
+    /// - [base + disp]
+    /// - [base + index * scale]
+    /// - [base + index * scale + disp]
+    /// - [index * scale + disp] (无基址)
+    /// - [rip + disp] (RIP相对寻址)
+    ///
+    /// 返回 (modrm_byte, sib_byte_option, displacement_bytes, rip_relative)
+    fn encode_memory_operand(
+        &self,
+        mem: &IrMemoryOperand,
+        reg_field: u8,  // ModR/M 的 reg 字段 (通常是操作码扩展或另一个寄存器)
+    ) -> DisassemblyResult<(u8, Option<u8>, Vec<u8>, bool)> {
+        // 检查是否是 RIP 相对寻址
+        if mem.is_rip_relative() {
+            // RIP 相对寻址: [RIP + disp32]
+            // ModR/M: 00 000 101 (mod=00, reg=reg_field, rm=101)
+            let modrm = (reg_field << 3) | 0x05;
+            let disp = mem.displacement as i32;
+            return Ok((modrm, None, disp.to_le_bytes().to_vec(), true));
+        }
+
+        let base_num = mem.base.as_ref()
+            .map(|r| self.convert_register(r).map(|r| r.number()))
+            .transpose()?;
+        let index_num = mem.index.as_ref()
+            .map(|r| self.convert_register(r).map(|r| r.number()))
+            .transpose()?;
+
+        let base_low = base_num.map(|n| (n & 7) as u8);
+        let base_extended = base_num.map(|n| n >= 8).unwrap_or(false);
+        let index_low = index_num.map(|n| (n & 7) as u8);
+        let index_extended = index_num.map(|n| n >= 8).unwrap_or(false);
+
+        // 缩放因子编码 (0=1, 1=2, 2=4, 3=8)
+        let scale_bits = match mem.scale {
+            1 => 0,
+            2 => 1,
+            4 => 2,
+            8 => 3,
+            _ => return Err(DisassemblyError::IrConversionError(
+                format!("Invalid scale factor: {}", mem.scale)
+            )),
+        };
+
+        // 判断是否需要 SIB 字节
+        let need_sib = mem.index.is_some() || 
+                       base_low == Some(4) ||  // RSP/R12 作为基址需要 SIB
+                       (mem.base.is_none() && mem.index.is_some());  // 无基址但有索引
+
+        // 处理位移
+        let disp_bytes = if mem.displacement == 0 {
+            Vec::new()
+        } else if mem.displacement >= -128 && mem.displacement <= 127 {
+            vec![mem.displacement as i8 as u8]
+        } else {
+            (mem.displacement as i32).to_le_bytes().to_vec()
+        };
+
+        let has_disp8 = disp_bytes.len() == 1;
+        let has_disp32 = disp_bytes.len() == 4;
+
+        if need_sib {
+            // 构建 SIB 字节: [scale:2][index:3][base:3]
+            let sib_scale = scale_bits << 6;
+            let sib_index = index_low.map(|i| i << 3).unwrap_or(0x20);  // 无索引时为 100 (ESP)
+            let sib_base = if mem.base.is_none() {
+                0x05  // 无基址时使用 101 (EBP)，配合 mod=00 表示 [disp32]
+            } else {
+                base_low.unwrap_or(0x05)
+            };
+            let sib = sib_scale | sib_index | sib_base;
+
+            // 构建 ModR/M
+            let mod_bits = if mem.base.is_none() {
+                0x00  // 无基址时 mod=00
+            } else if has_disp32 {
+                0x80  // mod=10 (disp32)
+            } else if has_disp8 {
+                0x40  // mod=01 (disp8)
+            } else {
+                0x00  // mod=00 (no disp)
+            };
+
+            // 注意：当 base 是 RBP/R13 且无位移时，需要添加 disp8(0x00)
+            let final_mod_bits = if base_low == Some(0x05) && disp_bytes.is_empty() && mem.base.is_some() {
+                0x40  // 强制使用 disp8
+            } else {
+                mod_bits
+            };
+
+            let modrm = final_mod_bits | (reg_field << 3) | 0x04;  // rm=100 表示使用 SIB
+
+            let final_disp = if base_low == Some(0x05) && disp_bytes.is_empty() && mem.base.is_some() {
+                vec![0x00]  // 添加 disp8(0x00)
+            } else if mem.base.is_none() && disp_bytes.is_empty() {
+                // 无基址无位移时需要 disp32(0x00)
+                vec![0x00, 0x00, 0x00, 0x00]
+            } else {
+                disp_bytes
+            };
+
+            Ok((modrm, Some(sib), final_disp, false))
+        } else {
+            // 简单基址寻址，无需 SIB
+            let base = base_low.unwrap_or(0x05);
+
+            // 处理 RBP/R13 特殊情况：需要至少 disp8
+            let (mod_bits, final_disp) = if base == 0x05 && disp_bytes.is_empty() {
+                (0x40, vec![0x00])  // 强制使用 disp8(0x00)
+            } else if has_disp32 {
+                (0x80, disp_bytes)
+            } else if has_disp8 {
+                (0x40, disp_bytes)
+            } else {
+                (0x00, disp_bytes)
+            };
+
+            let modrm = mod_bits | (reg_field << 3) | base;
+            Ok((modrm, None, final_disp, false))
+        }
+    }
+
     /// 将 IR 条件码转换为 iced 条件码
     fn convert_condition(&self, condition: IrCondition) -> ConditionCode {
         match condition {
@@ -689,85 +815,50 @@ impl Encoder {
     fn encode_mov_reg_mem(&mut self, dst: &IrRegister, mem: &IrMemoryOperand) -> DisassemblyResult<()> {
         let dst_iced = self.convert_register(dst)?;
         
-        // 简化实现 - 仅支持简单基址寻址
-        if let Some(base_reg) = &mem.base {
-            let base_iced = self.convert_register(base_reg)?;
-            
-            if dst_iced.is_gpr64() {
-                // REX.W + 8B /r
-                let dst_num = (dst_iced.number() & 7) as u8;
-                let base_num = (base_iced.number() & 7) as u8;
-                let dst_extended = dst_iced.number() >= 8;
-                let base_extended = base_iced.number() >= 8;
-                
-                let mut rex = 0x48;
-                if dst_extended {
-                    rex |= 0x04;
-                }
-                if base_extended {
-                    rex |= 0x01;
-                }
-                
-                self.output.push(rex);
-                self.output.push(0x8B);
-                
-                if mem.displacement == 0 {
-                    // [base]
-                    let modrm = (dst_num << 3) | base_num;
-                    self.output.push(modrm);
-                } else if mem.displacement >= -128 && mem.displacement <= 127 {
-                    // [base + disp8]
-                    let modrm = 0x40 | (dst_num << 3) | base_num;
-                    self.output.push(modrm);
-                    self.output.push(mem.displacement as i8 as u8);
-                } else {
-                    // [base + disp32]
-                    let modrm = 0x80 | (dst_num << 3) | base_num;
-                    self.output.push(modrm);
-                    self.output.extend_from_slice(&(mem.displacement as i32).to_le_bytes());
-                }
-            } else if dst_iced.is_gpr32() {
-                // 32-bit: 8B /r
-                let dst_num = (dst_iced.number() & 7) as u8;
-                let base_num = (base_iced.number() & 7) as u8;
-                let dst_extended = dst_iced.number() >= 8;
-                let base_extended = base_iced.number() >= 8;
-                
-                if dst_extended || base_extended {
-                    let mut rex = 0x40;
-                    if dst_extended {
-                        rex |= 0x04;
-                    }
-                    if base_extended {
-                        rex |= 0x01;
-                    }
-                    self.output.push(rex);
-                }
-                
-                self.output.push(0x8B);
-                
-                if mem.displacement == 0 {
-                    let modrm = (dst_num << 3) | base_num;
-                    self.output.push(modrm);
-                } else if mem.displacement >= -128 && mem.displacement <= 127 {
-                    let modrm = 0x40 | (dst_num << 3) | base_num;
-                    self.output.push(modrm);
-                    self.output.push(mem.displacement as i8 as u8);
-                } else {
-                    let modrm = 0x80 | (dst_num << 3) | base_num;
-                    self.output.push(modrm);
-                    self.output.extend_from_slice(&(mem.displacement as i32).to_le_bytes());
-                }
-            } else {
-                return Err(DisassemblyError::IrConversionError(
-                    "Unsupported register size for mov from mem".to_string()
-                ));
-            }
-        } else {
+        if !dst_iced.is_gpr64() && !dst_iced.is_gpr32() {
             return Err(DisassemblyError::IrConversionError(
-                "Memory operand without base not supported yet".to_string()
+                "Unsupported register size for mov from mem".to_string()
             ));
         }
+
+        let dst_num = (dst_iced.number() & 7) as u8;
+        let dst_extended = dst_iced.number() >= 8;
+
+        // 获取索引寄存器扩展信息（用于REX字节）
+        let index_extended = mem.index.as_ref()
+            .map(|r| self.convert_register(r).map(|r| r.number() >= 8))
+            .transpose()?.unwrap_or(false);
+
+        // 获取基址寄存器扩展信息
+        let base_extended = mem.base.as_ref()
+            .map(|r| self.convert_register(r).map(|r| r.number() >= 8))
+            .transpose()?.unwrap_or(false);
+
+        // 编码内存操作数
+        let (modrm, sib, disp, is_rip_relative) = self.encode_memory_operand(mem, dst_num)?;
+
+        // 构建 REX 前缀
+        let mut rex = if dst_iced.is_gpr64() { 0x48 } else { 0x40 };
+        if dst_extended {
+            rex |= 0x04;
+        }
+        if index_extended {
+            rex |= 0x02;
+        }
+        if base_extended && !is_rip_relative {
+            rex |= 0x01;
+        }
+
+        // 输出指令
+        if rex != 0x40 || dst_iced.is_gpr64() {
+            self.output.push(rex);
+        }
+        self.output.push(0x8B);  // mov r, r/m
+        self.output.push(modrm);
+        if let Some(sib_byte) = sib {
+            self.output.push(sib_byte);
+        }
+        self.output.extend_from_slice(&disp);
 
         Ok(())
     }
@@ -776,81 +867,50 @@ impl Encoder {
     fn encode_mov_mem_reg(&mut self, mem: &IrMemoryOperand, src: &IrRegister) -> DisassemblyResult<()> {
         let src_iced = self.convert_register(src)?;
         
-        if let Some(base_reg) = &mem.base {
-            let base_iced = self.convert_register(base_reg)?;
-            
-            if src_iced.is_gpr64() {
-                // REX.W + 89 /r
-                let src_num = (src_iced.number() & 7) as u8;
-                let base_num = (base_iced.number() & 7) as u8;
-                let src_extended = src_iced.number() >= 8;
-                let base_extended = base_iced.number() >= 8;
-                
-                let mut rex = 0x48;
-                if src_extended {
-                    rex |= 0x04;
-                }
-                if base_extended {
-                    rex |= 0x01;
-                }
-                
-                self.output.push(rex);
-                self.output.push(0x89);
-                
-                if mem.displacement == 0 {
-                    let modrm = (src_num << 3) | base_num;
-                    self.output.push(modrm);
-                } else if mem.displacement >= -128 && mem.displacement <= 127 {
-                    let modrm = 0x40 | (src_num << 3) | base_num;
-                    self.output.push(modrm);
-                    self.output.push(mem.displacement as i8 as u8);
-                } else {
-                    let modrm = 0x80 | (src_num << 3) | base_num;
-                    self.output.push(modrm);
-                    self.output.extend_from_slice(&(mem.displacement as i32).to_le_bytes());
-                }
-            } else if src_iced.is_gpr32() {
-                // 89 /r
-                let src_num = (src_iced.number() & 7) as u8;
-                let base_num = (base_iced.number() & 7) as u8;
-                let src_extended = src_iced.number() >= 8;
-                let base_extended = base_iced.number() >= 8;
-                
-                if src_extended || base_extended {
-                    let mut rex = 0x40;
-                    if src_extended {
-                        rex |= 0x04;
-                    }
-                    if base_extended {
-                        rex |= 0x01;
-                    }
-                    self.output.push(rex);
-                }
-                
-                self.output.push(0x89);
-                
-                if mem.displacement == 0 {
-                    let modrm = (src_num << 3) | base_num;
-                    self.output.push(modrm);
-                } else if mem.displacement >= -128 && mem.displacement <= 127 {
-                    let modrm = 0x40 | (src_num << 3) | base_num;
-                    self.output.push(modrm);
-                    self.output.push(mem.displacement as i8 as u8);
-                } else {
-                    let modrm = 0x80 | (src_num << 3) | base_num;
-                    self.output.push(modrm);
-                    self.output.extend_from_slice(&(mem.displacement as i32).to_le_bytes());
-                }
-            } else {
-                return Err(DisassemblyError::IrConversionError(
-                    "Unsupported register size for mov to mem".to_string()
-                ));
-            }
-        } else {
+        if !src_iced.is_gpr64() && !src_iced.is_gpr32() {
             return Err(DisassemblyError::IrConversionError(
-                "Memory operand without base not supported yet".to_string()
+                "Unsupported register size for mov to mem".to_string()
             ));
         }
+
+        let src_num = (src_iced.number() & 7) as u8;
+        let src_extended = src_iced.number() >= 8;
+
+        // 获取索引寄存器扩展信息
+        let index_extended = mem.index.as_ref()
+            .map(|r| self.convert_register(r).map(|r| r.number() >= 8))
+            .transpose()?.unwrap_or(false);
+
+        // 获取基址寄存器扩展信息
+        let base_extended = mem.base.as_ref()
+            .map(|r| self.convert_register(r).map(|r| r.number() >= 8))
+            .transpose()?.unwrap_or(false);
+
+        // 编码内存操作数
+        let (modrm, sib, disp, is_rip_relative) = self.encode_memory_operand(mem, src_num)?;
+
+        // 构建 REX 前缀
+        let mut rex = if src_iced.is_gpr64() { 0x48 } else { 0x40 };
+        if src_extended {
+            rex |= 0x04;
+        }
+        if index_extended {
+            rex |= 0x02;
+        }
+        if base_extended && !is_rip_relative {
+            rex |= 0x01;
+        }
+
+        // 输出指令
+        if rex != 0x40 || src_iced.is_gpr64() {
+            self.output.push(rex);
+        }
+        self.output.push(0x89);  // mov r/m, r
+        self.output.push(modrm);
+        if let Some(sib_byte) = sib {
+            self.output.push(sib_byte);
+        }
+        self.output.extend_from_slice(&disp);
 
         Ok(())
     }
@@ -938,6 +998,15 @@ impl Encoder {
                         // 50+rd
                         self.output.push(0x50 | reg_num);
                     }
+                } else if iced_reg.is_gpr32() {
+                    // 32-bit push: 50+rd
+                    let reg_num = (iced_reg.number() & 7) as u8;
+                    let is_extended = iced_reg.number() >= 8;
+                    
+                    if is_extended {
+                        self.output.push(0x41);
+                    }
+                    self.output.push(0x50 | reg_num);
                 } else if iced_reg.is_gpr16() {
                     // 66 50+rw
                     self.output.push(0x66);
@@ -950,7 +1019,7 @@ impl Encoder {
                     self.output.push(0x50 | reg_num);
                 } else {
                     return Err(DisassemblyError::IrConversionError(
-                        "Unsupported register for push".to_string()
+                        format!("Unsupported register for push: {:?}", reg)
                     ));
                 }
             }
@@ -1019,6 +1088,15 @@ impl Encoder {
                     } else {
                         self.output.push(0x58 | reg_num);
                     }
+                } else if iced_reg.is_gpr32() {
+                    // 32-bit pop: 58+rd (no REX.W)
+                    let reg_num = (iced_reg.number() & 7) as u8;
+                    let is_extended = iced_reg.number() >= 8;
+                    
+                    if is_extended {
+                        self.output.push(0x41);
+                    }
+                    self.output.push(0x58 | reg_num);
                 } else if iced_reg.is_gpr16() {
                     self.output.push(0x66);
                     let reg_num = (iced_reg.number() & 7) as u8;
@@ -1030,7 +1108,7 @@ impl Encoder {
                     self.output.push(0x58 | reg_num);
                 } else {
                     return Err(DisassemblyError::IrConversionError(
-                        "Unsupported register for pop".to_string()
+                        format!("Unsupported register for pop: {:?}", reg)
                     ));
                 }
             }
@@ -3120,29 +3198,159 @@ mod tests {
     #[test]
     fn test_decode_encode_immediate_instructions() {
         use crate::intel::{disassemble_to_ir, encode_ir};
-        
+
         // mov eax, 1 (0xB8 0x01 0x00 0x00 0x00)
         // mov rax, 0x123456789ABCDEF0 (0x48 0xB8 0xF0 0xDE 0xBC 0x9A 0x78 0x56 0x34 0x12)
         let original_bytes = vec![
             0xB8, 0x01, 0x00, 0x00, 0x00,              // mov eax, 1
             0x48, 0xB8, 0xF0, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12, // mov rax, 0x123456789ABCDEF0
         ];
-        
+
         let base_addr = 0x1000u64;
-        
+
         // 解码为 IR
         let ir_instructions = disassemble_to_ir(&original_bytes, DisassemblyMode::Mode64, base_addr)
             .expect("Failed to disassemble");
-        
+
         assert!(!ir_instructions.is_empty(), "Should have decoded some instructions");
-        
+
         // 编码回机器码
         let encoded_bytes = encode_ir(&ir_instructions, DisassemblyMode::Mode64, base_addr)
             .expect("Failed to encode");
-        
+
         // 验证编码后的字节与原始字节一致
         assert_eq!(encoded_bytes, original_bytes,
             "Encoded bytes should match original.\nOriginal: {:02X?}\nEncoded:  {:02X?}",
             original_bytes, encoded_bytes);
+    }
+
+    /// 测试标签跳转编码
+    #[test]
+    fn test_label_jumps() {
+        use crate::intel::ir::{IrCondition, IrJumpTarget};
+
+        let instructions = vec![
+            IrInstruction::Jmp { target: IrJumpTarget::Label(1) },
+            IrInstruction::Nop,
+            IrInstruction::Label { id: 1 },
+            IrInstruction::Ret { pop_bytes: None },
+        ];
+
+        let encoded = encode_all(&instructions, DisassemblyMode::Mode64, 0x1000).unwrap();
+
+        // 验证生成了4条指令
+        assert_eq!(encoded.len(), 4);
+
+        // 第一条应该是跳转指令 (E9 xx xx xx xx)
+        assert_eq!(encoded[0].bytes[0], 0xE9);
+
+        // 最后一条是 ret (C3)
+        assert_eq!(encoded[3].bytes[0], 0xC3);
+    }
+
+    /// 测试条件跳转标签
+    #[test]
+    fn test_conditional_label_jumps() {
+        use crate::intel::ir::{IrCondition, IrJumpTarget};
+
+        let instructions = vec![
+            IrInstruction::Cmp {
+                op1: IrOperand::reg(IrRegister::Rax),
+                op2: IrOperand::imm(0u64),
+            },
+            IrInstruction::Jcc {
+                condition: IrCondition::E,
+                target: IrJumpTarget::Label(1),
+            },
+            IrInstruction::Mov {
+                dst: IrOperand::reg(IrRegister::Rax),
+                src: IrOperand::imm(1u64),
+            },
+            IrInstruction::Label { id: 1 },
+            IrInstruction::Ret { pop_bytes: None },
+        ];
+
+        let encoded = encode_all(&instructions, DisassemblyMode::Mode64, 0x1000).unwrap();
+
+        // 验证生成了5条指令
+        assert_eq!(encoded.len(), 5);
+
+        // 第二条应该是条件跳转 (0F 84 xx xx xx xx)
+        assert_eq!(encoded[1].bytes[0], 0x0F);
+        assert_eq!(encoded[1].bytes[1], 0x84);
+    }
+
+    /// 测试复杂内存寻址 - 基址+索引
+    #[test]
+    fn test_complex_memory_addressing() {
+        use crate::intel::ir::IrMemoryOperand;
+
+        // mov rax, [rbx + rcx*4]
+        let mem = IrMemoryOperand {
+            segment: None,
+            base: Some(IrRegister::Rbx),
+            index: Some(IrRegister::Rcx),
+            scale: 4,
+            displacement: 0,
+            size_bits: 64,
+        };
+
+        let instruction = IrInstruction::Mov {
+            dst: IrOperand::reg(IrRegister::Rax),
+            src: IrOperand::mem(mem),
+        };
+
+        let encoded = encode_single(&instruction, DisassemblyMode::Mode64, 0x1000).unwrap();
+
+        // 应该生成 REX.W + 8B + ModR/M + SIB
+        // 0x48 (REX.W) 0x8B (mov r, r/m) ModR/M SIB
+        assert!(encoded.bytes.len() >= 3);
+        assert_eq!(encoded.bytes[0], 0x48);
+        assert_eq!(encoded.bytes[1], 0x8B);
+    }
+
+    /// 测试 RIP 相对寻址
+    #[test]
+    fn test_rip_relative_addressing() {
+        use crate::intel::ir::IrMemoryOperand;
+
+        // mov rax, [rip + 0x100]
+        let mem = IrMemoryOperand::new_rip_relative(0x100, 64);
+
+        let instruction = IrInstruction::Mov {
+            dst: IrOperand::reg(IrRegister::Rax),
+            src: IrOperand::mem(mem),
+        };
+
+        let encoded = encode_single(&instruction, DisassemblyMode::Mode64, 0x1000).unwrap();
+
+        // RIP 相对寻址: REX.W + 8B + ModR/M (00 000 101) + disp32
+        assert_eq!(encoded.bytes.len(), 7); // REX + opcode + ModR/M + disp32
+        assert_eq!(encoded.bytes[0], 0x48);
+        assert_eq!(encoded.bytes[1], 0x8B);
+        assert_eq!(encoded.bytes[2], 0x05); // mod=00, reg=000, rm=101 (RIP relative)
+    }
+
+    /// 测试带位移的复杂寻址
+    #[test]
+    fn test_memory_with_displacement() {
+        use crate::intel::ir::IrMemoryOperand;
+
+        // mov rax, [rbx + 0x10]
+        let mem = IrMemoryOperand::new_base_disp(IrRegister::Rbx, 0x10, 64);
+
+        let instruction = IrInstruction::Mov {
+            dst: IrOperand::reg(IrRegister::Rax),
+            src: IrOperand::mem(mem),
+        };
+
+        let encoded = encode_single(&instruction, DisassemblyMode::Mode64, 0x1000).unwrap();
+
+        // disp8 寻址: REX.W + 8B + ModR/M (01 000 011) + disp8
+        assert_eq!(encoded.bytes.len(), 4);
+        assert_eq!(encoded.bytes[0], 0x48);
+        assert_eq!(encoded.bytes[1], 0x8B);
+        assert_eq!(encoded.bytes[2], 0x43); // mod=01, reg=000, rm=011 (rbx)
+        assert_eq!(encoded.bytes[3], 0x10); // disp8
     }
 }

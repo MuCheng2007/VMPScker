@@ -28,6 +28,16 @@ pub enum VmpError {
 
     #[error("Disassembly error: {0}")]
     Disassembly(String),
+
+    #[error("VM error: {0}")]
+    VM(String),
+}
+
+impl VmpError {
+    /// 创建 VM 错误
+    pub fn vm_error(msg: impl Into<String>) -> Self {
+        VmpError::VM(msg.into())
+    }
 }
 
 pub type Result<T> = std::result::Result<T, VmpError>;

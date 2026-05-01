@@ -18,6 +18,8 @@ pub mod import_rebuilder;
 pub mod rebuilder;
 pub mod resource_rebuilder;
 pub mod map_function;
+pub mod marker_detector;
+pub mod vmp_marker_finder;
 
 pub use file::PeFile;
 pub use section::{Section, SectionList};
@@ -41,3 +43,5 @@ pub use rebuilder::{PeRebuilder, RebuildConfig, NewSection, SectionModification}
 pub use resource_rebuilder::{ResourceRebuilder, ResourceRebuildConfig, ResourceLayout, ResourceCompressor};
 pub use map_function::{MapFunction, MapFunctionList, MapFunctionDatabase, ApiType, CompilationType, ImportOption, 
     SdkFunction, SdkImport, SdkImportList};
+pub use marker_detector::{VmpMarkerDetector, VmpMarker, VmpMarkerType, VmpMarkerPair};
+pub use vmp_marker_finder::{VmpMarkerFinder, VmpMarkerLocation, VmpMarkerType as VmpFinderMarkerType};

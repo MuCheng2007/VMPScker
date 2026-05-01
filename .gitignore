@@ -576,3 +576,6 @@ bin/64/Release/VMProtectSDK64.map
 .trae/specs/implement-encoder/checklist.md
 .trae/specs/implement-encoder/spec.md
 .trae/specs/implement-encoder/tasks.md
+.trae/documents/processors-refactor-summary.md
+/.trae
+/.vs/vmprotect/FileContentIndex

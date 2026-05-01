@@ -24,3 +24,6 @@ indicatif.workspace = true
 
 # Core library
 vmp-core = { path = "../vmp-core" }
+
+# PE parsing (re-exported from vmp-core)
+goblin = "0.8"

@@ -464,9 +464,35 @@ impl From<i64> for IrOperand {
     }
 }
 
-/// IR 指令
+/// IR 指令封装（包含 RVA 和操作码）
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IrInstruction {
+pub struct IrInstruction {
+    /// 指令的原始 RVA
+    pub rva: u64,
+    /// 指令操作码
+    pub opcode: IrOpcode,
+}
+
+impl IrInstruction {
+    /// 获取指令地址
+    pub fn address(&self) -> u64 {
+        self.rva
+    }
+
+    /// 是否是流控指令 (CFG 分析器需要)
+    pub fn is_flow_control(&self) -> bool {
+        self.opcode.is_control_flow()
+    }
+
+    /// 简易构造器
+    pub fn new(rva: u64, opcode: IrOpcode) -> Self {
+        Self { rva, opcode }
+    }
+}
+
+/// IR 指令操作码
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrOpcode {
     // 数据传输指令
     /// 移动操作数
     Mov { dst: IrOperand, src: IrOperand },
@@ -580,7 +606,6 @@ pub enum IrInstruction {
     /// 未定义指令
     Ud2,
 
-    // 伪指令
     /// 标签
     Label { id: u32 },
     /// 注释
@@ -641,18 +666,18 @@ pub enum IrCondition {
     Cxnz, // CX/ECX/RCX Not Zero
 }
 
-impl IrInstruction {
+impl IrOpcode {
     /// 是否是控制流指令
     pub fn is_control_flow(&self) -> bool {
         matches!(
             self,
-            IrInstruction::Jmp { .. }
-                | IrInstruction::Jcc { .. }
-                | IrInstruction::Call { .. }
-                | IrInstruction::Ret { .. }
-                | IrInstruction::Syscall
-                | IrInstruction::Sysret
-                | IrInstruction::Int { .. }
+            IrOpcode::Jmp { .. }
+                | IrOpcode::Jcc { .. }
+                | IrOpcode::Call { .. }
+                | IrOpcode::Ret { .. }
+                | IrOpcode::Syscall
+                | IrOpcode::Sysret
+                | IrOpcode::Int { .. }
         )
     }
 
@@ -660,50 +685,50 @@ impl IrInstruction {
     pub fn is_conditional(&self) -> bool {
         matches!(
             self,
-            IrInstruction::Jcc { .. } | IrInstruction::Cmov { .. }
+            IrOpcode::Jcc { .. } | IrOpcode::Cmov { .. }
         )
     }
 
     /// 是否是跳转指令
     pub fn is_jump(&self) -> bool {
-        matches!(self, IrInstruction::Jmp { .. } | IrInstruction::Jcc { .. })
+        matches!(self, IrOpcode::Jmp { .. } | IrOpcode::Jcc { .. })
     }
 
     /// 是否是调用指令
     pub fn is_call(&self) -> bool {
-        matches!(self, IrInstruction::Call { .. })
+        matches!(self, IrOpcode::Call { .. })
     }
 
     /// 是否是返回指令
     pub fn is_return(&self) -> bool {
-        matches!(self, IrInstruction::Ret { .. })
+        matches!(self, IrOpcode::Ret { .. })
     }
 
     /// 获取目标操作数（如果有）
     pub fn destination_operand(&self) -> Option<IrOperand> {
         match self {
-            IrInstruction::Mov { dst, .. } => Some(dst.clone()),
-            IrInstruction::Lea { dst, .. } => Some(IrOperand::Register(dst.clone())),
-            IrInstruction::Pop { dst } => Some(dst.clone()),
-            IrInstruction::Add { dst, .. } => Some(dst.clone()),
-            IrInstruction::Sub { dst, .. } => Some(dst.clone()),
-            IrInstruction::Imul { dst, .. } => dst.clone(),
-            IrInstruction::Inc { op } => Some(op.clone()),
-            IrInstruction::Dec { op } => Some(op.clone()),
-            IrInstruction::Neg { op } => Some(op.clone()),
-            IrInstruction::And { dst, .. } => Some(dst.clone()),
-            IrInstruction::Or { dst, .. } => Some(dst.clone()),
-            IrInstruction::Xor { dst, .. } => Some(dst.clone()),
-            IrInstruction::Not { op } => Some(op.clone()),
-            IrInstruction::Shl { dst, .. } => Some(dst.clone()),
-            IrInstruction::Shr { dst, .. } => Some(dst.clone()),
-            IrInstruction::Sar { dst, .. } => Some(dst.clone()),
-            IrInstruction::Rol { dst, .. } => Some(dst.clone()),
-            IrInstruction::Ror { dst, .. } => Some(dst.clone()),
-            IrInstruction::Bsf { dst, .. } => Some(IrOperand::Register(dst.clone())),
-            IrInstruction::Bsr { dst, .. } => Some(IrOperand::Register(dst.clone())),
-            IrInstruction::Cmov { dst, .. } => Some(IrOperand::Register(dst.clone())),
-            IrInstruction::Xchg { op1, .. } => Some(op1.clone()),
+            IrOpcode::Mov { dst, .. } => Some(dst.clone()),
+            IrOpcode::Lea { dst, .. } => Some(IrOperand::Register(dst.clone())),
+            IrOpcode::Pop { dst } => Some(dst.clone()),
+            IrOpcode::Add { dst, .. } => Some(dst.clone()),
+            IrOpcode::Sub { dst, .. } => Some(dst.clone()),
+            IrOpcode::Imul { dst, .. } => dst.clone(),
+            IrOpcode::Inc { op } => Some(op.clone()),
+            IrOpcode::Dec { op } => Some(op.clone()),
+            IrOpcode::Neg { op } => Some(op.clone()),
+            IrOpcode::And { dst, .. } => Some(dst.clone()),
+            IrOpcode::Or { dst, .. } => Some(dst.clone()),
+            IrOpcode::Xor { dst, .. } => Some(dst.clone()),
+            IrOpcode::Not { op } => Some(op.clone()),
+            IrOpcode::Shl { dst, .. } => Some(dst.clone()),
+            IrOpcode::Shr { dst, .. } => Some(dst.clone()),
+            IrOpcode::Sar { dst, .. } => Some(dst.clone()),
+            IrOpcode::Rol { dst, .. } => Some(dst.clone()),
+            IrOpcode::Ror { dst, .. } => Some(dst.clone()),
+            IrOpcode::Bsf { dst, .. } => Some(IrOperand::Register(dst.clone())),
+            IrOpcode::Bsr { dst, .. } => Some(IrOperand::Register(dst.clone())),
+            IrOpcode::Cmov { dst, .. } => Some(IrOperand::Register(dst.clone())),
+            IrOpcode::Xchg { op1, .. } => Some(op1.clone()),
             _ => None,
         }
     }
@@ -711,71 +736,77 @@ impl IrInstruction {
     /// 获取源操作数列表
     pub fn source_operands(&self) -> Vec<IrOperand> {
         match self {
-            IrInstruction::Mov { src, .. } => vec![src.clone()],
-            IrInstruction::Lea { .. } => vec![],
-            IrInstruction::Push { src } => vec![src.clone()],
-            IrInstruction::Add { src, .. } => vec![src.clone()],
-            IrInstruction::Sub { src, .. } => vec![src.clone()],
-            IrInstruction::Mul { src } => vec![src.clone()],
-            IrInstruction::Imul { src1, src2, .. } => {
+            IrOpcode::Mov { src, .. } => vec![src.clone()],
+            IrOpcode::Lea { .. } => vec![],
+            IrOpcode::Push { src } => vec![src.clone()],
+            IrOpcode::Add { src, .. } => vec![src.clone()],
+            IrOpcode::Sub { src, .. } => vec![src.clone()],
+            IrOpcode::Mul { src } => vec![src.clone()],
+            IrOpcode::Imul { src1, src2, .. } => {
                 let mut ops = vec![src1.clone()];
                 if let Some(s2) = src2 {
                     ops.push(s2.clone());
                 }
                 ops
             }
-            IrInstruction::Div { src } => vec![src.clone()],
-            IrInstruction::Idiv { src } => vec![src.clone()],
-            IrInstruction::Inc { .. } => vec![],
-            IrInstruction::Dec { .. } => vec![],
-            IrInstruction::Neg { .. } => vec![],
-            IrInstruction::Cmp { op1, op2 } => vec![op1.clone(), op2.clone()],
-            IrInstruction::And { src, .. } => vec![src.clone()],
-            IrInstruction::Or { src, .. } => vec![src.clone()],
-            IrInstruction::Xor { src, .. } => vec![src.clone()],
-            IrInstruction::Not { .. } => vec![],
-            IrInstruction::Test { op1, op2 } => vec![op1.clone(), op2.clone()],
-            IrInstruction::Shl { count, .. } => vec![count.clone()],
-            IrInstruction::Shr { count, .. } => vec![count.clone()],
-            IrInstruction::Sar { count, .. } => vec![count.clone()],
-            IrInstruction::Rol { count, .. } => vec![count.clone()],
-            IrInstruction::Ror { count, .. } => vec![count.clone()],
-            IrInstruction::Bt { base, offset } => vec![base.clone(), offset.clone()],
-            IrInstruction::Bts { base, offset } => vec![base.clone(), offset.clone()],
-            IrInstruction::Btr { base, offset } => vec![base.clone(), offset.clone()],
-            IrInstruction::Bsf { src, .. } => vec![src.clone()],
-            IrInstruction::Bsr { src, .. } => vec![src.clone()],
-            IrInstruction::Xchg { op1, op2 } => vec![op1.clone(), op2.clone()],
-            IrInstruction::Cmov { src, .. } => vec![src.clone()],
+            IrOpcode::Div { src } => vec![src.clone()],
+            IrOpcode::Idiv { src } => vec![src.clone()],
+            IrOpcode::Inc { .. } => vec![],
+            IrOpcode::Dec { .. } => vec![],
+            IrOpcode::Neg { .. } => vec![],
+            IrOpcode::Cmp { op1, op2 } => vec![op1.clone(), op2.clone()],
+            IrOpcode::And { src, .. } => vec![src.clone()],
+            IrOpcode::Or { src, .. } => vec![src.clone()],
+            IrOpcode::Xor { src, .. } => vec![src.clone()],
+            IrOpcode::Not { .. } => vec![],
+            IrOpcode::Test { op1, op2 } => vec![op1.clone(), op2.clone()],
+            IrOpcode::Shl { count, .. } => vec![count.clone()],
+            IrOpcode::Shr { count, .. } => vec![count.clone()],
+            IrOpcode::Sar { count, .. } => vec![count.clone()],
+            IrOpcode::Rol { count, .. } => vec![count.clone()],
+            IrOpcode::Ror { count, .. } => vec![count.clone()],
+            IrOpcode::Bt { base, offset } => vec![base.clone(), offset.clone()],
+            IrOpcode::Bts { base, offset } => vec![base.clone(), offset.clone()],
+            IrOpcode::Btr { base, offset } => vec![base.clone(), offset.clone()],
+            IrOpcode::Bsf { src, .. } => vec![src.clone()],
+            IrOpcode::Bsr { src, .. } => vec![src.clone()],
+            IrOpcode::Xchg { op1, op2 } => vec![op1.clone(), op2.clone()],
+            IrOpcode::Cmov { src, .. } => vec![src.clone()],
             _ => vec![],
         }
     }
 }
 
-impl fmt::Display for IrInstruction {
+impl fmt::Display for IrOpcode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            IrInstruction::Mov { dst, src } => write!(f, "mov {:?}, {:?}", dst, src),
-            IrInstruction::Lea { dst, src } => write!(f, "lea {:?}, {:?}", dst, src),
-            IrInstruction::Push { src } => write!(f, "push {:?}", src),
-            IrInstruction::Pop { dst } => write!(f, "pop {:?}", dst),
-            IrInstruction::Add { dst, src } => write!(f, "add {:?}, {:?}", dst, src),
-            IrInstruction::Sub { dst, src } => write!(f, "sub {:?}, {:?}", dst, src),
-            IrInstruction::Jmp { target } => write!(f, "jmp {:?}", target),
-            IrInstruction::Jcc { condition, target } => write!(f, "j{:?} {:?}", condition, target),
-            IrInstruction::Call { target } => write!(f, "call {:?}", target),
-            IrInstruction::Ret { pop_bytes } => {
+            IrOpcode::Mov { dst, src } => write!(f, "mov {:?}, {:?}", dst, src),
+            IrOpcode::Lea { dst, src } => write!(f, "lea {:?}, {:?}", dst, src),
+            IrOpcode::Push { src } => write!(f, "push {:?}", src),
+            IrOpcode::Pop { dst } => write!(f, "pop {:?}", dst),
+            IrOpcode::Add { dst, src } => write!(f, "add {:?}, {:?}", dst, src),
+            IrOpcode::Sub { dst, src } => write!(f, "sub {:?}, {:?}", dst, src),
+            IrOpcode::Jmp { target } => write!(f, "jmp {:?}", target),
+            IrOpcode::Jcc { condition, target } => write!(f, "j{:?} {:?}", condition, target),
+            IrOpcode::Call { target } => write!(f, "call {:?}", target),
+            IrOpcode::Ret { pop_bytes } => {
                 if let Some(bytes) = pop_bytes {
                     write!(f, "ret {}", bytes)
                 } else {
                     write!(f, "ret")
                 }
             }
-            IrInstruction::Nop => write!(f, "nop"),
-            IrInstruction::Label { id } => write!(f, "L{}:", id),
-            IrInstruction::Comment { text } => write!(f, "; {}", text),
+            IrOpcode::Nop => write!(f, "nop"),
+            IrOpcode::Label { id } => write!(f, "L{}:", id),
+            IrOpcode::Comment { text } => write!(f, "; {}", text),
             _ => write!(f, "{:?}", self),
         }
+    }
+}
+
+impl fmt::Display for IrInstruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:08X}: {}", self.rva, self.opcode)
     }
 }
 

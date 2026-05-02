@@ -5,7 +5,7 @@
 
 use super::{
     DisassemblyMode, DisassemblyError, DisassemblyResult,
-    ir::{IrInstruction, IrOperand, IrRegister, IrMemoryOperand, IrImmediate, IrCondition, IrJumpTarget}
+    ir::{IrInstruction, IrOpcode, IrOperand, IrRegister, IrMemoryOperand, IrImmediate, IrCondition, IrJumpTarget}
 };
 use iced_x86::{Instruction as IcedInstruction, Register as IcedRegister, Code, ConditionCode};
 use std::collections::HashMap;
@@ -167,61 +167,61 @@ impl Encoder {
         let start_ip = self.current_ip;
         let start_pos = self.output.len();
 
-        match instruction {
-            IrInstruction::Nop => self.encode_nop(),
-            IrInstruction::Mov { dst, src } => self.encode_mov(dst, src),
-            IrInstruction::Push { src } => self.encode_push(src),
-            IrInstruction::Pop { dst } => self.encode_pop(dst),
-            IrInstruction::Lea { dst, src } => self.encode_lea(dst, src),
-            IrInstruction::Xchg { op1, op2 } => self.encode_xchg(op1, op2),
-            IrInstruction::Cmov { condition, dst, src } => self.encode_cmov(*condition, dst, src),
-            IrInstruction::Add { dst, src } => self.encode_add(dst, src),
-            IrInstruction::Sub { dst, src } => self.encode_sub(dst, src),
-            IrInstruction::Inc { op } => self.encode_inc(op),
-            IrInstruction::Dec { op } => self.encode_dec(op),
-            IrInstruction::Neg { op } => self.encode_neg(op),
-            IrInstruction::Mul { src } => self.encode_mul(src),
-            IrInstruction::Imul { dst, src1, src2 } => self.encode_imul(dst.as_ref(), src1, src2.as_ref()),
-            IrInstruction::Div { src } => self.encode_div(src),
-            IrInstruction::Idiv { src } => self.encode_idiv(src),
-            IrInstruction::Cmp { op1, op2 } => self.encode_cmp(op1, op2),
-            IrInstruction::And { dst, src } => self.encode_and(dst, src),
-            IrInstruction::Or { dst, src } => self.encode_or(dst, src),
-            IrInstruction::Xor { dst, src } => self.encode_xor(dst, src),
-            IrInstruction::Not { op } => self.encode_not(op),
-            IrInstruction::Test { op1, op2 } => self.encode_test(op1, op2),
-            IrInstruction::Shl { dst, count } => self.encode_shl(dst, count),
-            IrInstruction::Shr { dst, count } => self.encode_shr(dst, count),
-            IrInstruction::Sar { dst, count } => self.encode_sar(dst, count),
-            IrInstruction::Rol { dst, count } => self.encode_rol(dst, count),
-            IrInstruction::Ror { dst, count } => self.encode_ror(dst, count),
-            IrInstruction::Bt { base, offset } => self.encode_bt(base, offset),
-            IrInstruction::Bts { base, offset } => self.encode_bts(base, offset),
-            IrInstruction::Btr { base, offset } => self.encode_btr(base, offset),
-            IrInstruction::Bsf { dst, src } => self.encode_bsf(dst, src),
-            IrInstruction::Bsr { dst, src } => self.encode_bsr(dst, src),
-            IrInstruction::Jmp { target } => self.encode_jmp(target),
-            IrInstruction::Jcc { condition, target } => self.encode_jcc(*condition, target),
-            IrInstruction::Call { target } => self.encode_call(target),
-            IrInstruction::Ret { pop_bytes } => self.encode_ret(*pop_bytes),
-            IrInstruction::Syscall => self.encode_syscall(),
-            IrInstruction::Sysret => self.encode_sysret(),
-            IrInstruction::Int { vector } => self.encode_int(*vector),
-            IrInstruction::Int3 => self.encode_int3(),
-            IrInstruction::Ud2 => self.encode_ud2(),
-            IrInstruction::Pushf => self.encode_pushf(),
-            IrInstruction::Popf => self.encode_popf(),
-            IrInstruction::Lahf => self.encode_lahf(),
-            IrInstruction::Sahf => self.encode_sahf(),
-            IrInstruction::Cld => self.encode_cld(),
-            IrInstruction::Std => self.encode_std(),
-            IrInstruction::Clc => self.encode_clc(),
-            IrInstruction::Stc => self.encode_stc(),
-            IrInstruction::Label { id } => {
+        match &instruction.opcode {
+            IrOpcode::Nop => self.encode_nop(),
+            IrOpcode::Mov { dst, src } => self.encode_mov(dst, src),
+            IrOpcode::Push { src } => self.encode_push(src),
+            IrOpcode::Pop { dst } => self.encode_pop(dst),
+            IrOpcode::Lea { dst, src } => self.encode_lea(dst, src),
+            IrOpcode::Xchg { op1, op2 } => self.encode_xchg(op1, op2),
+            IrOpcode::Cmov { condition, dst, src } => self.encode_cmov(*condition, dst, src),
+            IrOpcode::Add { dst, src } => self.encode_add(dst, src),
+            IrOpcode::Sub { dst, src } => self.encode_sub(dst, src),
+            IrOpcode::Inc { op } => self.encode_inc(op),
+            IrOpcode::Dec { op } => self.encode_dec(op),
+            IrOpcode::Neg { op } => self.encode_neg(op),
+            IrOpcode::Mul { src } => self.encode_mul(src),
+            IrOpcode::Imul { dst, src1, src2 } => self.encode_imul(dst.as_ref(), src1, src2.as_ref()),
+            IrOpcode::Div { src } => self.encode_div(src),
+            IrOpcode::Idiv { src } => self.encode_idiv(src),
+            IrOpcode::Cmp { op1, op2 } => self.encode_cmp(op1, op2),
+            IrOpcode::And { dst, src } => self.encode_and(dst, src),
+            IrOpcode::Or { dst, src } => self.encode_or(dst, src),
+            IrOpcode::Xor { dst, src } => self.encode_xor(dst, src),
+            IrOpcode::Not { op } => self.encode_not(op),
+            IrOpcode::Test { op1, op2 } => self.encode_test(op1, op2),
+            IrOpcode::Shl { dst, count } => self.encode_shl(dst, count),
+            IrOpcode::Shr { dst, count } => self.encode_shr(dst, count),
+            IrOpcode::Sar { dst, count } => self.encode_sar(dst, count),
+            IrOpcode::Rol { dst, count } => self.encode_rol(dst, count),
+            IrOpcode::Ror { dst, count } => self.encode_ror(dst, count),
+            IrOpcode::Bt { base, offset } => self.encode_bt(base, offset),
+            IrOpcode::Bts { base, offset } => self.encode_bts(base, offset),
+            IrOpcode::Btr { base, offset } => self.encode_btr(base, offset),
+            IrOpcode::Bsf { dst, src } => self.encode_bsf(dst, src),
+            IrOpcode::Bsr { dst, src } => self.encode_bsr(dst, src),
+            IrOpcode::Jmp { target } => self.encode_jmp(target),
+            IrOpcode::Jcc { condition, target } => self.encode_jcc(*condition, target),
+            IrOpcode::Call { target } => self.encode_call(target),
+            IrOpcode::Ret { pop_bytes } => self.encode_ret(*pop_bytes),
+            IrOpcode::Syscall => self.encode_syscall(),
+            IrOpcode::Sysret => self.encode_sysret(),
+            IrOpcode::Int { vector } => self.encode_int(*vector),
+            IrOpcode::Int3 => self.encode_int3(),
+            IrOpcode::Ud2 => self.encode_ud2(),
+            IrOpcode::Pushf => self.encode_pushf(),
+            IrOpcode::Popf => self.encode_popf(),
+            IrOpcode::Lahf => self.encode_lahf(),
+            IrOpcode::Sahf => self.encode_sahf(),
+            IrOpcode::Cld => self.encode_cld(),
+            IrOpcode::Std => self.encode_std(),
+            IrOpcode::Clc => self.encode_clc(),
+            IrOpcode::Stc => self.encode_stc(),
+            IrOpcode::Label { id } => {
                 self.bind_label(*id);
                 Ok(())
             }
-            IrInstruction::Comment { .. } => Ok(()), // 注释不产生机器码
+            IrOpcode::Comment { .. } => Ok(()), // 注释不产生机器码
         }?;
 
         let end_pos = self.output.len();
@@ -274,7 +274,7 @@ impl Encoder {
         let mut ip = self.config.base_address;
 
         for instruction in instructions {
-            if let IrInstruction::Label { id } = instruction {
+            if let IrOpcode::Label { id } = &instruction.opcode {
                 self.labels.insert(*id, LabelInfo {
                     id: *id,
                     address: Some(ip),
@@ -291,9 +291,9 @@ impl Encoder {
     /// 估算指令大小（用于第一遍扫描）
     fn estimate_instruction_size(&self, instruction: &IrInstruction) -> DisassemblyResult<u8> {
         // 简化估算，实际实现中可能需要更精确的计算
-        let size = match instruction {
-            IrInstruction::Nop => 1,
-            IrInstruction::Push { src } => match src {
+        let size = match &instruction.opcode {
+            IrOpcode::Nop => 1,
+            IrOpcode::Push { src } => match src {
                 IrOperand::Register(_) => 1,
                 IrOperand::Immediate(imm) => {
                     match imm {
@@ -303,15 +303,15 @@ impl Encoder {
                 }
                 IrOperand::Memory(_) => 7,
             },
-            IrInstruction::Pop { dst } => match dst {
+            IrOpcode::Pop { dst } => match dst {
                 IrOperand::Register(_) => 1,
                 IrOperand::Memory(_) => 7,
                 _ => 1,
             },
-            IrInstruction::Jmp { .. } => 5,
-            IrInstruction::Jcc { .. } => 6,
-            IrInstruction::Call { .. } => 5,
-            IrInstruction::Ret { pop_bytes } => {
+            IrOpcode::Jmp { .. } => 5,
+            IrOpcode::Jcc { .. } => 6,
+            IrOpcode::Call { .. } => 5,
+            IrOpcode::Ret { pop_bytes } => {
                 if pop_bytes.is_some() { 3 } else { 1 }
             }
             _ => 7, // 默认估算
@@ -3056,7 +3056,7 @@ mod tests {
 
     #[test]
     fn test_encode_nop() {
-        let insn = IrInstruction::Nop;
+        let insn = IrOpcode::Nop;
         let result = encode_single(&insn, DisassemblyMode::Mode64, 0x1000).unwrap();
         
         assert_eq!(result.bytes, vec![0x90]);
@@ -3065,7 +3065,7 @@ mod tests {
 
     #[test]
     fn test_encode_mov_reg_reg() {
-        let insn = IrInstruction::Mov {
+        let insn = IrOpcode::Mov {
             dst: IrOperand::Register(IrRegister::Rax),
             src: IrOperand::Register(IrRegister::Rbx),
         };
@@ -3076,7 +3076,7 @@ mod tests {
 
     #[test]
     fn test_encode_push_reg() {
-        let insn = IrInstruction::Push {
+        let insn = IrOpcode::Push {
             src: IrOperand::Register(IrRegister::Rax),
         };
         let result = encode_single(&insn, DisassemblyMode::Mode64, 0x1000).unwrap();
@@ -3086,7 +3086,7 @@ mod tests {
 
     #[test]
     fn test_encode_pop_reg() {
-        let insn = IrInstruction::Pop {
+        let insn = IrOpcode::Pop {
             dst: IrOperand::Register(IrRegister::Rax),
         };
         let result = encode_single(&insn, DisassemblyMode::Mode64, 0x1000).unwrap();
@@ -3096,7 +3096,7 @@ mod tests {
 
     #[test]
     fn test_encode_ret() {
-        let insn = IrInstruction::Ret { pop_bytes: None };
+        let insn = IrOpcode::Ret { pop_bytes: None };
         let result = encode_single(&insn, DisassemblyMode::Mode64, 0x1000).unwrap();
         
         assert!(!result.bytes.is_empty());
@@ -3104,7 +3104,7 @@ mod tests {
 
     #[test]
     fn test_encode_int3() {
-        let insn = IrInstruction::Int3;
+        let insn = IrOpcode::Int3;
         let result = encode_single(&insn, DisassemblyMode::Mode64, 0x1000).unwrap();
         
         assert_eq!(result.bytes, vec![0xCC]);
@@ -3113,9 +3113,9 @@ mod tests {
     #[test]
     fn test_encode_nop_sequence() {
         let instructions = vec![
-            IrInstruction::Nop,
-            IrInstruction::Nop,
-            IrInstruction::Nop,
+            IrOpcode::Nop,
+            IrOpcode::Nop,
+            IrOpcode::Nop,
         ];
         let results = encode_all(&instructions, DisassemblyMode::Mode64, 0x1000).unwrap();
         
@@ -3230,10 +3230,10 @@ mod tests {
         use crate::intel::ir::{IrCondition, IrJumpTarget};
 
         let instructions = vec![
-            IrInstruction::Jmp { target: IrJumpTarget::Label(1) },
-            IrInstruction::Nop,
-            IrInstruction::Label { id: 1 },
-            IrInstruction::Ret { pop_bytes: None },
+            IrOpcode::Jmp { target: IrJumpTarget::Label(1) },
+            IrOpcode::Nop,
+            IrOpcode::Label { id: 1 },
+            IrOpcode::Ret { pop_bytes: None },
         ];
 
         let encoded = encode_all(&instructions, DisassemblyMode::Mode64, 0x1000).unwrap();
@@ -3254,20 +3254,20 @@ mod tests {
         use crate::intel::ir::{IrCondition, IrJumpTarget};
 
         let instructions = vec![
-            IrInstruction::Cmp {
+            IrOpcode::Cmp {
                 op1: IrOperand::reg(IrRegister::Rax),
                 op2: IrOperand::imm(0u64),
             },
-            IrInstruction::Jcc {
+            IrOpcode::Jcc {
                 condition: IrCondition::E,
                 target: IrJumpTarget::Label(1),
             },
-            IrInstruction::Mov {
+            IrOpcode::Mov {
                 dst: IrOperand::reg(IrRegister::Rax),
                 src: IrOperand::imm(1u64),
             },
-            IrInstruction::Label { id: 1 },
-            IrInstruction::Ret { pop_bytes: None },
+            IrOpcode::Label { id: 1 },
+            IrOpcode::Ret { pop_bytes: None },
         ];
 
         let encoded = encode_all(&instructions, DisassemblyMode::Mode64, 0x1000).unwrap();
@@ -3295,7 +3295,7 @@ mod tests {
             size_bits: 64,
         };
 
-        let instruction = IrInstruction::Mov {
+        let instruction = IrOpcode::Mov {
             dst: IrOperand::reg(IrRegister::Rax),
             src: IrOperand::mem(mem),
         };
@@ -3317,7 +3317,7 @@ mod tests {
         // mov rax, [rip + 0x100]
         let mem = IrMemoryOperand::new_rip_relative(0x100, 64);
 
-        let instruction = IrInstruction::Mov {
+        let instruction = IrOpcode::Mov {
             dst: IrOperand::reg(IrRegister::Rax),
             src: IrOperand::mem(mem),
         };
@@ -3339,7 +3339,7 @@ mod tests {
         // mov rax, [rbx + 0x10]
         let mem = IrMemoryOperand::new_base_disp(IrRegister::Rbx, 0x10, 64);
 
-        let instruction = IrInstruction::Mov {
+        let instruction = IrOpcode::Mov {
             dst: IrOperand::reg(IrRegister::Rax),
             src: IrOperand::mem(mem),
         };

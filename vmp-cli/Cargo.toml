@@ -27,3 +27,4 @@ vmp-core = { path = "../vmp-core" }
 
 # PE parsing (re-exported from vmp-core)
 goblin = "0.8"
+iced-x86 = { version = "1.21.0", features = ["code_asm"] }

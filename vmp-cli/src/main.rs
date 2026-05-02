@@ -138,9 +138,6 @@ fn protect_file(
     // 创建配置
     let config = ProtectConfig {
         mode: disasm_mode,
-        encrypt_vm_code: encrypt,
-        anti_debug,
-        ..Default::default()
     };
 
     // 创建保护器
@@ -152,13 +149,8 @@ fn protect_file(
     // 执行保护
     info!("Starting protection process...");
     let result = protector.protect_file(&input, &output, ranges)?;
-
-    info!("Protection result:");
-    info!("  - Original entry: 0x{:X}", result.original_entry);
-    info!("  - VM entry: 0x{:X}", result.vm_entry);
-    info!("  - VM code size: {} bytes", result.vm_code_size);
+    info!("Protection completed successfully:");
     info!("  - Protected instructions: {}", result.protected_instructions);
-    info!("  - VM instructions: {}", result.vm_instructions);
 
     Ok(())
 }

@@ -164,15 +164,24 @@ impl VmpMarkerDetector {
 
     /// 检测 PE 文件中的所有标记
     pub fn detect_markers(&self, pe_file: &PeFile) -> Result<Vec<VmpMarker>> {
-        let mut markers = Vec::new();
-
-        // 获取 PE 数据
-        let pe_data = pe_file.data();
-        if pe_data.is_empty() {
-            return Ok(markers);
+        let mut markers = self.detect_bytecode_markers(pe_file)?;
+        
+        // 尝试检测导入表标记 [NEW]
+        if let Ok(mut import_markers) = self.detect_import_markers(pe_file) {
+            markers.append(&mut import_markers);
         }
 
-        // 扫描整个文件查找标记
+        // 按地址排序
+        markers.sort_by_key(|m| m.rva);
+        Ok(markers)
+    }
+
+    /// 基于字节码特征的传统检测
+    fn detect_bytecode_markers(&self, pe_file: &PeFile) -> Result<Vec<VmpMarker>> {
+        let mut markers = Vec::new();
+        let pe_data = pe_file.data();
+        if pe_data.is_empty() { return Ok(markers); }
+
         let mut offset = 0;
         while offset < pe_data.len() - 10 {
             if let Some(marker) = self.check_marker_at(pe_data, offset, pe_file)? {
@@ -181,6 +190,77 @@ impl VmpMarkerDetector {
                 offset += marker_size;
             } else {
                 offset += 1;
+            }
+        }
+        Ok(markers)
+    }
+
+    /// 基于导入表 (IAT) 的现代检测 [NEW]
+    fn detect_import_markers(&self, pe_file: &PeFile) -> Result<Vec<VmpMarker>> {
+        let mut markers = Vec::new();
+        let pe = match pe_file.pe() {
+            Some(p) => p,
+            None => return Ok(markers),
+        };
+
+        // 1. 查找 IAT 中 VMProtect 相关的函数
+        let mut iat_entries = std::collections::HashMap::new();
+        for import in &pe.imports {
+            let name = import.name.to_lowercase();
+            if name.contains("vmprotectbegin") {
+                iat_entries.insert(import.rva as u64, VmpMarkerType::Virtualization);
+            } else if name.contains("vmprotectend") {
+                iat_entries.insert(import.rva as u64, VmpMarkerType::End);
+            }
+        }
+
+        if iat_entries.is_empty() {
+            return Ok(markers);
+        }
+
+        // 2. 扫描代码段查找对这些 IAT 项的调用
+        // x64: FF 15 <Disp32>  -> CALL [RIP + Disp32]
+        // x86: FF 15 <Addr32>  -> CALL [Addr32]
+        for section in &pe.sections {
+            if section.characteristics & 0x20 != 0 { // IMAGE_SCN_CNT_CODE
+                let section_data = pe_file.read_at_rva(section.virtual_address as u64, section.virtual_size as usize)
+                    .unwrap_or(&[]);
+                
+                let mut offset = 0;
+                while offset < section_data.len().saturating_sub(6) {
+                    // 匹配 CALL [IAT] 指令模式
+                    if section_data[offset] == 0xFF && section_data[offset + 1] == 0x15 {
+                        let inst_rva = section.virtual_address as u64 + offset as u64;
+                        let target_iat_rva = if pe.is_64 {
+                            // x64 相对寻址
+                            let disp = i32::from_le_bytes([
+                                section_data[offset + 2], section_data[offset + 3],
+                                section_data[offset + 4], section_data[offset + 5]
+                            ]);
+                            (inst_rva + 6).wrapping_add(disp as u64)
+                        } else {
+                            // x86 绝对寻址
+                            let addr = u32::from_le_bytes([
+                                section_data[offset + 2], section_data[offset + 3],
+                                section_data[offset + 4], section_data[offset + 5]
+                            ]);
+                            addr as u64 - pe.image_base as u64
+                        };
+
+                        if let Some(&marker_type) = iat_entries.get(&target_iat_rva) {
+                            markers.push(VmpMarker::new(
+                                pe_file.rva_to_offset(inst_rva).unwrap_or(0) as usize,
+                                inst_rva,
+                                marker_type,
+                                None,
+                                6 // CALL 指令长度
+                            ));
+                        }
+                        offset += 6;
+                    } else {
+                        offset += 1;
+                    }
+                }
             }
         }
 

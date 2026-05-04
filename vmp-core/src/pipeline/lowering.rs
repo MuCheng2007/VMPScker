@@ -134,10 +134,9 @@ impl LoweringPass {
                 // 注意：算术 handler (VAdd/VSub 等) 现在直接将 EFLAGS 保存到保存槽，
                 // 不再压入 VM 栈。VJcc 从保存槽读取 EFLAGS。
                 IrOpcode::Add { dst, src } => {
-                    Self::compile_operand(&mut vm_ir, src);
-                    Self::compile_operand(&mut vm_ir, src);
-                    vm_ir.push(VmOpcode::VAdd);
-                    // VAdd 已将 EFLAGS 保存到保存槽，结果在 VM 栈顶
+                    Self::compile_operand(&mut vm_ir, dst); // A
+                    Self::compile_operand(&mut vm_ir, src); // B
+                    vm_ir.push(VmOpcode::VAdd);             // A+B, EFLAGS → slot
                     Self::compile_operand_save(&mut vm_ir, dst);
                 }
 
@@ -214,7 +213,7 @@ impl LoweringPass {
                 }
 
                 IrOpcode::Imul { src1, .. } => {
-                    Self::compile_operand(&mut vm_ir, src);
+                    Self::compile_operand(&mut vm_ir, src1);
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
                     vm_ir.push(VmOpcode::VAdd);     // EFLAGS → slot
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
@@ -254,11 +253,10 @@ impl LoweringPass {
                 }
 
                 IrOpcode::Xor { dst, src } => {
-                    // XOR = NAND(NAND(A, NAND(A,B)), NAND(B, NAND(A,B)))
                     // 简化：使用已有的 VXor handler
-                    Self::compile_operand(&mut vm_ir, src);
-                    Self::compile_operand(&mut vm_ir, src);
-                    vm_ir.push(VmOpcode::VXor);     // EFLAGS → slot
+                    Self::compile_operand(&mut vm_ir, dst); // A
+                    Self::compile_operand(&mut vm_ir, src); // B
+                    vm_ir.push(VmOpcode::VXor);             // A^B, EFLAGS → slot
                     Self::compile_operand_save(&mut vm_ir, dst);
                 }
 
@@ -274,9 +272,10 @@ impl LoweringPass {
                     // Test = And but discard result, keep EFLAGS
                     Self::compile_operand(&mut vm_ir, op2);
                     Self::compile_operand(&mut vm_ir, op2);
+                    Self::compile_operand(&mut vm_ir, op2);
                     vm_ir.push(VmOpcode::VNand);    // NOT(op2)
                     Self::compile_operand(&mut vm_ir, op1);
-                    Self::compile_operand(&mut vm_ir, op);
+                    Self::compile_operand(&mut vm_ir, op1);
                     vm_ir.push(VmOpcode::VNand);    // NOT(op1)
                     vm_ir.push(VmOpcode::VNor);     // op1 AND op2, EFLAGS → slot
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax))); // discard result
@@ -353,8 +352,6 @@ impl LoweringPass {
 
                 IrOpcode::Call { target } => {
                     // Call 指令：将目标地址压入虚拟栈，然后使用 VCall 调用原生函数
-                    // VCall 会保存 VM 上下文，恢复原生上下文，调用函数，然后通过重入桩恢复 VM
-                    eprintln!("[Lowering] Call at 0x{:X} -> VCall, target={:?}", node.rva, target);
                     Self::compile_jump_target(&mut vm_ir, target, image_base);
                     vm_ir.push(VmOpcode::VCall(0));
                 }

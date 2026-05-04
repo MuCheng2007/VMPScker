@@ -513,9 +513,9 @@ impl<'a> HandlerGenerator<'a> {
     /// 4. Restore native RSP from VM_Entry's saved RSP
     /// 5. Restore ALL native registers (pop r15...rax, popfq)
     /// 6. Use R10 (volatile, not used for args) to load function address
-    /// 7. Use R11 (volatile, not used for args) to push reentry_va as return address
-    /// 8. JMP to function via R10
-    /// 9. Function returns → reentry stub → restore VM context → continue dispatch
+    /// 7. Real CALL to function — CPU pushes return address natively, preserving
+    ///    shadow space offsets and 16-byte stack alignment
+    /// 8. Function returns here with RAX intact → jmp to reentry stub
     pub fn gen_vcall(&mut self, _arg_count: u8, reentry_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
@@ -549,16 +549,18 @@ impl<'a> HandlerGenerator<'a> {
 
         // === Fully back in native state ===
 
-        // 6. Use R10 and R11 (volatile per Windows x64 ABI, never used for args)
-        //    to load the function address and push the return address.
+        // 6. Load function address via volatile R10
         self.asm.mov(r10, save_area_va)?;
         self.asm.mov(r10, qword_ptr(r10 + 32))?;
 
-        // Push reentry stub address as fake CALL return address
-        self.asm.mov(r11, reentry_va)?;
-        self.asm.push(r11)?;
+        // 7. Real CALL — CPU pushes return address natively,
+        //    preserving shadow space layout and 16-byte alignment.
+        self.asm.call(r10)?;
 
-        // 7. JMP to function — when it executes RET, it pops reentry_va and returns to our stub
+        // === API returned here, RAX holds return value ===
+
+        // 8. Jump to VM re-entry stub with return value intact
+        self.asm.mov(r10, reentry_va)?;
         self.asm.jmp(r10)?;
 
         Ok(offset)

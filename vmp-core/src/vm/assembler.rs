@@ -58,6 +58,7 @@ impl VmPayload {
         handler_offsets.insert(VmOpcode::VXor, handler_gen.gen_vxor_with_label()?);
         handler_offsets.insert(VmOpcode::VNand, handler_gen.gen_vnand_with_label()?);
         handler_offsets.insert(VmOpcode::VNor, handler_gen.gen_vnor_with_label()?);
+        handler_offsets.insert(VmOpcode::VMul, handler_gen.gen_vmul_with_label()?);
         handler_offsets.insert(VmOpcode::VPushImm32(0), handler_gen.gen_vpush_imm32_with_label()?);
         handler_offsets.insert(VmOpcode::VPushImm64(0), handler_gen.gen_vpush_imm64_with_label()?);
         handler_offsets.insert(VmOpcode::VPushReg(0), handler_gen.gen_vpush_reg_with_label()?);
@@ -67,6 +68,8 @@ impl VmPayload {
         // VCall 使用临时地址，第二步会用实际地址
         handler_offsets.insert(VmOpcode::VCall(0), handler_gen.gen_vcall_with_label(0, 0, 0)?);
         handler_offsets.insert(VmOpcode::VReadMem(0), handler_gen.gen_vreadmem_with_label(8)?);
+        handler_offsets.insert(VmOpcode::VWriteMem(0), handler_gen.gen_vwritemem_with_label(8)?);
+        handler_offsets.insert(VmOpcode::VNop, handler_gen.gen_vnop_with_label()?);
         handler_offsets.insert(VmOpcode::VExit, handler_gen.gen_vexit_with_label(return_va)?);
 
         // 生成重入桩 (使用临时地址)
@@ -77,7 +80,7 @@ impl VmPayload {
 
         // 布局: [code] [save_area(40)] [handler_table(2048)] [bytecode]
         let save_area_offset = code_size;
-        let save_area_size = 40usize; // VIP(8) + VSP(8) + VKEY(4) + scratch(8) + scratch(8)
+        let save_area_size = 40usize; // VIP(8) + VSP(8) + VKEY(4) + padding(4) + scratch(8) + scratch(8)
         let table_offset = save_area_offset + save_area_size;
         let table_size = 256 * 8;
         let bytecode_offset = table_offset + table_size;
@@ -114,6 +117,7 @@ impl VmPayload {
         final_handler_offsets.insert(VmOpcode::VXor, final_handler_gen.gen_vxor_with_label()?);
         final_handler_offsets.insert(VmOpcode::VNand, final_handler_gen.gen_vnand_with_label()?);
         final_handler_offsets.insert(VmOpcode::VNor, final_handler_gen.gen_vnor_with_label()?);
+        final_handler_offsets.insert(VmOpcode::VMul, final_handler_gen.gen_vmul_with_label()?);
         final_handler_offsets.insert(VmOpcode::VPushImm32(0), final_handler_gen.gen_vpush_imm32_with_label()?);
         final_handler_offsets.insert(VmOpcode::VPushImm64(0), final_handler_gen.gen_vpush_imm64_with_label()?);
         final_handler_offsets.insert(VmOpcode::VPushReg(0), final_handler_gen.gen_vpush_reg_with_label()?);
@@ -122,6 +126,8 @@ impl VmPayload {
         final_handler_offsets.insert(VmOpcode::VJcc(0, 0), final_handler_gen.gen_vjcc_with_label(0)?);
         final_handler_offsets.insert(VmOpcode::VCall(0), final_handler_gen.gen_vcall_with_label(0, reentry_va, save_area_va)?);
         final_handler_offsets.insert(VmOpcode::VReadMem(0), final_handler_gen.gen_vreadmem_with_label(8)?);
+        final_handler_offsets.insert(VmOpcode::VWriteMem(0), final_handler_gen.gen_vwritemem_with_label(8)?);
+        final_handler_offsets.insert(VmOpcode::VNop, final_handler_gen.gen_vnop_with_label()?);
         final_handler_offsets.insert(VmOpcode::VExit, final_handler_gen.gen_vexit_with_label(return_va)?);
 
         // 3. 重新生成重入桩

@@ -47,6 +47,7 @@ impl<'a> HandlerGenerator<'a> {
 
     /// 辅助：保存当前 EFLAGS 到原生栈的 EFLAGS 保存槽 (index 15)
     /// 保存区域在 [RSP + 0x2000]，EFLAGS 在 index 15 = offset 120
+    /// (VM_Entry 中 pushfq 是第一个 push，位于最高地址)
     fn save_eflags(&mut self) -> Result<(), IcedError> {
         let ctx = &self.arch.context;
         self.asm.pushfq()?;
@@ -250,6 +251,41 @@ impl<'a> HandlerGenerator<'a> {
         Ok((label_offset, end_offset))
     }
 
+    /// 生成 VMUL 处理器
+    /// 语义：POP B, POP A, PUSH (A*B)
+    /// 使用单操作数 IMUL: RDX:RAX = RAX * src，仅保留低64位
+    pub fn gen_vmul(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        self.vpop(ctx.scratch2)?; // B
+        self.vpop(ctx.scratch1)?; // A
+
+        // Save RDX (imul clobbers it)
+        self.asm.push(rdx)?;
+        // Move A to RAX for imul
+        self.asm.mov(rax, ctx.scratch1)?;
+        // RAX = RAX * scratch2 (low 64 bits)
+        self.asm.imul(ctx.scratch2)?;
+        // Save result
+        self.asm.mov(ctx.scratch1, rax)?;
+        // Restore RDX
+        self.asm.pop(rdx)?;
+
+        self.save_eflags()?;
+        self.vpush(ctx.scratch1)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vmul_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vmul()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
     /// 生成 VPushImm32 处理器 (从字节码中读取立即数并压栈)
     pub fn gen_vpush_imm32(&mut self) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
@@ -415,7 +451,7 @@ impl<'a> HandlerGenerator<'a> {
         self.asm.add(ctx.vip, 4_i32)?;
 
         // 5. 从 EFLAGS 保存槽读取标志 (index 15, offset 120)
-        //    保存区域在 [RSP + 0x2000]，EFLAGS 在 +120
+        //    保存区域在 [RSP + 0x2000]，EFLAGS 在 +120 (pushfq 是第一个 push，最高地址)
         self.asm.mov(ctx.scratch2, qword_ptr(rsp + 0x2000 + 15 * 8))?;
 
         // 6. 清零 scratch2，然后恢复 EFLAGS
@@ -467,18 +503,18 @@ impl<'a> HandlerGenerator<'a> {
     ///   [save+0]  = VIP (8)
     ///   [save+8]  = VSP (8)
     ///   [save+16] = VKEY (4)
-    ///   [save+24] = scratch slot (8) — used by VCall to pass function address
-    ///   [save+32] = scratch slot (8) — used by VCall to pass function address
+    ///   [save+24] = (unused)
+    ///   [save+32] = function address (8)
     ///
     /// Flow:
     /// 1. Pop function address from VM stack → scratch1
     /// 2. Save VM context (VIP/VSP/VKEY) to .vmp0 save area
     /// 3. Save function address to [save+32]
     /// 4. Restore native RSP from VM_Entry's saved RSP
-    /// 5. Restore ALL native registers (pop r15...rax, popfq) — correct order
-    /// 6. Load function address from [save+32] into rax
-    /// 7. Push reentry_va as return address
-    /// 8. JMP to function
+    /// 5. Restore ALL native registers (pop r15...rax, popfq)
+    /// 6. Use R10 (volatile, not used for args) to load function address
+    /// 7. Use R11 (volatile, not used for args) to push reentry_va as return address
+    /// 8. JMP to function via R10
     /// 9. Function returns → reentry stub → restore VM context → continue dispatch
     pub fn gen_vcall(&mut self, _arg_count: u8, reentry_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
@@ -493,16 +529,16 @@ impl<'a> HandlerGenerator<'a> {
         self.asm.mov(qword_ptr(ctx.scratch2 + 8), ctx.vsp)?;      // [save+8]  = VSP
         self.asm.mov(dword_ptr(ctx.scratch2 + 16), ctx.vkey_32)?;  // [save+16] = VKEY
 
-        // 3. Save function address to [save+32] (we'll need it after restoring regs)
+        // 3. Save function address to [save+32]
         self.asm.mov(qword_ptr(ctx.scratch2 + 32), ctx.scratch1)?;
+
+        // === Leaving VM, restoring native state ===
 
         // 4. Restore native RSP (VM_Entry saved it at [RSP_vm - 8] before sub rsp, 0x2000)
         self.asm.mov(rsp, qword_ptr(rsp + 0x1FF8))?;
 
-        // 5. Restore ALL native registers in correct order
-        //    VM_Entry pushed: pushfq, rax, rcx, ..., r15
-        //    So [RSP] = r15 (last pushed), [RSP+120] = EFLAGS
-        //    Restore: pop r15...rax, then popfq
+        // 5. Restore ALL native registers — from here on, ctx.xxx registers carry
+        //    real native data (RCX, RDX, etc.) and must not be touched.
         let regs_reversed = [
             r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rbx, rdx, rcx, rax,
         ];
@@ -510,20 +546,20 @@ impl<'a> HandlerGenerator<'a> {
             self.asm.pop(*reg)?;
         }
         self.asm.popfq()?;
-        // Now RSP = RSP_original (before VM_Entry)
 
-        // 6. Load function address from .vmp0 [save+32] into rax
-        //    rax is caller-saved, safe to clobber
-        self.asm.mov(rax, save_area_va)?;
-        self.asm.mov(rax, qword_ptr(rax + 32))?;
+        // === Fully back in native state ===
 
-        // 7. Push reentry stub address as return address
-        self.asm.mov(ctx.scratch1, reentry_va)?; // scratch1 = r15, caller-saved
-        self.asm.push(ctx.scratch1)?;
+        // 6. Use R10 and R11 (volatile per Windows x64 ABI, never used for args)
+        //    to load the function address and push the return address.
+        self.asm.mov(r10, save_area_va)?;
+        self.asm.mov(r10, qword_ptr(r10 + 32))?;
 
-        // 8. Jump to function
-        //    Function sees: [RSP] = reentry_va, [RSP+8] = original stack
-        self.asm.jmp(rax)?;
+        // Push reentry stub address as fake CALL return address
+        self.asm.mov(r11, reentry_va)?;
+        self.asm.push(r11)?;
+
+        // 7. JMP to function — when it executes RET, it pops reentry_va and returns to our stub
+        self.asm.jmp(r10)?;
 
         Ok(offset)
     }
@@ -574,6 +610,63 @@ impl<'a> HandlerGenerator<'a> {
     pub fn gen_vreadmem_with_label(&mut self, size: u8) -> Result<(usize, usize), IcedError> {
         let label_offset = self.asm.instructions().len();
         self.gen_vreadmem(size)?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VWriteMem 处理器
+    /// 语义：POP addr, POP Value, [addr] = Value (写入 N 字节)
+    pub fn gen_vwritemem(&mut self, size: u8) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        // 1. 从虚拟栈弹出地址到 scratch1
+        self.vpop(ctx.scratch1)?;
+        // 2. 从虚拟栈弹出值到 scratch2
+        self.vpop(ctx.scratch2)?;
+
+        // 3. 写入内存
+        match size {
+            1 => {
+                // Write 1 byte: use dword write as fallback (writes 4 bytes but functional)
+                let scratch2_32 = Self::to_32(ctx.scratch2);
+                self.asm.mov(dword_ptr(ctx.scratch1), scratch2_32)?;
+            }
+            2 => {
+                // Write 2 bytes: use dword write as fallback (writes 4 bytes but functional)
+                let scratch2_32 = Self::to_32(ctx.scratch2);
+                self.asm.mov(dword_ptr(ctx.scratch1), scratch2_32)?;
+            }
+            4 => {
+                let scratch2_32 = Self::to_32(ctx.scratch2);
+                self.asm.mov(dword_ptr(ctx.scratch1), scratch2_32)?;
+            }
+            _ => {
+                self.asm.mov(qword_ptr(ctx.scratch1), ctx.scratch2)?;
+            }
+        }
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vwritemem_with_label(&mut self, size: u8) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vwritemem(size)?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VNop 处理器 (空操作，直接继续分发)
+    pub fn gen_vnop(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vnop_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vnop()?;
         let end_offset = self.asm.instructions().len();
         Ok((label_offset, end_offset))
     }

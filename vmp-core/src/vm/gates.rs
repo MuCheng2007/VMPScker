@@ -14,8 +14,8 @@ impl VmGates {
     pub fn gen_vmentry(
         asm: &mut CodeAssembler,
         arch: &ArchConfig,
-        table_va: u64,   // Handler Table 的虚拟地址
-        bytecode_va: u64, // Bytecode 的虚拟地址
+        table_va: u64,       // Handler Table 的虚拟地址
+        bytecode_va: u64,    // Bytecode 的虚拟地址
     ) -> Result<(usize, usize), IcedError> {
         let entry_offset = asm.instructions().len();
 
@@ -95,7 +95,7 @@ impl VmGates {
     ///   [save+0]  = VIP
     ///   [save+8]  = VSP
     ///   [save+16] = VKEY (32-bit)
-    ///   [save+24] = scratch (used by VCall)
+    ///   [save+24] = (unused)
     ///   [save+32] = scratch (used by VCall)
     ///
     /// 返回值: (entry_instruction_index, end_instruction_index)

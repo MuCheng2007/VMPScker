@@ -295,7 +295,15 @@ impl IrConverter {
     fn convert_memory_operand(&self, instruction: &Instruction, _op_index: u32) -> DisassemblyResult<IrMemoryOperand> {
         let iced = instruction.iced();
         Ok(IrMemoryOperand {
-            base: if iced.memory_base() != IcedRegister::None { Some(self.convert_register(iced.memory_base())?) } else { None },
+            base: if iced.memory_base() == IcedRegister::RIP {
+                // RIP-relative: set base to Rip so lowering pass can identify it
+                // displacement contains the absolute address computed by iced_x86
+                Some(IrRegister::Rip)
+            } else if iced.memory_base() != IcedRegister::None {
+                Some(self.convert_register(iced.memory_base())?)
+            } else {
+                None
+            },
             index: if iced.memory_index() != IcedRegister::None { Some(self.convert_register(iced.memory_index())?) } else { None },
             scale: iced.memory_index_scale() as u32,
             displacement: iced.memory_displacement64() as i64,

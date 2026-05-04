@@ -1,5 +1,27 @@
+//! 虚拟机核心模块
+//!
+//! 实现代码虚拟化保护的核心逻辑，包括：
+//! - 虚拟机指令集定义
+//! - 架构随机化与密码学链
+//! - Handler 生成器
+//! - 字节码编译器
+//! - VM 大门 (Entry/Exit)
+//! - 载荷装配器
+
+pub mod opcode;
 pub mod arch;
-pub mod interpreter;
+pub mod dispatcher;
 pub mod handlers;
+pub mod builder;
 pub mod compiler;
-pub mod cfg;
+pub mod gates;
+pub mod assembler;
+
+pub use opcode::VmOpcode;
+pub use arch::{ArchConfig, VmRegContext, CryptoChain, CryptoOp};
+pub use dispatcher::DispatcherGen;
+pub use handlers::HandlerGenerator;
+pub use builder::VmBuilder;
+pub use compiler::BytecodeCompiler;
+pub use gates::VmGates;
+pub use assembler::VmPayload;

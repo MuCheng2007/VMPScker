@@ -1,277 +1,155 @@
-//! 虚拟机字节码编译器 (VM Compiler)
-//!
-//! 负责将 src/intel/ir 中的标准 x86 中间表示 (IR) 
-//! 降级 (Lowering) 为虚拟机微指令流，并进行流加密。
+//! 字节码编译器模块 (Bytecode Compiler)
+//! 负责将 VM IR 编译为加密的字节码流 (Bytecode Stream)
+//! 支持标签解析和内部跳转
 
-use crate::intel::ir::{IrInstruction, IrOperand, IrRegister, IrImmediate, IrOpcode, IrMemoryOperand, IrCondition, IrJumpTarget};
-use crate::vm::arch::{ArchConfig, VMOpcode, CryptAlgorithm, VMRegister};
-use crate::vm::cfg::ControlFlowGraph;
+use crate::vm::arch::ArchConfig;
+use crate::vm::opcode::VmOpcode;
+use std::collections::HashMap;
 
-/// VM 字节码编译器
-pub struct VmCompiler<'a> {
-    config: &'a ArchConfig,
+/// 待修补的跳转指令信息
+struct PatchInfo {
+    /// 字节码中操作数的起始偏移量
+    operand_offset: usize,
+    /// 跳转目标的标签 ID
+    target_label: u32,
+    /// 操作数加密时使用的 rolling key
+    encrypt_key: u32,
 }
 
-impl<'a> VmCompiler<'a> {
-    pub fn new(config: &'a ArchConfig) -> Self {
-        Self { config }
+pub struct BytecodeCompiler<'a> {
+    arch: &'a ArchConfig,
+}
+
+impl<'a> BytecodeCompiler<'a> {
+    pub fn new(arch: &'a ArchConfig) -> Self {
+        Self { arch }
     }
 
-    /// 编译入口：将整个 CFG 编译为加密的 VM 字节码流
-    pub fn compile_cfg(&self, cfg: &ControlFlowGraph) -> Vec<u8> {
-        let mut final_bytecode = Vec::new();
-        let mut block_data = std::collections::HashMap::new();
-        let mut block_offsets = std::collections::HashMap::new();
+    /// 将给定的 VM IR 序列编译为加密的 Vec<u8>
+    /// 支持标签解析：VLabel 标记位置，VJmp(id)/VJcc(cond, id) 引用标签
+    pub fn compile_block(&self, vm_irs: &[VmOpcode]) -> Vec<u8> {
+        // === Pass 1: 生成字节码并记录标签位置 ===
+        let mut bytecode = Vec::new();
+        let mut label_positions: HashMap<u32, usize> = HashMap::new();
+        let mut patches: Vec<PatchInfo> = Vec::new();
 
-        // 1. 编译每个基本块为独立的微指令序列 (尚未加密)
-        let mut current_offset = 0;
-        
-        // 按照 RVA 顺序排序块
-        let mut sorted_rvas: Vec<_> = cfg.blocks.keys().cloned().collect();
-        sorted_rvas.sort();
+        let mut current_key = self.arch.initial_crypt_key;
 
-        for rva in &sorted_rvas {
-            let block = &cfg.blocks[rva];
-            let mut block_ops = Vec::new();
-            
-            for inst in &block.instructions {
-                block_ops.extend(self.lower_instruction(inst));
-            }
-            
-            block_offsets.insert(*rva, current_offset);
-            // 计算这个块预计产生的字节码长度 (每个 Op 1 字节 + 立即数长度)
-            let block_len: usize = block_ops.iter().map(|(_op, imm)| {
-                1 + imm.as_ref().map_or(0, |v| v.len())
-            }).sum();
-            
-            block_data.insert(*rva, block_ops);
-            current_offset += block_len;
-        }
+        for ir in vm_irs {
+            match ir {
+                VmOpcode::VLabel(id) => {
+                    // 标签：记录当前位置，不生成字节码
+                    label_positions.insert(*id, bytecode.len());
+                    continue;
+                }
+                VmOpcode::VJmp(target_label) => {
+                    // 无条件内部跳转
+                    let core_opcode = self.extract_core_opcode(ir);
+                    let plain_index = *self.arch.opcode_map.get(&core_opcode).unwrap_or(&0) as u32;
+                    let cipher_opcode = self.arch.opcode_cryptor.encrypt(plain_index, current_key);
+                    bytecode.extend_from_slice(&cipher_opcode.to_le_bytes());
+                    current_key = current_key.wrapping_add(plain_index);
 
-        // 2. 进行第二次遍历：加密并拼接
-        let mut current_key = self.config.initial_crypt_key as u8;
-        
-        for rva in &sorted_rvas {
-            let ops = &block_data[rva];
-            for (opcode, imm_data) in ops {
-                // 操作码加密
-                let raw_opcode = *self.config.opcode_mapping.get(&opcode).expect("Invalid VM Opcode mapping");
-                let enc_opcode = self.encrypt_byte(raw_opcode, &mut current_key);
-                final_bytecode.push(enc_opcode);
-                
-                // 立即数加密
-                if let Some(data) = imm_data {
-                    for b in data {
-                        final_bytecode.push(self.encrypt_byte(*b, &mut current_key));
+                    // 占位操作数 (4 bytes)，Pass 2 修补
+                    patches.push(PatchInfo {
+                        operand_offset: bytecode.len(),
+                        target_label: *target_label,
+                        encrypt_key: current_key,
+                    });
+                    bytecode.extend_from_slice(&[0u8; 4]);
+                }
+                VmOpcode::VJcc(_cond, target_label) => {
+                    // 条件跳转
+                    let core_opcode = self.extract_core_opcode(ir);
+                    let plain_index = *self.arch.opcode_map.get(&core_opcode).unwrap_or(&0) as u32;
+                    let cipher_opcode = self.arch.opcode_cryptor.encrypt(plain_index, current_key);
+                    bytecode.extend_from_slice(&cipher_opcode.to_le_bytes());
+                    current_key = current_key.wrapping_add(plain_index);
+
+                    // 占位操作数 (4 bytes)，Pass 2 修补
+                    patches.push(PatchInfo {
+                        operand_offset: bytecode.len(),
+                        target_label: *target_label,
+                        encrypt_key: current_key,
+                    });
+                    bytecode.extend_from_slice(&[0u8; 4]);
+                }
+                _ => {
+                    // 常规指令处理
+                    let core_opcode = self.extract_core_opcode(ir);
+                    let plain_index = *self.arch.opcode_map.get(&core_opcode).unwrap_or(&0) as u32;
+                    let cipher_opcode = self.arch.opcode_cryptor.encrypt(plain_index, current_key);
+                    bytecode.extend_from_slice(&cipher_opcode.to_le_bytes());
+                    current_key = current_key.wrapping_add(plain_index);
+
+                    match ir {
+                        VmOpcode::VPushReg(offset) | VmOpcode::VPopReg(offset) => {
+                            let plain_arg = *offset as u32;
+                            let cipher_arg = self.arch.opcode_cryptor.encrypt(plain_arg, current_key);
+                            bytecode.extend_from_slice(&cipher_arg.to_le_bytes());
+                            current_key = current_key.wrapping_add(plain_arg);
+                        }
+                        VmOpcode::VPushImm32(val) => {
+                            let cipher_arg = self.arch.opcode_cryptor.encrypt(*val, current_key);
+                            bytecode.extend_from_slice(&cipher_arg.to_le_bytes());
+                            current_key = current_key.wrapping_add(*val);
+                        }
+                        VmOpcode::VPushImm64(val) => {
+                            // 8-byte immediate: encrypt as two 32-bit halves
+                            let lo = *val as u32;
+                            let hi = (*val >> 32) as u32;
+                            let cipher_lo = self.arch.opcode_cryptor.encrypt(lo, current_key);
+                            bytecode.extend_from_slice(&cipher_lo.to_le_bytes());
+                            current_key = current_key.wrapping_add(lo);
+                            let cipher_hi = self.arch.opcode_cryptor.encrypt(hi, current_key);
+                            bytecode.extend_from_slice(&cipher_hi.to_le_bytes());
+                            current_key = current_key.wrapping_add(hi);
+                        }
+                        VmOpcode::VCall(arg_count) => {
+                            let plain_arg = *arg_count as u32;
+                            let cipher_arg = self.arch.opcode_cryptor.encrypt(plain_arg, current_key);
+                            bytecode.extend_from_slice(&cipher_arg.to_le_bytes());
+                            current_key = current_key.wrapping_add(plain_arg);
+                        }
+                        _ => {}
                     }
                 }
             }
         }
-        
-        // 注入退出指令
-        let raw_exit = *self.config.opcode_mapping.get(&VMOpcode::VmExit).unwrap();
-        final_bytecode.push(self.encrypt_byte(raw_exit, &mut current_key));
 
-        final_bytecode
+        // === Pass 2: 修补跳转偏移量 ===
+        for patch in &patches {
+            if let Some(&target_pos) = label_positions.get(&patch.target_label) {
+                // 计算相对偏移量: target_pos - (operand_offset + 4)
+                // VIP 在读取操作数后指向 operand_offset + 4
+                let current_pos = patch.operand_offset + 4;
+                let offset = target_pos as i64 - current_pos as i64;
+                let offset_i32 = offset as i32;
+
+                // 加密偏移量
+                let cipher_offset = self.arch.opcode_cryptor.encrypt(offset_i32 as u32, patch.encrypt_key);
+                bytecode[patch.operand_offset..patch.operand_offset + 4]
+                    .copy_from_slice(&cipher_offset.to_le_bytes());
+            }
+        }
+
+        bytecode
     }
 
-    /// 单字节加密，同时更新密钥流 (Rolling Key)
-    fn encrypt_byte(&self, byte: u8, key: &mut u8) -> u8 {
-        let mut res = byte;
-        for algo in &self.config.crypt_sequence {
-            match algo {
-                CryptAlgorithm::Add => res = res.wrapping_add(*key),
-                CryptAlgorithm::Sub => res = res.wrapping_sub(*key),
-                CryptAlgorithm::Xor => res ^= *key,
-                CryptAlgorithm::Rol => res = res.rotate_left(1),
-                CryptAlgorithm::Ror => res = res.rotate_right(1),
-                CryptAlgorithm::Not => res = !res,
-                CryptAlgorithm::Neg => res = res.wrapping_neg(),
-            }
-        }
-        // 更新密钥
-        *key = key.wrapping_add(res);
-        res
-    }
-
-    /// 核心降级逻辑：x86 IR -> VM 微指令
-    fn lower_instruction(&self, inst: &IrInstruction) -> Vec<(VMOpcode, Option<Vec<u8>>)> {
-        let mut ops = Vec::new();
-
-        match &inst.opcode {
-            // MOV dst, src -> vPush src, vPop dst
-            IrOpcode::Mov { dst, src } => {
-                self.lower_push_operand(src, &mut ops);
-                self.lower_pop_operand(dst, &mut ops);
-            }
-
-            // LEA dst, mem -> 展开地址计算 -> vPop dst
-            IrOpcode::Lea { dst, src } => {
-                self.lower_push_memory_address(src, &mut ops);
-                self.lower_pop_operand(&IrOperand::Register(*dst), &mut ops);
-            }
-
-            // ADD dst, src -> vPush src, vPush dst, vAdd, vPop dst, vPop (flags)
-            IrOpcode::Add { dst, src } => {
-                self.lower_push_operand(src, &mut ops);
-                self.lower_push_operand(dst, &mut ops);
-                ops.push((VMOpcode::Add, None));
-                self.lower_pop_operand(dst, &mut ops);
-                ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-            }
-            
-            IrOpcode::Sub { dst, src } => {
-                self.lower_push_operand(src, &mut ops);
-                self.lower_push_operand(dst, &mut ops);
-                ops.push((VMOpcode::Sub, None));
-                self.lower_pop_operand(dst, &mut ops);
-                ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-            }
-
-            IrOpcode::Xor { dst, src } => {
-                self.lower_push_operand(src, &mut ops);
-                self.lower_push_operand(dst, &mut ops);
-                ops.push((VMOpcode::Xor, None));
-                self.lower_pop_operand(dst, &mut ops);
-                ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-            }
-
-            IrOpcode::And { dst, src } => {
-                self.lower_push_operand(src, &mut ops);
-                self.lower_push_operand(dst, &mut ops);
-                ops.push((VMOpcode::And, None));
-                self.lower_pop_operand(dst, &mut ops);
-                ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-            }
-
-            IrOpcode::Or { dst, src } => {
-                self.lower_push_operand(src, &mut ops);
-                self.lower_push_operand(dst, &mut ops);
-                ops.push((VMOpcode::Or, None));
-                self.lower_pop_operand(dst, &mut ops);
-                ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-            }
-
-            IrOpcode::Not { op } => {
-                self.lower_push_operand(op, &mut ops);
-                ops.push((VMOpcode::Not, None));
-                self.lower_pop_operand(op, &mut ops);
-                ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-            }
-
-            IrOpcode::Shl { dst, count } => {
-                self.lower_push_operand(count, &mut ops);
-                self.lower_push_operand(dst, &mut ops);
-                ops.push((VMOpcode::Shl, None));
-                self.lower_pop_operand(dst, &mut ops);
-                ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-            }
-
-            IrOpcode::Shr { dst, count } => {
-                self.lower_push_operand(count, &mut ops);
-                self.lower_push_operand(dst, &mut ops);
-                ops.push((VMOpcode::Shr, None));
-                self.lower_pop_operand(dst, &mut ops);
-                ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-            }
-            
-            IrOpcode::Jmp { target } => {
-                if let IrJumpTarget::Direct(addr) = target {
-                    ops.push((VMOpcode::PushImm64, Some(addr.to_le_bytes().to_vec())));
-                    ops.push((VMOpcode::Jmp, None));
-                }
-            }
-
-            IrOpcode::Jcc { condition: _, target } => {
-                if let IrJumpTarget::Direct(addr) = target {
-                    ops.push((VMOpcode::PushReg, Some(vec![VMRegister::R15 as u8])));
-                    ops.push((VMOpcode::PushImm64, Some(addr.to_le_bytes().to_vec())));
-                    ops.push((VMOpcode::Jcc, None)); 
-                }
-            }
-
-            _ => {}
-        }
-
-        ops
-    }
-
-    fn lower_push_operand(&self, op: &IrOperand, ops: &mut Vec<(VMOpcode, Option<Vec<u8>>)>) {
-        match op {
-            IrOperand::Register(reg) => {
-                let vreg = self.map_register(reg);
-                ops.push((VMOpcode::PushReg, Some(vec![vreg as u8])));
-            }
-            IrOperand::Immediate(imm) => {
-                let val = imm.as_u64();
-                ops.push((VMOpcode::PushImm64, Some(val.to_le_bytes().to_vec())));
-            }
-            IrOperand::Memory(mem) => {
-                self.lower_push_memory_address(mem, ops);
-                match mem.size_bits {
-                    8  => ops.push((VMOpcode::ReadMem8, None)),
-                    16 => ops.push((VMOpcode::ReadMem16, None)),
-                    32 => ops.push((VMOpcode::ReadMem32, None)),
-                    64 => ops.push((VMOpcode::ReadMem64, None)),
-                    _ => ops.push((VMOpcode::ReadMem64, None)),
-                }
-            }
-        }
-    }
-
-    fn lower_pop_operand(&self, op: &IrOperand, ops: &mut Vec<(VMOpcode, Option<Vec<u8>>)>) {
-        match op {
-            IrOperand::Register(reg) => {
-                let vreg = self.map_register(reg);
-                ops.push((VMOpcode::PopReg, Some(vec![vreg as u8])));
-            }
-            IrOperand::Immediate(_) => panic!("Cannot pop to immediate"),
-            IrOperand::Memory(mem) => {
-                self.lower_push_memory_address(mem, ops);
-                match mem.size_bits {
-                    8  => ops.push((VMOpcode::WriteMem8, None)),
-                    16 => ops.push((VMOpcode::WriteMem16, None)),
-                    32 => ops.push((VMOpcode::WriteMem32, None)),
-                    64 => ops.push((VMOpcode::WriteMem64, None)),
-                    _ => ops.push((VMOpcode::WriteMem64, None)),
-                }
-            }
-        }
-    }
-
-    fn lower_push_memory_address(&self, mem: &IrMemoryOperand, ops: &mut Vec<(VMOpcode, Option<Vec<u8>>)>) {
-        if let Some(base) = mem.base {
-            ops.push((VMOpcode::PushReg, Some(vec![self.map_register(&base) as u8])));
-        } else {
-            ops.push((VMOpcode::PushImm64, Some(0u64.to_le_bytes().to_vec())));
-        }
-        
-        if let Some(index) = mem.index {
-            ops.push((VMOpcode::PushReg, Some(vec![self.map_register(&index) as u8])));
-            ops.push((VMOpcode::Add, None));
-            ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-        }
-        
-        if mem.displacement != 0 {
-            ops.push((VMOpcode::PushImm64, Some((mem.displacement as u64).to_le_bytes().to_vec())));
-            ops.push((VMOpcode::Add, None));
-            ops.push((VMOpcode::PopReg, Some(vec![VMRegister::R15 as u8])));
-        }
-    }
-
-    fn map_register(&self, reg: &IrRegister) -> VMRegister {
-        match reg {
-            IrRegister::Rax | IrRegister::Eax | IrRegister::Ax | IrRegister::Al => VMRegister::R0,
-            IrRegister::Rcx | IrRegister::Ecx | IrRegister::Cx | IrRegister::Cl => VMRegister::R1,
-            IrRegister::Rdx | IrRegister::Edx | IrRegister::Dx | IrRegister::Dl => VMRegister::R2,
-            IrRegister::Rbx | IrRegister::Ebx | IrRegister::Bx | IrRegister::Bl => VMRegister::R3,
-            IrRegister::Rsp | IrRegister::Esp | IrRegister::Sp | IrRegister::Spl => VMRegister::R4,
-            IrRegister::Rbp | IrRegister::Ebp | IrRegister::Bp | IrRegister::Bpl => VMRegister::R5,
-            IrRegister::Rsi | IrRegister::Esi | IrRegister::Si | IrRegister::Sil => VMRegister::R6,
-            IrRegister::Rdi | IrRegister::Edi | IrRegister::Di | IrRegister::Dil => VMRegister::R7,
-            IrRegister::R8 | IrRegister::R8d | IrRegister::R8w | IrRegister::R8b => VMRegister::R8,
-            IrRegister::R9 | IrRegister::R9d | IrRegister::R9w | IrRegister::R9b => VMRegister::R9,
-            _ => VMRegister::R15,
+    /// 提取不带参数的核心操作码枚举，用于哈希查表
+    fn extract_core_opcode(&self, ir: &VmOpcode) -> VmOpcode {
+        match ir {
+            VmOpcode::VPushReg(_) => VmOpcode::VPushReg(0),
+            VmOpcode::VPopReg(_) => VmOpcode::VPopReg(0),
+            VmOpcode::VPushImm32(_) => VmOpcode::VPushImm32(0),
+            VmOpcode::VPushImm64(_) => VmOpcode::VPushImm64(0),
+            VmOpcode::VCall(_) => VmOpcode::VCall(0),
+            VmOpcode::VJcc(_, _) => VmOpcode::VJcc(0, 0),
+            VmOpcode::VLabel(_) => VmOpcode::VLabel(0),
+            VmOpcode::VJmp(_) => VmOpcode::VJmp(0),
+            VmOpcode::VReadMem(_) => VmOpcode::VReadMem(0),
+            VmOpcode::VWriteMem(_) => VmOpcode::VWriteMem(0),
+            _ => ir.clone(),
         }
     }
 }

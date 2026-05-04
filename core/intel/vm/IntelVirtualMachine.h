@@ -19,7 +19,7 @@ class ValueCommand;
 class IntelVirtualMachine : public BaseVirtualMachine
 {
 public:
-	IntelVirtualMachine(IntelVirtualMachineList *owner, VirtualMachineType type, uint8_t id, IntelVirtualMachineProcessor *processor);
+	IntelVirtualMachine(IntelVirtualMachineList *owner, uint8_t id, IntelVirtualMachineProcessor *processor);
 	~IntelVirtualMachine();
 	void Init(const CompileContext &ctx, const IntelOpcodeList &visible_opcode_list);
 	void Prepare(const CompileContext &ctx);
@@ -29,7 +29,7 @@ public:
 	void CompileBlock(CommandBlock &block, bool need_encrypt);
 	void AddExtJmpCommand(uint8_t id);
 	ValueCryptor *entry_cryptor() const { return &const_cast<ValueCryptor &>(entry_cryptor_); }
-	VirtualMachineType type() const { return type_; }
+
 	IntelCommand *entry_command() const { return entry_command_; }
 	IntelCommand *init_command() const { return init_command_; }
 	virtual IntelFunction *processor() const;
@@ -43,7 +43,6 @@ private:
 	IntelOpcodeInfo *GetOpcode(IntelCommandType command_type, OperandType operand_type, OperandSize size, uint8_t value);
 	bool IsRegistrUsed(uint8_t registr);
 	std::vector<OpcodeCryptor *> GetOpcodeCryptorList(IntelVMCommand *command);
-	VirtualMachineType type_; 
 	IntelVirtualMachineProcessor *processor_;
 	IntelRegistrList registr_list_;
 	IntelOpcodeList opcode_list_;

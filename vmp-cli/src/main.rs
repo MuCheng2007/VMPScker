@@ -5,7 +5,7 @@ use std::path::PathBuf;
 mod marker_cmd;
 mod vm_test;
 use marker_cmd::{MarkerArgs, MarkerCommands, handle_marker_command};
-use vm_test::run_test;
+use vm_test::{run_test, run_import_encryption_test, encrypt_and_write_pe};
 
 #[derive(Parser, Debug)]
 #[command(name = "vmp")]
@@ -71,6 +71,26 @@ enum Commands {
         #[arg(short = 'm', long = "mode", default_value = "64")]
         mode: String,
     },
+
+    /// Test import table encryption
+    #[command(name = "test-import-encrypt")]
+    TestImportEncrypt {
+        /// Input PE file
+        #[arg(short = 'i', long = "input")]
+        input: PathBuf,
+    },
+
+    /// Encrypt VMProtectBeginVirtualization marker and write to PE
+    #[command(name = "encrypt-vm")]
+    EncryptVm {
+        /// Input PE file
+        #[arg(short = 'i', long = "input")]
+        input: PathBuf,
+
+        /// Output PE file
+        #[arg(short = 'o', long = "output")]
+        output: PathBuf,
+    },
 }
 
 fn main() {
@@ -110,6 +130,24 @@ fn main() {
                 error!("VM conversion test failed: {:?}", e);
                 std::process::exit(1);
             }
+        }
+        Commands::TestImportEncrypt { input } => {
+            info!("Testing import table encryption: {:?}", input);
+            
+            if let Err(e) = run_import_encryption_test(input) {
+                error!("Import encryption test failed: {:?}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::EncryptVm { input, output } => {
+            info!("Encrypting VMProtectBeginVirtualization marker: {:?} -> {:?}", input, output);
+            
+            if let Err(e) = encrypt_and_write_pe(input, output) {
+                error!("VM encryption failed: {:?}", e);
+                std::process::exit(1);
+            }
+            
+            info!("VM encryption completed successfully!");
         }
     }
 }
@@ -151,6 +189,9 @@ fn protect_file(
     let result = protector.protect_file(&input, &output, ranges)?;
     info!("Protection completed successfully:");
     info!("  - Protected instructions: {}", result.protected_instructions);
+    info!("  - VM IR instructions: {}", result.vm_ir_count);
+    info!("  - Bytecode size: {} bytes", result.bytecode_size);
+    info!("  - VM payload size: {} bytes", result.payload_size);
 
     Ok(())
 }

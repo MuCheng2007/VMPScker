@@ -187,7 +187,22 @@ impl PeRebuilder {
         let section_alignment = self.config.section_alignment;
 
         // 计算头部大小
-        let dos_header_size = 0x40; // 64 字节
+        // 使用原始文件的 DOS header 大小，如果没有则使用默认值 0x40
+        let dos_header_size = if let Some(ref pe) = self.original.pe() {
+            // 从原始 PE 文件的 DOS header 中读取 e_lfanew
+            if let Some(data) = self.original.data().get(60..64) {
+                let e_lfanew = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+                if e_lfanew >= 0x40 && e_lfanew <= 0x400 {
+                    e_lfanew as usize
+                } else {
+                    0x40
+                }
+            } else {
+                0x40
+            }
+        } else {
+            0x40
+        };
         let pe_signature_size = 4;
         let coff_header_size = 20;
         let optional_header_size = if is_64bit { 240 } else { 224 };
@@ -266,6 +281,91 @@ impl PeRebuilder {
         // 计算总大小
         let total_size = current_offset;
 
+        // 从原始 PE 文件中提取数据目录信息
+        let mut export_dir = None;
+        let mut import_dir = None;
+        let mut resource_dir = None;
+        let mut exception_dir = None;
+        let mut security_dir = None;
+        let mut relocation_dir = None;
+        let mut debug_dir = None;
+        let mut architecture_dir = None;
+        let mut global_ptr_dir = None;
+        let mut tls_dir = None;
+        let mut load_config_dir = None;
+        let mut bound_import_dir = None;
+        let mut iat_dir = None;
+        let mut delay_import_dir = None;
+        let mut com_descriptor_dir = None;
+
+        if let Some(ref pe) = self.original.pe() {
+            if let Some(optional_header) = pe.header.optional_header {
+                let data_dirs = &optional_header.data_directories;
+                let dirs = &data_dirs.data_directories;
+                
+                // 索引 0: 导出表
+                if let Some(Some((_, dir))) = dirs.get(0) {
+                    export_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 1: 导入表 (最关键！)
+                if let Some(Some((_, dir))) = dirs.get(1) {
+                    import_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 2: 资源表
+                if let Some(Some((_, dir))) = dirs.get(2) {
+                    resource_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 3: 异常表
+                if let Some(Some((_, dir))) = dirs.get(3) {
+                    exception_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 4: 安全证书表
+                if let Some(Some((_, dir))) = dirs.get(4) {
+                    security_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 5: 重定位表
+                if let Some(Some((_, dir))) = dirs.get(5) {
+                    relocation_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 6: 调试目录
+                if let Some(Some((_, dir))) = dirs.get(6) {
+                    debug_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 7: 架构特定数据
+                if let Some(Some((_, dir))) = dirs.get(7) {
+                    architecture_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 8: 全局指针
+                if let Some(Some((_, dir))) = dirs.get(8) {
+                    global_ptr_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 9: TLS 表
+                if let Some(Some((_, dir))) = dirs.get(9) {
+                    tls_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 10: 加载配置
+                if let Some(Some((_, dir))) = dirs.get(10) {
+                    load_config_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 11: 绑定导入
+                if let Some(Some((_, dir))) = dirs.get(11) {
+                    bound_import_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 12: IAT
+                if let Some(Some((_, dir))) = dirs.get(12) {
+                    iat_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 13: 延迟导入
+                if let Some(Some((_, dir))) = dirs.get(13) {
+                    delay_import_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+                // 索引 14: COM 描述符
+                if let Some(Some((_, dir))) = dirs.get(14) {
+                    com_descriptor_dir = Some(DataDirectoryInfo::new(dir.virtual_address, dir.size));
+                }
+            }
+        }
+
         Ok(PeLayout {
             is_64bit,
             total_size,
@@ -275,32 +375,51 @@ impl PeRebuilder {
             image_base: self.original.image_base(),
             entry_point: self.new_entry_point
                 .unwrap_or_else(|| self.original.entry_point()),
-            // 数据目录信息初始化为None，在重建过程中填充
-            export_dir: None,
-            import_dir: None,
-            resource_dir: None,
-            exception_dir: None,
-            security_dir: None,
-            relocation_dir: None,
-            debug_dir: None,
-            architecture_dir: None,
-            global_ptr_dir: None,
-            tls_dir: None,
-            load_config_dir: None,
-            bound_import_dir: None,
-            iat_dir: None,
-            delay_import_dir: None,
-            com_descriptor_dir: None,
+            dos_header_size,
+            export_dir,
+            import_dir,
+            resource_dir,
+            exception_dir,
+            security_dir,
+            relocation_dir,
+            debug_dir,
+            architecture_dir,
+            global_ptr_dir,
+            tls_dir,
+            load_config_dir,
+            bound_import_dir,
+            iat_dir,
+            delay_import_dir,
+            com_descriptor_dir,
         })
     }
 
     /// 写入头部
     fn write_headers(&self, output: &mut [u8], layout: &PeLayout) -> Result<()> {
-        // DOS 头部
-        output[0..2].copy_from_slice(b"MZ");
-        // e_lfanew: PE 头偏移（通常在 0x40 或 0x80）
-        let pe_offset = 0x40u32;
-        output[0x3C..0x40].copy_from_slice(&pe_offset.to_le_bytes());
+        // DOS 头部 - 复制原始文件的 DOS header
+        let pe_offset = if let Some(ref pe) = self.original.pe() {
+            // 从原始 PE 文件的 DOS header 中读取 e_lfanew
+            if let Some(data) = self.original.data().get(60..64) {
+                let e_lfanew = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+                if e_lfanew >= 0x40 && e_lfanew <= 0x400 {
+                    // 复制原始 DOS header
+                    let dos_size = e_lfanew as usize;
+                    if let Some(dos_data) = self.original.data().get(0..dos_size) {
+                        output[0..dos_size].copy_from_slice(dos_data);
+                    }
+                    e_lfanew
+                } else {
+                    0x40
+                }
+            } else {
+                0x40
+            }
+        } else {
+            // 没有原始文件，创建最小 DOS header
+            output[0..2].copy_from_slice(b"MZ");
+            output[0x3C..0x40].copy_from_slice(&0x40u32.to_le_bytes());
+            0x40
+        };
 
         // PE 签名
         output[pe_offset as usize..pe_offset as usize + 4].copy_from_slice(b"PE\0\0");
@@ -328,7 +447,7 @@ impl PeRebuilder {
             .copy_from_slice(&optional_header_size.to_le_bytes());
         
         // Characteristics
-        let characteristics: u16 = 0x102; // EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
+        let characteristics: u16 = 0x22; // EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE
         output[coff_offset + 18..coff_offset + 20]
             .copy_from_slice(&characteristics.to_le_bytes());
 
@@ -385,15 +504,16 @@ impl PeRebuilder {
 
         // MajorOperatingSystemVersion, MinorOperatingSystemVersion
         // MajorImageVersion, MinorImageVersion
-        // MajorSubsystemVersion, MinorSubsystemVersion
         let version_offset = align_offset + 8;
-        output[version_offset..version_offset + 8].copy_from_slice(&[6, 0, 0, 0, 6, 0, 0, 0]);
+        output[version_offset..version_offset + 8].copy_from_slice(&[6, 0, 0, 0, 0, 0, 0, 0]);
 
+        // MajorSubsystemVersion, MinorSubsystemVersion
         // Win32VersionValue (保留，必须为 0）
-        output[version_offset + 8..version_offset + 12].fill(0);
+        output[version_offset + 8..version_offset + 16].copy_from_slice(&[6, 0, 0, 0, 0, 0, 0, 0]);
 
         // SizeOfImage
-        let size_of_image_offset = version_offset + 12;
+        // version_offset + 8 (OSVersion + ImageVersion) + 4 (SubsystemVersion) + 4 (Win32VersionValue)
+        let size_of_image_offset = version_offset + 16;
         let last_section = layout.sections.last()
             .ok_or_else(|| VmpError::InvalidOperation("No sections in PE".to_string()))?;
         let size_of_image = align_up(
@@ -417,7 +537,9 @@ impl PeRebuilder {
             .copy_from_slice(&subsystem.to_le_bytes());
 
         // DllCharacteristics
-        let dll_characteristics: u16 = 0x8160; // DYNAMIC_BASE | NX_COMPAT | TERMINAL_SERVER_AWARE
+        // Note: DYNAMIC_BASE (ASLR) disabled because VM handler table uses absolute addresses
+        // that would need relocation entries for the new .vmp0 section
+        let dll_characteristics: u16 = 0x8100; // NX_COMPAT | TERMINAL_SERVER_AWARE
         output[size_of_image_offset + 14..size_of_image_offset + 16]
             .copy_from_slice(&dll_characteristics.to_le_bytes());
 
@@ -449,10 +571,12 @@ impl PeRebuilder {
 
     /// 写入节区表
     fn write_section_table(&self, output: &mut [u8], layout: &PeLayout) -> Result<()> {
+        // 节区表位于数据目录之后
+        // DOS header + PE signature (4) + COFF header (20) + Optional header (包含数据目录)
         let section_table_offset = if layout.is_64bit {
-            0x40 + 4 + 20 + 240 // DOS + PE sig + COFF + Optional (64-bit)
+            layout.dos_header_size + 4 + 20 + 240 // DOS + PE sig + COFF + Optional (64-bit: 240)
         } else {
-            0x40 + 4 + 20 + 224 // DOS + PE sig + COFF + Optional (32-bit)
+            layout.dos_header_size + 4 + 20 + 224 // DOS + PE sig + COFF + Optional (32-bit: 224)
         };
 
         for (i, section_layout) in layout.sections.iter().enumerate() {
@@ -552,12 +676,14 @@ impl PeRebuilder {
 
     /// 写入数据目录
     fn write_data_directories(&self, output: &mut [u8], layout: &PeLayout) -> Result<()> {
-        // 数据目录位于可选头部之后
-        // DOS header (0x40) + PE signature (4) + COFF header (20) + Optional header
+        // 数据目录位于可选头部内部
+        // 对于 PE32+: 数据目录在 Optional Header 偏移 112 处开始
+        // 对于 PE32: 数据目录在 Optional Header 偏移 96 处开始
+        // 所以文件偏移 = DOS header + PE signature (4) + COFF header (20) + data_dir_start
         let data_dir_offset = if layout.is_64bit {
-            0x40 + 4 + 24 + 240 // DOS + PE sig + COFF (24 for PE32+) + Optional (64-bit: 240)
+            layout.dos_header_size + 4 + 20 + 112 // DOS + PE sig + COFF (20) + data_dir_start (112)
         } else {
-            0x40 + 4 + 20 + 224 // DOS + PE sig + COFF (20 for PE32) + Optional (32-bit: 224)
+            layout.dos_header_size + 4 + 20 + 96  // DOS + PE sig + COFF (20) + data_dir_start (96)
         };
 
         // 写入导出表目录 (索引 0)
@@ -691,6 +817,7 @@ struct PeLayout {
     sections: Vec<SectionLayout>,
     image_base: u64,
     entry_point: u64,
+    dos_header_size: usize,
     // 数据目录信息
     export_dir: Option<DataDirectoryInfo>,
     import_dir: Option<DataDirectoryInfo>,

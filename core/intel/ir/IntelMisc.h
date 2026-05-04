@@ -66,11 +66,6 @@ public:
 	}
 };
 
-enum VirtualMachineType {
-	vtClassic,
-	vtAdvanced
-};
-
 struct IntelVirtualMachineObfuscation
 {
 	IntelCommand *begin_;

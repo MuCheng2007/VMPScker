@@ -39,10 +39,6 @@ void IntelVirtualMachineList::Prepare(const CompileContext& ctx)
 	IntelOpcodeList visible_opcode_list;
 	OperandSize cpu_address_size = ctx.file->cpu_address_size();
 
-	VirtualMachineType type =
-
-		((ctx.options.flags & cpClassicVM) != 0) ? vtClassic : vtAdvanced;
-
 	if (ctx.runtime) {
 		visible_opcode_list.Add(cmCall, otNone, cpu_address_size, 0);
 		visible_opcode_list.Add(cmCpuid, otNone, cpu_address_size, 0);
@@ -76,22 +72,20 @@ void IntelVirtualMachineList::Prepare(const CompileContext& ctx)
 					continue;
 
 				if ((command->options() & roLockPrefix) && command->type() != cmXchg) {
-					if (type == vtAdvanced) { //-V547
-						bool native_found = true;
-						switch (command->type()) {
-						case cmAdd: case cmSub: case cmAnd: case cmOr: case cmXor: case cmXadd:
-							if (command->operand(0).type & otMemory)
-								native_found = false;
-							break;
-						}
-						if (!native_found) {
-							command->include_option(roNoNative);
-							size_t n = (command->operand(0).type & otMemory) ? 0 : 1;
-							visible_opcode_list.Add(static_cast<IntelCommandType>(command->type()), otMemory, command->operand(0).size, command->operand(n).effective_base_segment(command->base_segment()));
-						}
-					}
-					continue;
+				bool native_found = true;
+				switch (command->type()) {
+				case cmAdd: case cmSub: case cmAnd: case cmOr: case cmXor: case cmXadd:
+					if (command->operand(0).type & otMemory)
+						native_found = false;
+					break;
 				}
+				if (!native_found) {
+					command->include_option(roNoNative);
+					size_t n = (command->operand(0).type & otMemory) ? 0 : 1;
+					visible_opcode_list.Add(static_cast<IntelCommandType>(command->type()), otMemory, command->operand(0).size, command->operand(n).effective_base_segment(command->base_segment()));
+				}
+				continue;
+			}
 				else
 					switch (command->type()) {
 					case cmWait: case cmFchs: case cmFsqrt: case cmF2xm1:
@@ -131,12 +125,12 @@ void IntelVirtualMachineList::Prepare(const CompileContext& ctx)
 						break;
 
 					case cmXchg:
-						if (((command->operand(0).type | command->operand(1).type) & otMemory) && type == vtAdvanced) {
-							command->include_option(roNoNative);
-							size_t n = (command->operand(0).type & otMemory) ? 0 : 1;
-							visible_opcode_list.Add(static_cast<IntelCommandType>(command->type()), otMemory, command->operand(0).size, command->operand(n).effective_base_segment(command->base_segment()));
-						}
-						break;
+					if ((command->operand(0).type | command->operand(1).type) & otMemory) {
+						command->include_option(roNoNative);
+						size_t n = (command->operand(0).type & otMemory) ? 0 : 1;
+						visible_opcode_list.Add(static_cast<IntelCommandType>(command->type()), otMemory, command->operand(0).size, command->operand(n).effective_base_segment(command->base_segment()));
+					}
+					break;
 					}
 
 				if (command->GetCommandInfo(command_info_list)) {
@@ -172,7 +166,7 @@ void IntelVirtualMachineList::Prepare(const CompileContext& ctx)
 	IntelFunctionList* function_list = reinterpret_cast<IntelFunctionList*>(ctx.file->function_list());
 	IntelVirtualMachineProcessor* processor = function_list->AddProcessor(cpu_address_size);
 	for (i = 0; i < ctx.options.vm_count; i++) {
-		IntelVirtualMachine* virtual_machine = new IntelVirtualMachine(this, type, (uint8_t)i + 1, processor);
+		IntelVirtualMachine* virtual_machine = new IntelVirtualMachine(this, (uint8_t)i + 1, processor);
 		AddObject(virtual_machine);
 		virtual_machine->Init(ctx, visible_opcode_list);
 	}
@@ -182,7 +176,7 @@ void IntelVirtualMachineList::Prepare(const CompileContext& ctx)
 		IFunction* func = processor_list[i];
 		if (func->compilation_type() != ctMutation && func->cpu_address_size() != cpu_address_size) {
 			IntelVirtualMachineProcessor* new_processor = function_list->AddProcessor(func->cpu_address_size());
-			IntelVirtualMachine* virtual_machine = new IntelVirtualMachine(this, type, 1, new_processor);
+			IntelVirtualMachine* virtual_machine = new IntelVirtualMachine(this, 1, new_processor);
 			AddObject(virtual_machine);
 			CompileContext new_ctx;
 			new_ctx.options.vm_count = 1;

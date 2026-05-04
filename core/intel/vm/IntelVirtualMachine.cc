@@ -21,8 +21,8 @@
  * IntelVirtualMachine
  */
 
-IntelVirtualMachine::IntelVirtualMachine(IntelVirtualMachineList* owner, VirtualMachineType type, uint8_t id, IntelVirtualMachineProcessor* processor)
-	: BaseVirtualMachine(owner, id), type_(type), processor_(processor), entry_command_(NULL), init_command_(NULL), ext_jmp_command_(NULL), command_cryptor_(NULL),
+IntelVirtualMachine::IntelVirtualMachine(IntelVirtualMachineList* owner, uint8_t id, IntelVirtualMachineProcessor* processor)
+	: BaseVirtualMachine(owner, id), processor_(processor), entry_command_(NULL), init_command_(NULL), ext_jmp_command_(NULL), command_cryptor_(NULL),
 	stack_registr_(0), pcode_registr_(0), jmp_registr_(0), crypt_registr_(0)
 {
 	backward_direction_ = (rand() & 1) == 0;
@@ -138,25 +138,19 @@ void IntelVirtualMachine::AddValueCommand(ValueCommand& value_command, bool is_d
 void IntelVirtualMachine::AddEndHandlerCommands(IntelCommand* to_command, OpcodeCryptor* command_cryptor)
 {
 	IntelCommand* command;
-	if (type_ == vtAdvanced) {
-		IntelRegistrList registr_list = free_registr_list_;
-		uint8_t reg1 = registr_list.GetRandom();
-		AddReadCommand(osDWord, command_cryptor, reg1);
-		if (processor_->cpu_address_size() == osQWord)
-			processor_->AddCommand(cmMovsxd, IntelOperand(otRegistr, processor_->cpu_address_size(), reg1), IntelOperand(otRegistr, osDWord, reg1));
-		processor_->AddCommand(cmAdd, IntelOperand(otRegistr, processor_->cpu_address_size(), jmp_registr_), IntelOperand(otRegistr, processor_->cpu_address_size(), reg1));
-		if (to_command) {
-			command = processor_->AddCommand(cmJmp, IntelOperand(otValue, processor_->cpu_address_size()));
-			command->AddLink(0, ltJmp, to_command);
-		}
-		else {
-			command = processor_->AddCommand(cmJmp, IntelOperand(otRegistr, processor_->cpu_address_size(), jmp_registr_));
-			command->AddLink(-1, ltJmp);
-		}
-	}
-	else {
+	IntelRegistrList registr_list = free_registr_list_;
+	uint8_t reg1 = registr_list.GetRandom();
+	AddReadCommand(osDWord, command_cryptor, reg1);
+	if (processor_->cpu_address_size() == osQWord)
+		processor_->AddCommand(cmMovsxd, IntelOperand(otRegistr, processor_->cpu_address_size(), reg1), IntelOperand(otRegistr, osDWord, reg1));
+	processor_->AddCommand(cmAdd, IntelOperand(otRegistr, processor_->cpu_address_size(), jmp_registr_), IntelOperand(otRegistr, processor_->cpu_address_size(), reg1));
+	if (to_command) {
 		command = processor_->AddCommand(cmJmp, IntelOperand(otValue, processor_->cpu_address_size()));
 		command->AddLink(0, ltJmp, to_command);
+	}
+	else {
+		command = processor_->AddCommand(cmJmp, IntelOperand(otRegistr, processor_->cpu_address_size(), jmp_registr_));
+		command->AddLink(-1, ltJmp);
 	}
 }
 
@@ -874,7 +868,7 @@ bool IntelVirtualMachine::IsRegistrUsed(uint8_t registr)
 
 void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpcodeList& visible_opcode_list)
 {
-	IntelCommand* command, * read_opcode, * check_stack, * opcode_entry, * switch_entry, * jmp_command;
+	IntelCommand* command, * read_opcode, * check_stack, * opcode_entry, * jmp_command;
 	uint8_t seg, s, reg1, reg2, reg3, reg4;
 	OperandSize size, mov_size;
 	size_t i, operand_size, result_size, j, c;
@@ -920,7 +914,7 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 	}
 	pcode_registr_ = work_registr_list.GetRandom();
 	stack_registr_ = work_registr_list.GetRandom();
-	jmp_registr_ = (type_ == vtAdvanced || cpu_address_size == osQWord) ? work_registr_list.GetRandom() : 0;
+	jmp_registr_ = work_registr_list.GetRandom();
 
 
 	free_registr_list_.push_back(regEAX);
@@ -947,7 +941,7 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 	entry_cryptor_.Init(osDWord);
 	if (ctx.options.flags & cpEncryptBytecode) {
 		command_cryptor_ = new OpcodeCryptor();
-		command_cryptor_->Init((type_ == vtAdvanced) ? osDWord : osByte);
+		command_cryptor_->Init(osDWord);
 	}
 	value_cryptor = NULL;
 	registr_cryptor = NULL;
@@ -1030,42 +1024,15 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otValue, cpu_address_size, 0, 0, NEED_FIXUP));
 		processor_->AddCommand(cmSub, IntelOperand(otRegistr, cpu_address_size, crypt_registr_), IntelOperand(otRegistr, cpu_address_size, reg1));
 	}
-	if (type_ == vtAdvanced) {
-		opcode_entry = processor_->AddCommand(cmLea, IntelOperand(otRegistr, cpu_address_size, jmp_registr_), IntelOperand(otMemory | otValue, cpu_address_size, 0, 0, (cpu_address_size == osDWord) ? NEED_FIXUP : LARGE_VALUE));
-		opcode_entry->AddLink(1, ltOffset, opcode_entry);
-		AddEndHandlerCommands(NULL, command_cryptor_);
-		opcode_list_.Add(cmNop, otNone, cpu_address_size, 0, opcode_entry, NULL, command_cryptor_);
-	}
-	else if (cpu_address_size == osQWord) {
-		command = processor_->AddCommand(cmLea, IntelOperand(otRegistr, cpu_address_size, jmp_registr_), IntelOperand(otMemory | otValue, cpu_address_size, 0, 0, LARGE_VALUE));
-		command->AddLink(1, ltOffset);
-		switch_entry = command;
-	}
-	else if (c == processor_->count())
-		processor_->AddCommand(cmNop);
+	opcode_entry = processor_->AddCommand(cmLea, IntelOperand(otRegistr, cpu_address_size, jmp_registr_), IntelOperand(otMemory | otValue, cpu_address_size, 0, 0, (cpu_address_size == osDWord) ? NEED_FIXUP : LARGE_VALUE));
+	opcode_entry->AddLink(1, ltOffset, opcode_entry);
+	AddEndHandlerCommands(NULL, command_cryptor_);
+	opcode_list_.Add(cmNop, otNone, cpu_address_size, 0, opcode_entry, NULL, command_cryptor_);
 	init_command_ = processor_->item(c);
 
 	read_opcode = NULL;
-	if (type_ == vtAdvanced) {
-		command = processor_->AddCommand(cmJmp, IntelOperand(otRegistr, cpu_address_size, jmp_registr_));
-		command->AddLink(-1, ltJmp);
-	}
-	else {
-		IntelRegistrList registr_list = free_registr_list_;
-		reg1 = registr_list.GetRandom(cpu_address_size == osDWord);
-		read_opcode = AddReadCommand(osByte, command_cryptor_, reg1);
-		if (cpu_address_size == osQWord) {
-			command = processor_->AddCommand(cmJmp, IntelOperand(otMemory | otBaseRegistr | otRegistr, cpu_address_size, (jmp_registr_ << 4) | reg1, 0));
-			command->set_operand_scale(0, 3);
-			command->AddLink(-1, ltJmp);
-		}
-		else {
-			command = processor_->AddCommand(cmJmp, IntelOperand(otMemory | otRegistr | otValue, cpu_address_size, reg1, 0, NEED_FIXUP));
-			command->set_operand_scale(0, 2);
-			command->AddLink(0, ltSwitch);
-			switch_entry = command;
-		}
-	}
+	command = processor_->AddCommand(cmJmp, IntelOperand(otRegistr, cpu_address_size, jmp_registr_));
+	command->AddLink(-1, ltJmp);
 
 	// check stack
 	{
@@ -1105,16 +1072,9 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			processor_->AddCommand(cmPop, IntelOperand(otRegistr, cpu_address_size, regESI));
 		if (IsRegistrUsed(regEDI))
 			processor_->AddCommand(cmPop, IntelOperand(otRegistr, cpu_address_size, regEDI));
-		if (type_ == vtAdvanced) {
-			command = processor_->AddCommand(cmJmp, IntelOperand(otRegistr, cpu_address_size, jmp_registr_));
-			command->AddLink(-1, ltJmp);
-			jmp_command->link()->set_to_command(command);
-		}
-		else {
-			command = processor_->AddCommand(cmJmp, IntelOperand(otValue, cpu_address_size));
-			command->AddLink(0, ltJmp, read_opcode);
-			jmp_command->link()->set_to_command(read_opcode);
-		}
+		command = processor_->AddCommand(cmJmp, IntelOperand(otRegistr, cpu_address_size, jmp_registr_));
+		command->AddLink(-1, ltJmp);
+		jmp_command->link()->set_to_command(command);
 	}
 
 	// push registr
@@ -1128,11 +1088,9 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			registr_cryptor = new OpcodeCryptor();
 			cryptor_list_.push_back(registr_cryptor);
 			registr_cryptor->Init(osByte);
-			if (type_ == vtAdvanced) {
-				end_cryptor = new OpcodeCryptor();
-				cryptor_list_.push_back(end_cryptor);
-				end_cryptor->Init(osDWord);
-			}
+			end_cryptor = new OpcodeCryptor();
+			cryptor_list_.push_back(end_cryptor);
+			end_cryptor->Init(osDWord);
 		}
 		opcode_entry = AddReadCommand(osByte, registr_cryptor, reg1);
 		processor_->AddCommand((mov_size == size) ? cmMov : cmMovzx, IntelOperand(otRegistr, mov_size, reg2), IntelOperand(otMemory | otBaseRegistr | otRegistr, size, (regESP << 4) | reg1));
@@ -1158,11 +1116,9 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			registr_cryptor = new OpcodeCryptor();
 			cryptor_list_.push_back(registr_cryptor);
 			registr_cryptor->Init(osByte);
-			if (type_ == vtAdvanced) {
-				end_cryptor = new OpcodeCryptor();
-				cryptor_list_.push_back(end_cryptor);
-				end_cryptor->Init(osDWord);
-			}
+			end_cryptor = new OpcodeCryptor();
+			cryptor_list_.push_back(end_cryptor);
+			end_cryptor->Init(osDWord);
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, mov_size, reg1), IntelOperand(otMemory | otRegistr, mov_size, stack_registr_));
 		operand_size = OperandSizeToValue(mov_size);
@@ -1186,11 +1142,9 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			value_cryptor = new OpcodeCryptor();
 			cryptor_list_.push_back(value_cryptor);
 			value_cryptor->Init(size);
-			if (type_ == vtAdvanced) {
-				end_cryptor = new OpcodeCryptor();
-				cryptor_list_.push_back(end_cryptor);
-				end_cryptor->Init(osDWord);
-			}
+			end_cryptor = new OpcodeCryptor();
+			cryptor_list_.push_back(end_cryptor);
+			end_cryptor->Init(osDWord);
 		}
 		opcode_entry = AddReadCommand(size, value_cryptor, reg1);
 		mov_size = (size == osByte) ? osWord : size;
@@ -1217,11 +1171,9 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			reg1 = registr_list.GetRandom();
 			reg2 = registr_list.GetRandom();
 			if (ctx.options.flags & cpEncryptBytecode) {
-				if (type_ == vtAdvanced) {
-					end_cryptor = new OpcodeCryptor();
-					cryptor_list_.push_back(end_cryptor);
-					end_cryptor->Init(osDWord);
-				}
+				end_cryptor = new OpcodeCryptor();
+				cryptor_list_.push_back(end_cryptor);
+				end_cryptor->Init(osDWord);
 			}
 			opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otMemory | otRegistr, cpu_address_size, stack_registr_));
 			command = processor_->AddCommand((mov_size == size) ? cmMov : cmMovzx, IntelOperand(otRegistr, mov_size, reg2), IntelOperand(otMemory | otRegistr, size, reg1));
@@ -1251,11 +1203,9 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			reg1 = registr_list.GetRandom();
 			reg2 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 			if (ctx.options.flags & cpEncryptBytecode) {
-				if (type_ == vtAdvanced) {
-					end_cryptor = new OpcodeCryptor();
-					cryptor_list_.push_back(end_cryptor);
-					end_cryptor->Init(osDWord);
-				}
+				end_cryptor = new OpcodeCryptor();
+				cryptor_list_.push_back(end_cryptor);
+				end_cryptor->Init(osDWord);
 			}
 			opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otMemory | otRegistr, cpu_address_size, stack_registr_));
 			processor_->AddCommand(cmMov, IntelOperand(otRegistr, size, reg2), IntelOperand(otMemory | otRegistr | otValue, size, stack_registr_, OperandSizeToValue(cpu_address_size)));
@@ -1281,11 +1231,9 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		IntelRegistrList registr_list = free_registr_list_;
 		reg1 = registr_list.GetRandom();
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
-				end_cryptor = new OpcodeCryptor();
-				cryptor_list_.push_back(end_cryptor);
-				end_cryptor->Init(osDWord);
-			}
+			end_cryptor = new OpcodeCryptor();
+			cryptor_list_.push_back(end_cryptor);
+			end_cryptor->Init(osDWord);
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, osWord, reg1), IntelOperand(otSegmentRegistr, osWord, seg));
 		operand_size = 0;
@@ -1307,11 +1255,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		IntelRegistrList registr_list = free_registr_list_;
 		reg1 = registr_list.GetRandom();
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, osWord, reg1), IntelOperand(otMemory | otRegistr, osWord, stack_registr_));
 		operand_size = OperandSizeToValue(osWord);
@@ -1335,11 +1283,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		IntelRegistrList registr_list = free_registr_list_;
 		reg1 = registr_list.GetRandom();
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otDebugRegistr, cpu_address_size, (uint8_t)i));
 		operand_size = 0;
@@ -1361,11 +1309,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		IntelRegistrList registr_list = free_registr_list_;
 		reg1 = registr_list.GetRandom();
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otMemory | otRegistr, cpu_address_size, stack_registr_));
 		operand_size = OperandSizeToValue(cpu_address_size);
@@ -1389,11 +1337,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		IntelRegistrList registr_list = free_registr_list_;
 		reg1 = registr_list.GetRandom();
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otControlRegistr, cpu_address_size, (uint8_t)i));
 		operand_size = 0;
@@ -1415,11 +1363,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		IntelRegistrList registr_list = free_registr_list_;
 		reg1 = registr_list.GetRandom();
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otMemory | otRegistr, cpu_address_size, stack_registr_));
 		operand_size = OperandSizeToValue(cpu_address_size);
@@ -1439,11 +1387,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		IntelRegistrList registr_list = free_registr_list_;
 		reg1 = registr_list.GetRandom();
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otRegistr, cpu_address_size, stack_registr_));
 		operand_size = 0;
@@ -1460,11 +1408,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 	// pop ESP
 	for (s = osWord; s <= cpu_address_size; s++) {
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		size = static_cast<OperandSize>(s);
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, size, stack_registr_), IntelOperand(otMemory | otRegistr, size, stack_registr_));
@@ -1479,11 +1427,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		reg1 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 		reg2 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		mov_size = (size == osByte) ? osWord : size;
 		opcode_entry = processor_->AddCommand((mov_size == size) ? cmMov : cmMovzx, IntelOperand(otRegistr, mov_size, reg1), IntelOperand(otMemory | otRegistr, size, stack_registr_));
@@ -1509,11 +1457,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		reg1 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 		reg2 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		mov_size = (size == osByte) ? osWord : size;
 		opcode_entry = processor_->AddCommand((mov_size == size) ? cmMov : cmMovzx, IntelOperand(otRegistr, mov_size, reg1), IntelOperand(otMemory | otRegistr, size, stack_registr_));
@@ -1541,11 +1489,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		reg1 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 		reg2 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		mov_size = (size == osByte) ? osWord : size;
 		opcode_entry = processor_->AddCommand((mov_size == size) ? cmMov : cmMovzx, IntelOperand(otRegistr, mov_size, reg1), IntelOperand(otMemory | otRegistr, size, stack_registr_));
@@ -1575,11 +1523,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			registr_list.remove(regECX);
 			reg1 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 			if (ctx.options.flags & cpEncryptBytecode) {
-				if (type_ == vtAdvanced) {
+
 					end_cryptor = new OpcodeCryptor();
 					cryptor_list_.push_back(end_cryptor);
 					end_cryptor->Init(osDWord);
-				}
+				
 			}
 			mov_size = (size == osByte) ? osWord : size;
 			opcode_entry = processor_->AddCommand((mov_size == size) ? cmMov : cmMovzx, IntelOperand(otRegistr, mov_size, reg1), IntelOperand(otMemory | otRegistr, size, stack_registr_));
@@ -1611,11 +1559,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			registr_list.remove(regECX);
 			reg1 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 			if (ctx.options.flags & cpEncryptBytecode) {
-				if (type_ == vtAdvanced) {
+
 					end_cryptor = new OpcodeCryptor();
 					cryptor_list_.push_back(end_cryptor);
 					end_cryptor->Init(osDWord);
-				}
+				
 			}
 			mov_size = (size == osByte) ? osWord : size;
 			opcode_entry = processor_->AddCommand((mov_size == size) ? cmMov : cmMovzx, IntelOperand(otRegistr, mov_size, reg1), IntelOperand(otMemory | otRegistr, size, stack_registr_));
@@ -1646,11 +1594,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			reg1 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 			reg2 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 			if (ctx.options.flags & cpEncryptBytecode) {
-				if (type_ == vtAdvanced) {
+
 					end_cryptor = new OpcodeCryptor();
 					cryptor_list_.push_back(end_cryptor);
 					end_cryptor->Init(osDWord);
-				}
+				
 			}
 			opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, size, reg1), IntelOperand(otMemory | otRegistr, size, stack_registr_));
 			processor_->AddCommand(cmMov, IntelOperand(otRegistr, size, reg2), IntelOperand(otMemory | otRegistr | otValue, size, stack_registr_, OperandSizeToValue(size)));
@@ -1679,11 +1627,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 				continue;
 
 			if (ctx.options.flags & cpEncryptBytecode) {
-				if (type_ == vtAdvanced) {
+
 					end_cryptor = new OpcodeCryptor();
 					cryptor_list_.push_back(end_cryptor);
 					end_cryptor->Init(osDWord);
-				}
+				
 			}
 			mov_size = (size == osByte) ? osWord : size;
 			if (size == osByte) {
@@ -1725,11 +1673,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 				continue;
 
 			if (ctx.options.flags & cpEncryptBytecode) {
-				if (type_ == vtAdvanced) {
+
 					end_cryptor = new OpcodeCryptor();
 					cryptor_list_.push_back(end_cryptor);
 					end_cryptor->Init(osDWord);
-				}
+				
 			}
 			mov_size = (size == osByte) ? osWord : size;
 			opcode_entry = processor_->AddCommand((mov_size == size) ? cmMov : cmMovzx, IntelOperand(otRegistr, mov_size, regEAX), IntelOperand(otMemory | otRegistr | otValue, size, stack_registr_, OperandSizeToValue(mov_size)));
@@ -1895,11 +1843,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			continue;
 
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(command_type, IntelOperand(otMemory | otRegistr, size, stack_registr_));
 		AddEndHandlerCommands(read_opcode, end_cryptor);
@@ -1983,11 +1931,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			continue;
 
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(command_type);
 		AddEndHandlerCommands(read_opcode, end_cryptor);
@@ -2021,11 +1969,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 	// popf
 	{
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmPush, IntelOperand(otMemory | otRegistr, cpu_address_size, stack_registr_));
 		operand_size = OperandSizeToValue(cpu_address_size);
@@ -2055,11 +2003,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 	// rdtsc
 	if (visible_opcode_list.GetOpcodeInfo(cmRdtsc, otNone, cpu_address_size, 0)) {
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmRdtsc);
 		operand_size = 0;
@@ -2087,11 +2035,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 		else
 			reg1 = stack_registr_;
 		if (ctx.options.flags & cpEncryptBytecode) {
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, osDWord, regEAX), IntelOperand(otMemory | otRegistr, osDWord, stack_registr_));
 		if (reg1 != stack_registr_)
@@ -2126,11 +2074,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			value_cryptor = new OpcodeCryptor();
 			cryptor_list_.push_back(value_cryptor);
 			value_cryptor->Init(osByte);
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		opcode_entry = AddReadCommand(osByte, value_cryptor, reg1);
 		AddCallCommands(ctx.file->calling_convention(), NULL, reg1);
@@ -2147,11 +2095,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			value_cryptor = new OpcodeCryptor();
 			cryptor_list_.push_back(value_cryptor);
 			value_cryptor->Init(osByte);
-			if (type_ == vtAdvanced) {
+
 				end_cryptor = new OpcodeCryptor();
 				cryptor_list_.push_back(end_cryptor);
 				end_cryptor->Init(osDWord);
-			}
+			
 		}
 		c = processor_->count();
 		if (cpu_address_size == osDWord) {
@@ -2262,7 +2210,7 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 
 	// crc
 	if (visible_opcode_list.GetOpcodeInfo(cmCrc, otNone, cpu_address_size, 0)) {
-		c = (type_ == vtAdvanced) ? 10 : 1;
+		c = 10;
 		for (size_t k = 0; k < c; k++) {
 			j = processor_->count();
 			uint32_t crc_table_salt = rand32();
@@ -2281,11 +2229,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 			reg3 = registr_list.GetRandom();
 			reg4 = 0;
 			if (ctx.options.flags & cpEncryptBytecode) {
-				if (type_ == vtAdvanced) {
+
 					end_cryptor = new OpcodeCryptor();
 					cryptor_list_.push_back(end_cryptor);
 					end_cryptor->Init(osDWord);
-				}
+				
 			}
 
 			opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otMemory | otRegistr, cpu_address_size, stack_registr_));
@@ -2416,11 +2364,11 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 				reg1 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 				reg2 = registr_list.GetRandom(size == osByte && cpu_address_size == osDWord);
 				if (ctx.options.flags & cpEncryptBytecode) {
-					if (type_ == vtAdvanced) {
+
 						end_cryptor = new OpcodeCryptor();
 						cryptor_list_.push_back(end_cryptor);
 						end_cryptor->Init(osDWord);
-					}
+					
 				}
 
 				opcode_entry = processor_->AddCommand(cmMov, IntelOperand(otRegistr, cpu_address_size, reg1), IntelOperand(otMemory | otRegistr, cpu_address_size, stack_registr_));
@@ -2452,41 +2400,15 @@ void IntelVirtualMachine::InitCommands(const CompileContext& ctx, const IntelOpc
 	}
 
 	// randomize opcodes
-	if (type_ == vtAdvanced) {
-		c = opcode_list_.count();
-		for (i = 0; i < c; i++) {
-			opcode = opcode_list_.item(i);
-			if (opcode->command_type() == cmNop || opcode->command_type() == cmJmp || opcode->command_type() == cmCrc)
-				continue;
+	c = opcode_list_.count();
+	for (i = 0; i < c; i++) {
+		opcode = opcode_list_.item(i);
+		if (opcode->command_type() == cmNop || opcode->command_type() == cmJmp || opcode->command_type() == cmCrc)
+			continue;
 
-			for (j = 0; j < 10; j++) {
-				opcode_list_.Add(opcode->command_type(), opcode->operand_type(), opcode->size(), opcode->value(), CloneHandler(opcode->entry()), opcode->value_cryptor(), opcode->end_cryptor());
-			}
+		for (j = 0; j < 10; j++) {
+			opcode_list_.Add(opcode->command_type(), opcode->operand_type(), opcode->size(), opcode->value(), CloneHandler(opcode->entry()), opcode->value_cryptor(), opcode->end_cryptor());
 		}
-	}
-	else {
-		c = opcode_list_.count();
-		for (i = 0; i < opcode_list_.count(); i++) {
-			opcode_list_.SwapObjects(i, rand() % c);
-		}
-		for (i = opcode_list_.count(); i < 0x100; i++) {
-			opcode = opcode_list_.item(rand() % i);
-			opcode_list_.Add(opcode->command_type(), opcode->operand_type(), opcode->size(), opcode->value(), (opcode->command_type() == cmJmp) ? opcode->entry() : CloneHandler(opcode->entry()), opcode->value_cryptor(), opcode->end_cryptor());
-		}
-
-		// CASEs
-		c = processor_->count();
-		command_type = (cpu_address_size == osDWord) ? cmDD : cmDQ;
-		for (i = 0; i < opcode_list_.count(); i++) {
-			IntelOpcodeInfo* opcode = opcode_list_.item(i);
-			opcode->set_opcode(static_cast<uint8_t>(i));
-			command = processor_->AddCommand(command_type, IntelOperand(otValue, cpu_address_size, 0, 0, NEED_FIXUP));
-			CommandLink* link = command->AddLink(0, ltCase, opcode->entry());
-			link->set_parent_command(switch_entry);
-		}
-		command = processor_->item(c);
-		command->set_alignment(OperandSizeToValue(cpu_address_size));
-		switch_entry->link()->set_to_command(command);
 	}
 }
 
@@ -2687,30 +2609,25 @@ void IntelVirtualMachine::CompileCommand(IntelVMCommand& vm_command)
 
 	if (opcode) {
 		vm_command.set_opcode(opcode);
-		if (type() == vtAdvanced) {
-			size_t i = vm_command.owner()->IndexOf(&vm_command);
-			bool need_begin_offset;
-			if (i == 0) {
-				need_begin_offset = (vm_command.owner()->section_options() & (rtLinkedToInt | rtLinkedToExt)) != 0;
-			}
-			else {
-				IntelVMCommand* prev_command = reinterpret_cast<IntelVMCommand*>(vm_command.owner()->item(i - 1));
-				need_begin_offset = prev_command->is_end() || (prev_command->options() & voInitOffset);
-			}
-
-			if (need_begin_offset) {
-				vm_command.include_option(voBeginOffset);
-				uint32_t value = 0;
-				dump.InsertBuff(0, &value, sizeof(value));
-			}
-
-			if (!vm_command.is_end()) {
-				vm_command.include_option(voEndOffset);
-				dump.PushDWord(0);
-			}
+		size_t i = vm_command.owner()->IndexOf(&vm_command);
+		bool need_begin_offset;
+		if (i == 0) {
+			need_begin_offset = (vm_command.owner()->section_options() & (rtLinkedToInt | rtLinkedToExt)) != 0;
 		}
 		else {
-			dump.InsertByte(0, opcode->opcode());
+			IntelVMCommand* prev_command = reinterpret_cast<IntelVMCommand*>(vm_command.owner()->item(i - 1));
+			need_begin_offset = prev_command->is_end() || (prev_command->options() & voInitOffset);
+		}
+
+		if (need_begin_offset) {
+			vm_command.include_option(voBeginOffset);
+			uint32_t value = 0;
+			dump.InsertBuff(0, &value, sizeof(value));
+		}
+
+		if (!vm_command.is_end()) {
+			vm_command.include_option(voEndOffset);
+			dump.PushDWord(0);
 		}
 	}
 	else if (!vm_command.is_data()) {
@@ -2723,13 +2640,8 @@ void IntelVirtualMachine::CompileCommand(IntelVMCommand& vm_command)
 std::vector<OpcodeCryptor*> IntelVirtualMachine::GetOpcodeCryptorList(IntelVMCommand* command)
 {
 	std::vector<OpcodeCryptor*> res;
-	if (type_ == vtAdvanced) {
-		if (command->options() & voBeginOffset)
-			res.push_back(command_cryptor_);
-	}
-	else {
+	if (command->options() & voBeginOffset)
 		res.push_back(command_cryptor_);
-	}
 	if (command->opcode()->value_cryptor())
 		res.push_back(command->opcode()->value_cryptor());
 	if (command->opcode()->end_cryptor())
@@ -2741,27 +2653,25 @@ void IntelVirtualMachine::CompileBlock(CommandBlock& block, bool need_encrypt)
 {
 	size_t i, j, k, d, c;
 	IntelFunction* func = reinterpret_cast<IntelFunction*>(block.function());
-	if (type() == vtAdvanced) {
-		IntelVMCommand* prev_command = NULL;
-		IntelOpcodeInfo* nop_opcode = GetOpcode(cmNop, otNone, processor_->cpu_address_size(), 0);
-		if (nop_opcode == NULL)
-			throw std::runtime_error("Runtime error at CompileBlock/nop_opcode");
+	IntelVMCommand* prev_command = NULL;
+	IntelOpcodeInfo* nop_opcode = GetOpcode(cmNop, otNone, processor_->cpu_address_size(), 0);
+	if (nop_opcode == NULL)
+		throw std::runtime_error("Runtime error at CompileBlock/nop_opcode");
 
-		for (i = block.start_index(); i <= block.end_index(); i++) {
-			IntelCommand* command = func->item(i);
-			for (j = 0; j < command->count(); j++) {
-				IntelVMCommand* vm_command = command->item(j);
-				if (vm_command->is_data())
-					continue;
+	for (i = block.start_index(); i <= block.end_index(); i++) {
+		IntelCommand* command = func->item(i);
+		for (j = 0; j < command->count(); j++) {
+			IntelVMCommand* vm_command = command->item(j);
+			if (vm_command->is_data())
+				continue;
 
-				if (prev_command && (prev_command->options() & voEndOffset)) {
-					IntelOpcodeInfo* opcode = (prev_command->options() & voInitOffset) ? nop_opcode : vm_command->opcode();
-					prev_command->set_dump_value(osDWord, prev_command->dump_size() - 4, static_cast<uint32_t>(opcode->entry()->address() - prev_command->opcode()->entry()->address()));
-				}
-				if (vm_command->options() & voBeginOffset)
-					vm_command->set_dump_value(osDWord, 0, static_cast<uint32_t>(vm_command->opcode()->entry()->address() - nop_opcode->entry()->address()));
-				prev_command = vm_command;
+			if (prev_command && (prev_command->options() & voEndOffset)) {
+				IntelOpcodeInfo* opcode = (prev_command->options() & voInitOffset) ? nop_opcode : vm_command->opcode();
+				prev_command->set_dump_value(osDWord, prev_command->dump_size() - 4, static_cast<uint32_t>(opcode->entry()->address() - prev_command->opcode()->entry()->address()));
 			}
+			if (vm_command->options() & voBeginOffset)
+				vm_command->set_dump_value(osDWord, 0, static_cast<uint32_t>(vm_command->opcode()->entry()->address() - nop_opcode->entry()->address()));
+			prev_command = vm_command;
 		}
 	}
 
@@ -2846,12 +2756,7 @@ void IntelVirtualMachine::CompileBlock(CommandBlock& block, bool need_encrypt)
 			break;
 		}
 
-		if (type() == vtAdvanced) {
-			j = (vm_command->options() & voBeginOffset) ? 4 : 0;
-		}
-		else {
-			j = 1;
-		}
+		j = (vm_command->options() & voBeginOffset) ? 4 : 0;
 		cryptor = vm_command->opcode()->value_cryptor();
 		vm_command->set_dump_value(vm_command->size(), j, cryptor->EncryptOpcode(cryptor->DecryptOpcode(vm_command->dump_value(vm_command->size(), j), crc.Value), crc2.Value));
 	}
@@ -2901,11 +2806,9 @@ void IntelVirtualMachine::AddExtJmpCommand(uint8_t id)
 	IntelOpcodeInfo* opcode = GetOpcode(cmJmp, otNone, processor_->cpu_address_size(), id);
 	if (!opcode)
 		throw std::runtime_error("Runtime error at AddExtJmpCommand");
-	if (type_ == vtAdvanced) {
-		ext_jmp_command_ = new IntelCommand(NULL, processor_->cpu_address_size());
-		ext_jmp_command_->set_address(opcode->entry()->address());
-	}
-	IntelOpcodeInfo* ext_jmp_opcode = opcode_list_.Add(cmJmp, otNone, processor_->cpu_address_size(), 0xff, (type() == vtAdvanced) ? ext_jmp_command_ : opcode->entry());
+	ext_jmp_command_ = new IntelCommand(NULL, processor_->cpu_address_size());
+	ext_jmp_command_->set_address(opcode->entry()->address());
+	IntelOpcodeInfo* ext_jmp_opcode = opcode_list_.Add(cmJmp, otNone, processor_->cpu_address_size(), 0xff, ext_jmp_command_);
 	ext_jmp_opcode->set_opcode(opcode->opcode());
 	opcode_stack_[ext_jmp_opcode->Key()].push_back(ext_jmp_opcode);
 }

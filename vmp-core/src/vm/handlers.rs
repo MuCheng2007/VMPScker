@@ -1,512 +1,580 @@
-//! VM 核心操作码处理生成器 (Handlers)
+//! 核心微指令 Handler 生成器
 //!
-//! 负责为每一种 VMOpcode 生成对应的原生处理汇编。
-//! 特点：
-//! 1. 运算类 Handler 完美利用原生 CPU 产生 EFLAGS，并捕获至虚拟栈。
-//! 2. 所有 Handler 以内联调度宏结束 (Threaded Code)。
-//! 3. 产生栈扩张的 Handler 将在执行前注入 `Check Stack` 逻辑。
+//! 在这里，每一条 VM 指令都会被翻译为 x64 汇编。
+//! 注意：VM 是一个纯栈机器，所有操作都在 VSP (Virtual Stack Pointer) 上进行。
 
+use crate::vm::arch::ArchConfig;
+use crate::vm::dispatcher::DispatcherGen;
 use iced_x86::code_asm::*;
-use crate::vm::arch::{ArchConfig, VMRegister};
-use crate::vm::interpreter::{InterpreterGenerator, to_reg64};
+use iced_x86::IcedError;
 
-/// Handler 生成器
 pub struct HandlerGenerator<'a> {
-    config: &'a ArchConfig,
-    interpreter: InterpreterGenerator<'a>,
+    pub asm: &'a mut CodeAssembler,
+    pub arch: &'a ArchConfig,
 }
 
 impl<'a> HandlerGenerator<'a> {
-    pub fn new(config: &'a ArchConfig) -> Self {
-        Self {
-            config,
-            interpreter: InterpreterGenerator::new(config),
+    pub fn new(asm: &'a mut CodeAssembler, arch: &'a ArchConfig) -> Self {
+        Self { asm, arch }
+    }
+
+    /// 辅助：将 AsmRegister64 转换为对应的 AsmRegister32
+    fn to_32(reg: AsmRegister64) -> AsmRegister32 {
+        match reg {
+            rax => eax, rcx => ecx, rdx => edx, rbx => ebx,
+            rbp => ebp, rsi => esi, rdi => edi,
+            r8 => r8d, r9 => r9d, r10 => r10d, r11 => r11d,
+            r12 => r12d, r13 => r13d, r14 => r14d, r15 => r15d,
+            _ => eax,
         }
     }
 
-    /// 获取物理寄存器宏
-    fn vreg(&self, reg: VMRegister) -> AsmRegister64 {
-        let mapped = self.config.register_mapping.get(&reg).unwrap();
-        to_reg64(*mapped)
-    }
-
-    // ==========================================
-    // 堆栈类指令
-    // ==========================================
-
-    /// vPushReg: 将虚拟寄存器的值压入 VSP
-    pub fn gen_push_reg(&self, asm: &mut CodeAssembler, target_reg: VMRegister) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        let reg = self.vreg(target_reg);
-        
-        // 这是一个导致 VSP 增长的指令，执行栈溢出检查
-        // 我们需要 8 字节的空间
-        self.interpreter.generate_check_stack(asm, 8)?;
-        
-        // 虚拟栈向下增长
-        asm.sub(vsp, 8)?;
-        // 将值压入虚拟栈
-        asm.mov(qword_ptr(vsp), reg)?;
-        
-        // 调用 Threaded Code 跳向下个指令
-        self.interpreter.generate_next_instruction_fetch(asm)?;
+    /// 辅助：弹出 64 位值到指定寄存器，并调整 VSP
+    fn vpop(&mut self, target_reg: AsmRegister64) -> Result<(), IcedError> {
+        let vsp = self.arch.context.vsp;
+        self.asm.mov(target_reg, qword_ptr(vsp))?;
+        self.asm.add(vsp, 8_i32)?;
         Ok(())
     }
 
-    /// vPopReg: 从 VSP 弹出数据到虚拟寄存器
-    pub fn gen_pop_reg(&self, asm: &mut CodeAssembler, target_reg: VMRegister) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        let reg = self.vreg(target_reg);
-        
-        // 弹出数据
-        asm.mov(reg, qword_ptr(vsp))?;
-        // 虚拟栈回缩
-        asm.add(vsp, 8)?;
-        
-        self.interpreter.generate_next_instruction_fetch(asm)?;
+    /// 辅助：将 64 位寄存器压入虚拟栈，并调整 VSP
+    fn vpush(&mut self, src_reg: AsmRegister64) -> Result<(), IcedError> {
+        let vsp = self.arch.context.vsp;
+        self.asm.sub(vsp, 8_i32)?;
+        self.asm.mov(qword_ptr(vsp), src_reg)?;
         Ok(())
     }
 
-    // ==========================================
-    // 算术与逻辑类指令 (重点：EFLAGS 捕获)
-    // ==========================================
-
-    /// vAdd: 将虚拟栈顶的两个元素相加
-    /// 流程：弹 B -> 弹 A -> ADD A, B -> PUSHFQ (捕获真实原生标志位) -> 压 A+B -> 压 EFLAGS
-    pub fn gen_add(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        
-        // 借用 RAX 和 RCX 用于运算 (先入原生栈保存)
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        
-        // 读取虚拟栈操作数 (假设栈顶是 src, 紧接着是 dst)
-        // VSP[0] = src (B)
-        // VSP[8] = dst (A)
-        asm.mov(rcx, qword_ptr(vsp))?;
-        asm.mov(rax, qword_ptr(vsp + 8))?;
-        
-        // 执行原生 ADD 运算，产生真实的 CPU EFLAGS
-        asm.add(rax, rcx)?;
-        
-        // 【关键】瞬间将原生 EFLAGS 压入真实栈
-        asm.pushfq()?;
-        
-        // 运算结果写回原来的 dst 位置
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        
-        // 将真实的 EFLAGS 弹入 RCX
-        asm.pop(rcx)?;
-        
-        // 将 EFLAGS 写入虚拟栈顶 (原来存 src 的位置)
-        asm.mov(qword_ptr(vsp), rcx)?;
-        
-        // 恢复原生寄存器
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        
-        self.interpreter.generate_next_instruction_fetch(asm)?;
+    /// 辅助：保存当前 EFLAGS 到原生栈的 EFLAGS 保存槽 (index 15)
+    /// 保存区域在 [RSP + 0x2000]，EFLAGS 在 index 15 = offset 120
+    fn save_eflags(&mut self) -> Result<(), IcedError> {
+        let ctx = &self.arch.context;
+        self.asm.pushfq()?;
+        self.asm.pop(ctx.scratch2)?;
+        self.asm.mov(qword_ptr(rsp + 0x2000 + 15 * 8), ctx.scratch2)?;
         Ok(())
     }
 
-    /// vSub: 将虚拟栈顶的两个元素相减 (A - B)
-    pub fn gen_sub(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        
-        // VSP[0] = B, VSP[8] = A
-        asm.mov(rcx, qword_ptr(vsp))?;
-        asm.mov(rax, qword_ptr(vsp + 8))?;
-        
-        // 执行原生 SUB 运算 (A - B)
-        asm.sub(rax, rcx)?;
-        
-        // 捕获真实 EFLAGS
-        asm.pushfq()?;
-        
-        // 写回结果和标志位
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    /// 生成 VPushReg 处理器 (从 Native Context 读取寄存器并压栈)
+    pub fn gen_vpush_reg(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        // 1. 从字节码读取寄存器偏移量 (加密的)
+        self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
+        self.asm.add(ctx.vip, 4_i32)?;
+        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
+        self.asm.add(ctx.vkey_32, ctx.scratch1_32)?;
+
+        // 2. 从原生栈上的保存区域读取寄存器值
+        // 保存区域在 [RSP + 0x2000] 处 (因为 sub rsp, 0x2000)
+        // scratch1_32 是寄存器索引 (0-14)，需要 *8 得到字节偏移
+        // 注意：x64 下写入 r32 会自动零扩展到 r64
+        self.asm.shl(ctx.scratch1_32, 3_i32)?; // scratch1 = index * 8
+        self.asm.mov(ctx.scratch2, rsp)?;
+        self.asm.add(ctx.scratch2, 0x2000_i32)?;
+        self.asm.add(ctx.scratch2, ctx.scratch1)?;
+        self.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2))?;
+
+        // 3. 压入虚拟栈
+        self.vpush(ctx.scratch1)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
     }
 
-    /// vXor: 将虚拟栈顶的两个元素异或 (A ^ B)
-    pub fn gen_xor(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        
-        asm.mov(rcx, qword_ptr(vsp))?;
-        asm.mov(rax, qword_ptr(vsp + 8))?;
-        
-        asm.xor(rax, rcx)?;
-        asm.pushfq()?;
-        
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    pub fn gen_vpush_reg_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vpush_reg()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
     }
 
-    /// vNor: 将虚拟栈顶的两个元素按位或非 ~(A | B)
-    pub fn gen_nor(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        
-        asm.mov(rcx, qword_ptr(vsp))?;
-        asm.mov(rax, qword_ptr(vsp + 8))?;
-        
-        asm.or(rax, rcx)?;
-        asm.not(rax)?;
-        // x86的not不影响标志位，VMP通常利用结果去test产生标志位，或者模拟标志位
-        // 简单模拟: 针对结果进行一次运算以设置 PF/SF/ZF，并且清除 CF/OF
-        asm.test(rax, rax)?;
-        asm.pushfq()?;
-        
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    /// 生成 VPopReg 处理器 (从虚拟栈弹出数据到 Native Context)
+    pub fn gen_vpop_reg(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        // 1. 从字节码读取寄存器偏移量
+        self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
+        self.asm.add(ctx.vip, 4_i32)?;
+        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
+        self.asm.add(ctx.vkey_32, ctx.scratch1_32)?;
+
+        // 2. 从虚拟栈弹出值到 scratch2
+        self.vpop(ctx.scratch2)?;
+
+        // 3. 计算目标地址：保存区域基址 + 偏移量
+        // scratch1_32 * 8 得到字节偏移 (x64 下写入 r32 自动零扩展)
+        self.asm.shl(ctx.scratch1_32, 3_i32)?;
+        self.asm.add(ctx.scratch1, rsp)?;
+        self.asm.add(ctx.scratch1, 0x2000_i32)?;
+
+        // 4. 写入保存区域
+        self.asm.mov(qword_ptr(ctx.scratch1), ctx.scratch2)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
     }
 
-    /// vNand: 将虚拟栈顶的两个元素按位与非 ~(A & B)
-    pub fn gen_nand(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        
-        asm.mov(rcx, qword_ptr(vsp))?;
-        asm.mov(rax, qword_ptr(vsp + 8))?;
-        
-        asm.and(rax, rcx)?;
-        asm.not(rax)?;
-        asm.test(rax, rax)?; // 设置标志位
-        asm.pushfq()?;
-        
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    pub fn gen_vpop_reg_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vpop_reg()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
     }
 
-    /// vAnd: A & B
-    pub fn gen_and(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        asm.mov(rcx, qword_ptr(vsp))?;
-        asm.mov(rax, qword_ptr(vsp + 8))?;
-        asm.and(rax, rcx)?;
-        asm.pushfq()?;
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    /// 生成 VADD 处理器
+    /// 语义：POP B, POP A, A+B, save EFLAGS to slot, PUSH Result
+    pub fn gen_vadd(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        self.vpop(ctx.scratch2)?; // B
+        self.vpop(ctx.scratch1)?; // A
+        self.asm.add(ctx.scratch1, ctx.scratch2)?;
+
+        // 保存 EFLAGS 到保存槽（供 VJcc 读取）
+        self.save_eflags()?;
+        // 仅将结果压入 VM 栈
+        self.vpush(ctx.scratch1)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
     }
 
-    /// vOr: A | B
-    pub fn gen_or(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        asm.mov(rcx, qword_ptr(vsp))?;
-        asm.mov(rax, qword_ptr(vsp + 8))?;
-        asm.or(rax, rcx)?;
-        asm.pushfq()?;
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    pub fn gen_vadd_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vadd()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
     }
 
-    /// vNot: ~A
-    pub fn gen_not(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        asm.mov(rax, qword_ptr(vsp))?;
-        asm.not(rax)?;
-        asm.test(rax, rax)?; // 手动触发标志位
-        asm.pushfq()?;
-        asm.sub(vsp, 8)?; // 为标志位留出空间
-        self.interpreter.generate_check_stack(asm, 8)?;
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    /// 生成 VSUB 处理器
+    /// 语义：POP B, POP A, A-B, save EFLAGS to slot, PUSH Result
+    pub fn gen_vsub(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        self.vpop(ctx.scratch2)?; // B
+        self.vpop(ctx.scratch1)?; // A
+        self.asm.sub(ctx.scratch1, ctx.scratch2)?;
+
+        self.save_eflags()?;
+        self.vpush(ctx.scratch1)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
     }
 
-    /// vNeg: -A
-    pub fn gen_neg(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        asm.mov(rax, qword_ptr(vsp))?;
-        asm.neg(rax)?;
-        asm.pushfq()?;
-        asm.sub(vsp, 8)?;
-        self.interpreter.generate_check_stack(asm, 8)?;
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    pub fn gen_vsub_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vsub()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
     }
 
-    // ==========================================
-    // 内存访问类指令 [NEW]
-    // ==========================================
+    /// 生成 VXOR 处理器
+    /// 语义：POP B, POP A, A^B, save EFLAGS to slot, PUSH Result
+    pub fn gen_vxor(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
 
-    pub fn gen_read_mem(&self, asm: &mut CodeAssembler, size: u32) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        asm.push(rax)?;
-        asm.mov(rax, qword_ptr(vsp))?;
-        match size {
-            8  => { asm.movzx(rax, byte_ptr(rax))?; }
-            16 => { asm.movzx(rax, word_ptr(rax))?; }
-            32 => { asm.mov(eax, dword_ptr(rax))?; }
-            64 => { asm.mov(rax, qword_ptr(rax))?; }
-            _ => unreachable!(),
+        self.vpop(ctx.scratch2)?;
+        self.vpop(ctx.scratch1)?;
+        self.asm.xor(ctx.scratch1, ctx.scratch2)?;
+
+        self.save_eflags()?;
+        self.vpush(ctx.scratch1)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vxor_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vxor()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VNAND 处理器 (VMP的核心逻辑门)
+    /// 语义：POP B, POP A, ~(A & B), save EFLAGS to slot, PUSH Result
+    pub fn gen_vnand(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        self.vpop(ctx.scratch2)?; // B
+        self.vpop(ctx.scratch1)?; // A
+
+        // NAND: ~(A & B)
+        self.asm.and(ctx.scratch1, ctx.scratch2)?;
+        self.asm.not(ctx.scratch1)?;
+
+        self.save_eflags()?;
+        self.vpush(ctx.scratch1)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vnand_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vnand()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VNOR 处理器
+    /// 语义：POP B, POP A, ~(A | B), save EFLAGS to slot, PUSH Result
+    pub fn gen_vnor(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        self.vpop(ctx.scratch2)?;
+        self.vpop(ctx.scratch1)?;
+        self.asm.or(ctx.scratch1, ctx.scratch2)?;
+        self.asm.not(ctx.scratch1)?;
+
+        self.save_eflags()?;
+        self.vpush(ctx.scratch1)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vnor_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vnor()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VPushImm32 处理器 (从字节码中读取立即数并压栈)
+    pub fn gen_vpush_imm32(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        // 1. 从 [VIP] 读取加密的立即数
+        self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
+        self.asm.add(ctx.vip, 4_i32)?;
+
+        // 2. 解密立即数
+        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
+
+        // 3. 滚动密钥更新
+        self.asm.add(ctx.vkey_32, ctx.scratch1_32)?;
+
+        // 4. 压入虚拟栈 (零扩展到64位)
+        self.vpush(ctx.scratch1)?;
+
+        // 5. 追加分发器
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+
+        Ok(offset)
+    }
+
+    pub fn gen_vpush_imm32_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vpush_imm32()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VPushImm64 处理器 (从字节码中读取64位立即数并压栈)
+    /// 字节码格式: [encrypted_lo_32][encrypted_hi_32]
+    pub fn gen_vpush_imm64(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        // 1. 从 [VIP] 读取加密的低32位
+        self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
+        self.asm.add(ctx.vip, 4_i32)?;
+
+        // 2. 解密低32位
+        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
+
+        // 3. 滚动密钥更新 (低32位)
+        self.asm.add(ctx.vkey_32, ctx.scratch1_32)?;
+
+        // 4. 从 [VIP] 读取加密的高32位到 scratch2
+        let scratch2_32 = Self::to_32(ctx.scratch2);
+        self.asm.mov(scratch2_32, dword_ptr(ctx.vip))?;
+        self.asm.add(ctx.vip, 4_i32)?;
+
+        // 5. 解密高32位
+        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, scratch2_32)?;
+
+        // 6. 滚动密钥更新 (高32位)
+        self.asm.add(ctx.vkey_32, scratch2_32)?;
+
+        // 7. 组合为64位: scratch1 = (scratch2 << 32) | scratch1
+        self.asm.shl(ctx.scratch2, 32_i32)?;
+        self.asm.or(ctx.scratch1, ctx.scratch2)?;
+
+        // 8. 压入虚拟栈
+        self.vpush(ctx.scratch1)?;
+
+        // 9. 追加分发器
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+
+        Ok(offset)
+    }
+
+    pub fn gen_vpush_imm64_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vpush_imm64()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成虚拟机退出门 (VMExit)
+    /// 恢复物理上下文并跳转到 OEP (原始入口点)
+    pub fn gen_vexit(&mut self, oep_va: u64) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+
+        // 1. 回收虚拟工作栈，恢复到上下文保存区
+        // 保存的 RSP 在 [RSP + 0x1FF8] (因为 sub rsp, 0x2000 前存到了 [rsp-8])
+        self.asm.mov(rsp, qword_ptr(rsp + 0x1FF8))?;
+
+        // 2. 恢复原生上下文 (与 VM_Entry push 顺序相反)
+        let regs_reversed = [
+            r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rbx, rdx, rcx, rax,
+        ];
+        for reg in regs_reversed.iter() {
+            self.asm.pop(*reg)?;
         }
-        asm.mov(qword_ptr(vsp), rax)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+        self.asm.popfq()?;
+
+        // 3. 跳转到 OEP (原始入口点)
+        // 需要使用绝对地址跳转
+        self.asm.mov(rax, oep_va)?;
+        self.asm.jmp(rax)?;
+
+        Ok(offset)
     }
 
-    pub fn gen_write_mem(&self, asm: &mut CodeAssembler, size: u32) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        asm.mov(rax, qword_ptr(vsp))?;
-        asm.mov(rcx, qword_ptr(vsp + 8))?;
-        match size {
-            8  => { asm.mov(byte_ptr(rax), cl)?; }
-            16 => { asm.mov(word_ptr(rax), cx)?; }
-            32 => { asm.mov(dword_ptr(rax), ecx)?; }
-            64 => { asm.mov(qword_ptr(rax), rcx)?; }
-            _ => unreachable!(),
-        }
-        asm.add(vsp, 16)?;
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    pub fn gen_vexit_with_label(&mut self, oep_va: u64) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vexit(oep_va)?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
     }
 
-    // ==========================================
-    // 立即数与常量类指令
-    // ==========================================
+    /// 生成 VJMP 处理器（字节码内部无条件跳转）
+    /// 语义：从字节码读取 i32 偏移量，VIP += offset，继续分发
+    pub fn gen_vjmp(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
 
-    /// vPushImm32: 从字节码流中读取 32 位立即数并压栈
-    pub fn gen_push_imm32(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        let vip = self.vreg(VMRegister::VIP);
-        
-        self.interpreter.generate_check_stack(asm, 8)?;
-        
-        asm.push(rax)?;
-        
-        // 从 VIP 读取 4 字节
-        asm.mov(eax, dword_ptr(vip))?;
-        
-        // 真实的 VMP 在这里会使用 VCRYPT 对 RAX 进行解密计算
-        // 简化版暂时不进行复杂解密，直接 VIP 递增
-        asm.add(vip, 4)?;
-        
-        // VSP 生长并压入数据 (64位系统中，立即数通常符号扩展或零扩展后压入)
-        asm.sub(vsp, 8)?;
-        asm.mov(qword_ptr(vsp), rax)?;
-        
-        asm.pop(rax)?;
-        
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+        // 1. 从 [VIP] 读取加密的偏移量
+        self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
+        self.asm.add(ctx.vip, 4_i32)?;
+
+        // 2. 解密偏移量
+        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
+
+        // 3. 更新滚动密钥
+        self.asm.add(ctx.vkey_32, ctx.scratch1_32)?;
+
+        // 4. VIP += offset (偏移量是相对于当前 VIP 的有符号偏移)
+        self.asm.add(ctx.vip, ctx.scratch1)?;
+
+        // 5. 继续分发下一条指令
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+
+        Ok(offset)
     }
 
-    /// vPushImm64: 从字节码流中读取 64 位立即数并压栈
-    pub fn gen_push_imm64(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        let vip = self.vreg(VMRegister::VIP);
-        
-        self.interpreter.generate_check_stack(asm, 8)?;
-        
-        asm.push(rax)?;
-        
-        // 从 VIP 读取 8 字节
-        asm.mov(rax, qword_ptr(vip))?;
-        asm.add(vip, 8)?;
-        
-        asm.sub(vsp, 8)?;
-        asm.mov(qword_ptr(vsp), rax)?;
-        
-        asm.pop(rax)?;
-        
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    pub fn gen_vjmp_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vjmp()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
     }
 
-    // ==========================================
-    // 移位类指令 [NEW]
-    // ==========================================
+    /// 生成 VJCC 处理器（字节码内部条件跳转）
+    /// 语义：从 EFLAGS 保存槽读取标志，从字节码读取 i32 偏移量，检查条件，分支或跳过
+    /// EFLAGS 由 VAdd/VSub/VXor/VNand/VNor 等算术 handler 自动保存到保存槽
+    /// condition: 0=E/Z, 1=NE/NZ, 2=C, 3=NC, 4=S, 5=NS, 6=O, 7=NO,
+    ///            8=A, 9=AE, 10=B, 11=BE, 12=G, 13=GE, 14=L, 15=LE
+    pub fn gen_vjcc(&mut self, condition: u8) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
 
-    pub fn gen_shift(&self, asm: &mut CodeAssembler, opcode: crate::vm::arch::VMOpcode) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        // VSP[0] = count, VSP[8] = value
-        asm.mov(rcx, qword_ptr(vsp))?;
-        asm.mov(rax, qword_ptr(vsp + 8))?;
-        
-        use crate::vm::arch::VMOpcode;
-        match opcode {
-            VMOpcode::Shl => { asm.shl(rax, cl)?; }
-            VMOpcode::Shr => { asm.shr(rax, cl)?; }
-            VMOpcode::Sar => { asm.sar(rax, cl)?; }
-            VMOpcode::Rol => { asm.rol(rax, cl)?; }
-            VMOpcode::Ror => { asm.ror(rax, cl)?; }
-            _ => unreachable!(),
-        }
-        
-        asm.pushfq()?;
-        asm.mov(qword_ptr(vsp + 8), rax)?;
-        asm.pop(rcx)?;
-        asm.mov(qword_ptr(vsp), rcx)?;
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
-    }
+        // 1. 从 [VIP] 读取加密的偏移量到 scratch1
+        self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
 
+        // 2. 解密偏移量
+        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
 
-    // ==========================================
-    // 控制流类指令
-    // ==========================================
+        // 3. 更新滚动密钥
+        self.asm.add(ctx.vkey_32, ctx.scratch1_32)?;
 
-    /// vJmp: 无条件跳转到栈顶弹出的地址
-    pub fn gen_jmp(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        let vip = self.vreg(VMRegister::VIP);
-        
-        asm.push(rax)?;
-        
-        // 弹出跳转目标赋给 VIP
-        asm.mov(rax, qword_ptr(vsp))?;
-        asm.add(vsp, 8)?;
-        
-        asm.mov(vip, rax)?;
-        
-        asm.pop(rax)?;
-        
-        // Threaded Code 将自然地从新的 VIP 位置读取并跳转！
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
-    }
+        // 4. VIP += 4 (跳过操作数)
+        self.asm.add(ctx.vip, 4_i32)?;
 
-    /// vJcc: 条件跳转
-    /// VSP[0] = 目标 VIP, VSP[8] = 比较结果标志位 (EFLAGS)
-    pub fn gen_jcc(&self, asm: &mut CodeAssembler, condition: crate::intel::ir::IrCondition) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        let vip = self.vreg(VMRegister::VIP);
-        
-        asm.push(rax)?;
-        asm.push(rcx)?;
-        
-        // 读取标志位并恢复 CPU 状态
-        asm.mov(rcx, qword_ptr(vsp + 8))?;
-        asm.push(rcx)?;
-        asm.popfq()?;
-        
-        // 获取目标地址
-        asm.mov(rax, qword_ptr(vsp))?;
-        
-        // 根据条件决定是否更新 VIP
-        let mut label_no_jump = asm.create_label();
-        
-        use crate::intel::ir::IrCondition;
+        // 5. 从 EFLAGS 保存槽读取标志 (index 15, offset 120)
+        //    保存区域在 [RSP + 0x2000]，EFLAGS 在 +120
+        self.asm.mov(ctx.scratch2, qword_ptr(rsp + 0x2000 + 15 * 8))?;
+
+        // 6. 清零 scratch2，然后恢复 EFLAGS
+        self.asm.push(ctx.scratch2)?;              // 保存 EFLAGS 值到原生栈
+        self.asm.xor(ctx.scratch2, ctx.scratch2)?; // scratch2 = 0 (破坏 flags，但马上恢复)
+        self.asm.popfq()?;                          // 从原生栈恢复 EFLAGS
+
+        // 7. 条件移动：cmovcc 根据 EFLAGS 条件选择 scratch1 或 scratch2(=0)
+        //    条件成立 → scratch2 = scratch1 (偏移量)
+        //    条件不成立 → scratch2 = 0
         match condition {
-            IrCondition::E  => { asm.jne(label_no_jump)?; }
-            IrCondition::Ne => { asm.je(label_no_jump)?; }
-            IrCondition::A  => { asm.jbe(label_no_jump)?; }
-            IrCondition::Ae => { asm.jb(label_no_jump)?; }
-            IrCondition::B  => { asm.jae(label_no_jump)?; }
-            IrCondition::Be => { asm.ja(label_no_jump)?; }
-            IrCondition::G  => { asm.jle(label_no_jump)?; }
-            IrCondition::Ge => { asm.jl(label_no_jump)?; }
-            IrCondition::L  => { asm.jge(label_no_jump)?; }
-            IrCondition::Le => { asm.jg(label_no_jump)?; }
-            _ => { /* 暂时支持常用条件 */ }
+            0 => { self.asm.cmovz(ctx.scratch2, ctx.scratch1)?; }    // E/Z
+            1 => { self.asm.cmovnz(ctx.scratch2, ctx.scratch1)?; }   // NE/NZ
+            2 => { self.asm.cmovc(ctx.scratch2, ctx.scratch1)?; }    // C
+            3 => { self.asm.cmovnc(ctx.scratch2, ctx.scratch1)?; }   // NC
+            4 => { self.asm.cmovs(ctx.scratch2, ctx.scratch1)?; }    // S
+            5 => { self.asm.cmovns(ctx.scratch2, ctx.scratch1)?; }   // NS
+            6 => { self.asm.cmovo(ctx.scratch2, ctx.scratch1)?; }    // O
+            7 => { self.asm.cmovno(ctx.scratch2, ctx.scratch1)?; }   // NO
+            8 => { self.asm.cmova(ctx.scratch2, ctx.scratch1)?; }    // A (CF=0 && ZF=0)
+            9 => { self.asm.cmovae(ctx.scratch2, ctx.scratch1)?; }   // AE (CF=0)
+            10 => { self.asm.cmovb(ctx.scratch2, ctx.scratch1)?; }   // B (CF=1)
+            11 => { self.asm.cmovbe(ctx.scratch2, ctx.scratch1)?; }  // BE (CF=1 || ZF=1)
+            12 => { self.asm.cmovg(ctx.scratch2, ctx.scratch1)?; }   // G
+            13 => { self.asm.cmovge(ctx.scratch2, ctx.scratch1)?; }  // GE
+            14 => { self.asm.cmovl(ctx.scratch2, ctx.scratch1)?; }   // L
+            15 => { self.asm.cmovle(ctx.scratch2, ctx.scratch1)?; }  // LE
+            _ => {} // fallback: scratch2 stays 0, no jump
         }
-        
-        // 执行跳转：更新 VIP
-        asm.mov(vip, rax)?;
-        
-        asm.set_label(&mut label_no_jump)?;
-        
-        // 清理虚拟栈
-        asm.add(vsp, 16)?;
-        
-        asm.pop(rcx)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+
+        // 8. VIP += scratch2 (条件成立时跳转，否则 VIP 不变)
+        self.asm.add(ctx.vip, ctx.scratch2)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+
+        Ok(offset)
     }
 
-    /// vDup: 复制栈顶
-    pub fn gen_dup(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        let vsp = self.vreg(VMRegister::VSP);
-        self.interpreter.generate_check_stack(asm, 8)?;
-        asm.push(rax)?;
-        asm.mov(rax, qword_ptr(vsp))?;
-        asm.sub(vsp, 8)?;
-        asm.mov(qword_ptr(vsp), rax)?;
-        asm.pop(rax)?;
-        self.interpreter.generate_next_instruction_fetch(asm)?;
-        Ok(())
+    pub fn gen_vjcc_with_label(&mut self, condition: u8) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vjcc(condition)?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
     }
 
-    /// vVmExit: 退出虚拟机
-    pub fn gen_vm_exit(&self, asm: &mut CodeAssembler) -> Result<(), IcedError> {
-        // 直接调用 Interpreter 提供的生成器即可
-        self.interpreter.generate_vm_exit(asm)?;
-        Ok(())
+    /// 生成 VCall 处理器 (执行原生函数调用并重入 VM)
+    ///
+    /// Save area layout (40 bytes):
+    ///   [save+0]  = VIP (8)
+    ///   [save+8]  = VSP (8)
+    ///   [save+16] = VKEY (4)
+    ///   [save+24] = scratch slot (8) — used by VCall to pass function address
+    ///   [save+32] = scratch slot (8) — used by VCall to pass function address
+    ///
+    /// Flow:
+    /// 1. Pop function address from VM stack → scratch1
+    /// 2. Save VM context (VIP/VSP/VKEY) to .vmp0 save area
+    /// 3. Save function address to [save+32]
+    /// 4. Restore native RSP from VM_Entry's saved RSP
+    /// 5. Restore ALL native registers (pop r15...rax, popfq) — correct order
+    /// 6. Load function address from [save+32] into rax
+    /// 7. Push reentry_va as return address
+    /// 8. JMP to function
+    /// 9. Function returns → reentry stub → restore VM context → continue dispatch
+    pub fn gen_vcall(&mut self, _arg_count: u8, reentry_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        // 1. Pop function address from VM stack
+        self.vpop(ctx.scratch1)?;
+
+        // 2. Save VM context to .vmp0 save area
+        self.asm.mov(ctx.scratch2, save_area_va)?;
+        self.asm.mov(qword_ptr(ctx.scratch2), ctx.vip)?;          // [save+0]  = VIP
+        self.asm.mov(qword_ptr(ctx.scratch2 + 8), ctx.vsp)?;      // [save+8]  = VSP
+        self.asm.mov(dword_ptr(ctx.scratch2 + 16), ctx.vkey_32)?;  // [save+16] = VKEY
+
+        // 3. Save function address to [save+32] (we'll need it after restoring regs)
+        self.asm.mov(qword_ptr(ctx.scratch2 + 32), ctx.scratch1)?;
+
+        // 4. Restore native RSP (VM_Entry saved it at [RSP_vm - 8] before sub rsp, 0x2000)
+        self.asm.mov(rsp, qword_ptr(rsp + 0x1FF8))?;
+
+        // 5. Restore ALL native registers in correct order
+        //    VM_Entry pushed: pushfq, rax, rcx, ..., r15
+        //    So [RSP] = r15 (last pushed), [RSP+120] = EFLAGS
+        //    Restore: pop r15...rax, then popfq
+        let regs_reversed = [
+            r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rbx, rdx, rcx, rax,
+        ];
+        for reg in regs_reversed.iter() {
+            self.asm.pop(*reg)?;
+        }
+        self.asm.popfq()?;
+        // Now RSP = RSP_original (before VM_Entry)
+
+        // 6. Load function address from .vmp0 [save+32] into rax
+        //    rax is caller-saved, safe to clobber
+        self.asm.mov(rax, save_area_va)?;
+        self.asm.mov(rax, qword_ptr(rax + 32))?;
+
+        // 7. Push reentry stub address as return address
+        self.asm.mov(ctx.scratch1, reentry_va)?; // scratch1 = r15, caller-saved
+        self.asm.push(ctx.scratch1)?;
+
+        // 8. Jump to function
+        //    Function sees: [RSP] = reentry_va, [RSP+8] = original stack
+        self.asm.jmp(rax)?;
+
+        Ok(offset)
+    }
+
+    pub fn gen_vcall_with_label(&mut self, arg_count: u8, reentry_va: u64, save_area_va: u64) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vcall(arg_count, reentry_va, save_area_va)?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VReadMem 处理器
+    /// 语义：POP addr, PUSH [addr] (读取 N 字节)
+    pub fn gen_vreadmem(&mut self, size: u8) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        // 1. 从虚拟栈弹出地址到 scratch1
+        self.vpop(ctx.scratch1)?;
+
+        // 2. 读取内存到 scratch2
+        //    注意：scratch2 没有 32 位视图，4 字节读取需要特殊处理
+        match size {
+            1 => {
+                self.asm.movzx(ctx.scratch2, byte_ptr(ctx.scratch1))?;
+            }
+            2 => {
+                self.asm.movzx(ctx.scratch2, word_ptr(ctx.scratch1))?;
+            }
+            4 => {
+                // 使用 mov r32, [addr] 自动零扩展到 r64
+                // 手动获取 scratch2 的 32 位视图
+                let scratch2_32 = Self::to_32(ctx.scratch2);
+                self.asm.mov(scratch2_32, dword_ptr(ctx.scratch1))?;
+            }
+            _ => {
+                self.asm.mov(ctx.scratch2, qword_ptr(ctx.scratch1))?;
+            }
+        }
+
+        // 3. 压入虚拟栈
+        self.vpush(ctx.scratch2)?;
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vreadmem_with_label(&mut self, size: u8) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vreadmem(size)?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
     }
 }

@@ -1,0 +1,52 @@
+//! 指令节点模块
+//! 封装原生指令、中间表示(IR)、虚拟指令(VM IR)与生命周期状态
+
+use crate::intel::ir::IrInstruction;
+use crate::vm::opcode::VmOpcode;
+use crate::analysis::liveness::LivenessInfo;
+use iced_x86::Instruction;
+
+/// 统一的指令节点 (Data-Driven Node)
+/// 这个结构体贯穿了整个编译管线的生命周期：
+/// 解析 -> 存活分析 -> 变异 -> 降级为VM IR -> 生成字节码
+#[derive(Debug, Clone)]
+pub struct InstNode {
+    /// 原始地址
+    pub rva: u64,
+    /// 原始 Native x86 指令 (解析阶段生成)
+    pub native_inst: Option<Instruction>,
+    /// x86 高级中间表示 (解析阶段生成)
+    pub x86_ir: Option<IrInstruction>,
+    /// 存活分析信息 (Analysis阶段生成)
+    pub liveness: LivenessInfo,
+    /// 如果这条指令被虚拟化，这里存储对应的虚拟机操作码序列 (降级阶段生成)
+    /// 注意：一条复杂的 x86 指令可能被翻译成多条 VM 堆栈指令
+    pub vm_ir: Vec<VmOpcode>,
+    /// 该指令是否仅为混淆填充的垃圾代码
+    pub is_junk: bool,
+}
+
+impl InstNode {
+    pub fn new(rva: u64, native_inst: Instruction, x86_ir: IrInstruction) -> Self {
+        Self {
+            rva,
+            native_inst: Some(native_inst),
+            x86_ir: Some(x86_ir),
+            liveness: LivenessInfo::default(),
+            vm_ir: Vec::new(),
+            is_junk: false,
+        }
+    }
+
+    /// 创建一个垃圾指令节点 (由 Obfuscator 使用)
+    pub fn new_junk(native_inst: Instruction) -> Self {
+        Self {
+            rva: 0,
+            native_inst: Some(native_inst),
+            x86_ir: None,
+            liveness: LivenessInfo::default(),
+            vm_ir: Vec::new(),
+            is_junk: true,
+        }
+    }
+}

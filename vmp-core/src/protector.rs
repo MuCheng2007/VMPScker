@@ -76,6 +76,11 @@ impl VmpProtector {
         let finder = VmpMarkerFinder::with_mode(self.config.mode);
         let pairs = finder.find_marker_pairs(&pe_file)?;
 
+        // Select the first matching pair.
+        // The marker pairs are in address order. With LIFO stack pairing,
+        // the first pair typically corresponds to the outermost function (main).
+        // Note: the JMP-aware finder may produce additional pairs for inner functions,
+        // but main's pair remains first because its Begin marker has the lowest address.
         let virt_pair = pairs.iter().find(|p| {
             p.begin.marker_type == VmpMarkerType::Virtualization
                 || p.begin.marker_type == VmpMarkerType::Begin
@@ -117,9 +122,18 @@ impl VmpProtector {
 
         let mut all_vm_ir = Vec::new();
         for node in &nodes {
+            if !node.vm_ir.is_empty() {
+                eprintln!("[VM] RVA 0x{:X}: {:?}", node.rva, node.vm_ir);
+            }
             all_vm_ir.extend_from_slice(&node.vm_ir);
         }
         all_vm_ir.push(VmOpcode::VExit);
+
+        // Debug: print all VM IR opcodes
+        eprintln!("[VM] Total VM IR count: {}", all_vm_ir.len());
+        for (i, ir) in all_vm_ir.iter().enumerate() {
+            eprintln!("[VM]   [{:3}] {:?}", i, ir);
+        }
 
         // 3. 编译字节码
         let arch_config = ArchConfig::new_random();
@@ -186,7 +200,46 @@ impl VmpProtector {
             }
         }
 
-        // 7. 写入文件
+        // 7. 修补 .pdata：零化覆盖被保护代码范围的 RUNTIME_FUNCTION 条目
+        // 否则 Windows 栈展开会使用失效的 unwind 信息导致崩溃
+        {
+            let new_pe2 = PeFile::new(new_pe_bytes.clone())?;
+            if let Some(ref pe2) = new_pe2.pe() {
+                if let Some(optional_header) = pe2.header.optional_header {
+                    let dirs = &optional_header.data_directories.data_directories;
+                    // 索引 3 = Exception Directory (.pdata)
+                    if let Some(Some((_, exception_dir))) = dirs.get(3) {
+                        let pdata_rva = exception_dir.virtual_address as u64;
+                        let pdata_size = exception_dir.size as u64;
+                        if let Some(pdata_file_offset) = new_pe2.rva_to_offset(pdata_rva) {
+                            let entry_size: u64 = 12; // RUNTIME_FUNCTION for x64
+                            let count = pdata_size / entry_size;
+                            for i in 0..count {
+                                let entry_off = pdata_file_offset as usize + (i * entry_size) as usize;
+                                if entry_off + 12 > new_pe_bytes.len() { break; }
+                                let begin = u32::from_le_bytes([
+                                    new_pe_bytes[entry_off], new_pe_bytes[entry_off+1],
+                                    new_pe_bytes[entry_off+2], new_pe_bytes[entry_off+3],
+                                ]);
+                                let end = u32::from_le_bytes([
+                                    new_pe_bytes[entry_off+4], new_pe_bytes[entry_off+5],
+                                    new_pe_bytes[entry_off+6], new_pe_bytes[entry_off+7],
+                                ]);
+                                // 如果该 RUNTIME_FUNCTION 覆盖了被保护代码范围，零化它
+                                if begin < code_end as u32 && end > code_start as u32 {
+                                    eprintln!("[VM] Zeroing .pdata entry #{i}: 0x{begin:X}..0x{end:X} (overlaps protected range 0x{code_start:X}..0x{code_end:X})");
+                                    for b in &mut new_pe_bytes[entry_off..entry_off+12] {
+                                        *b = 0;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 8. 写入文件
         std::fs::write(output_path, new_pe_bytes)?;
 
         Ok(ProtectResult {

@@ -17,6 +17,8 @@ pub enum VmOpcode {
     VNand,
     /// 栈顶两个元素 NOR
     VNor,
+    /// 栈顶两个元素相乘: POP B, POP A, PUSH (A*B)
+    VMul,
     
     /// 从当前上下文 (Native Context) 读取寄存器压入虚拟栈
     /// 这里的 u8 是该寄存器在 Context 数组中的偏移/索引

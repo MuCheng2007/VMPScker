@@ -70,7 +70,7 @@ impl VmPayload {
         handler_offsets.insert(VmOpcode::VReadMem(0), handler_gen.gen_vreadmem_with_label(8)?);
         handler_offsets.insert(VmOpcode::VWriteMem(0), handler_gen.gen_vwritemem_with_label(8)?);
         handler_offsets.insert(VmOpcode::VNop, handler_gen.gen_vnop_with_label()?);
-        handler_offsets.insert(VmOpcode::VExit, handler_gen.gen_vexit_with_label(return_va)?);
+        handler_offsets.insert(VmOpcode::VExit, handler_gen.gen_vexit_with_label(return_va, 0)?);
 
         // 生成重入桩 (使用临时地址)
         let reentry_idx = VmGates::gen_vm_reentry(&mut asm, arch, 0, 0)?;
@@ -128,7 +128,7 @@ impl VmPayload {
         final_handler_offsets.insert(VmOpcode::VReadMem(0), final_handler_gen.gen_vreadmem_with_label(8)?);
         final_handler_offsets.insert(VmOpcode::VWriteMem(0), final_handler_gen.gen_vwritemem_with_label(8)?);
         final_handler_offsets.insert(VmOpcode::VNop, final_handler_gen.gen_vnop_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VExit, final_handler_gen.gen_vexit_with_label(return_va)?);
+        final_handler_offsets.insert(VmOpcode::VExit, final_handler_gen.gen_vexit_with_label(return_va, save_area_va)?);
 
         // 3. 重新生成重入桩
         let (final_reentry_idx, _) = VmGates::gen_vm_reentry(&mut final_asm, arch, save_area_va, table_va)?;

@@ -92,33 +92,45 @@ impl LoweringPass {
             match &x86_ir.opcode {
                 // === 数据传输指令 ===
                 IrOpcode::Mov { dst, src } => {
-                    Self::compile_operand(&mut vm_ir, src);
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand(&mut vm_ir, src, image_base);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Push { src } => {
-                    Self::compile_operand(&mut vm_ir, src);
+                    Self::compile_operand(&mut vm_ir, src, image_base);
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rsp)));
                 }
 
                 IrOpcode::Pop { dst } => {
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rsp)));
                 }
 
                 IrOpcode::Lea { dst, src } => {
                     // Lea: 计算地址并保存到 dst
-                    // 简化实现：将地址作为立即数处理
-                    vm_ir.push(VmOpcode::VPushImm32(src.displacement as u32));
+                    if src.base == Some(IrRegister::Rip) {
+                        // RIP-relative: decoder 使用 RVA 作为 IP，displacement 是 RVA
+                        // 需要加上 ImageBase 得到 VA
+                        let va = image_base.wrapping_add(src.displacement as u64);
+                        vm_ir.push(VmOpcode::VPushImm64(va));
+                    } else if let Some(base) = src.base {
+                        vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(base)));
+                        if src.displacement != 0 {
+                            vm_ir.push(VmOpcode::VPushImm32(src.displacement as u32));
+                            vm_ir.push(VmOpcode::VAdd);
+                        }
+                    } else {
+                        vm_ir.push(VmOpcode::VPushImm32(src.displacement as u32));
+                    }
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(*dst)));
                 }
 
                 IrOpcode::Xchg { op1, op2 } => {
                     // Xchg: 交换两个操作数
-                    Self::compile_operand(&mut vm_ir, op2);
-                    Self::compile_operand(&mut vm_ir, op1);
-                    Self::compile_operand_save(&mut vm_ir, op2);
-                    Self::compile_operand_save(&mut vm_ir, op1);
+                    Self::compile_operand(&mut vm_ir, op2, image_base);
+                    Self::compile_operand(&mut vm_ir, op1, image_base);
+                    Self::compile_operand_save(&mut vm_ir, op2, image_base);
+                    Self::compile_operand_save(&mut vm_ir, op1, image_base);
                 }
 
                 IrOpcode::Cmov { condition: _, dst, src } => {
@@ -134,17 +146,17 @@ impl LoweringPass {
                 // 注意：算术 handler (VAdd/VSub 等) 现在直接将 EFLAGS 保存到保存槽，
                 // 不再压入 VM 栈。VJcc 从保存槽读取 EFLAGS。
                 IrOpcode::Add { dst, src } => {
-                    Self::compile_operand(&mut vm_ir, dst); // A
-                    Self::compile_operand(&mut vm_ir, src); // B
+                    Self::compile_operand(&mut vm_ir, dst, image_base); // A
+                    Self::compile_operand(&mut vm_ir, src, image_base); // B
                     vm_ir.push(VmOpcode::VAdd);             // A+B, EFLAGS → slot
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Sub { dst, src } => {
                     // Sub = dst - src = dst + NOT(src) + 1 (two's complement)
                     // NOT(src) = NAND(src, src)
-                    Self::compile_operand(&mut vm_ir, src);    // push src
-                    Self::compile_operand(&mut vm_ir, src);    // push src (NAND 需要两个相同操作数)
+                    Self::compile_operand(&mut vm_ir, src, image_base);    // push src
+                    Self::compile_operand(&mut vm_ir, src, image_base);    // push src (NAND 需要两个相同操作数)
                     vm_ir.push(VmOpcode::VNand);               // NOT(src), EFLAGS → 保存槽
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax))); // RAX = NOT(src)
                     // -src = NOT(src) + 1
@@ -153,17 +165,17 @@ impl LoweringPass {
                     vm_ir.push(VmOpcode::VAdd);                // -src, EFLAGS → 保存槽
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax))); // RAX = -src
                     // dst + (-src)
-                    Self::compile_operand(&mut vm_ir, dst);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
                     vm_ir.push(VmOpcode::VAdd);                // dst - src, EFLAGS → 保存槽
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Cmp { op1, op2 } => {
                     // Cmp = op1 - op2, discard result, keep EFLAGS
                     // NOT(op2) = NAND(op2, op2)
-                    Self::compile_operand(&mut vm_ir, op2);    // push op2
-                    Self::compile_operand(&mut vm_ir, op2);    // push op2
+                    Self::compile_operand(&mut vm_ir, op2, image_base);    // push op2
+                    Self::compile_operand(&mut vm_ir, op2, image_base);    // push op2
                     vm_ir.push(VmOpcode::VNand);               // NOT(op2), EFLAGS → 保存槽
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
                     // -op2 = NOT(op2) + 1
@@ -172,7 +184,7 @@ impl LoweringPass {
                     vm_ir.push(VmOpcode::VAdd);                // -op2, EFLAGS → 保存槽
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
                     // op1 + (-op2) = op1 - op2
-                    Self::compile_operand(&mut vm_ir, op2);
+                    Self::compile_operand(&mut vm_ir, op1, image_base);
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
                     vm_ir.push(VmOpcode::VAdd);                // op1 - op2, EFLAGS → 保存槽
                     // 弹出并丢弃结果，EFLAGS 保留在保存槽供 VJcc 使用
@@ -181,46 +193,55 @@ impl LoweringPass {
 
                 IrOpcode::Inc { op } => {
                     vm_ir.push(VmOpcode::VPushImm32(1));
-                    Self::compile_operand(&mut vm_ir, op);
+                    Self::compile_operand(&mut vm_ir, op, image_base);
                     vm_ir.push(VmOpcode::VAdd);
                     // VAdd 的 EFLAGS 已保存到保存槽
-                    Self::compile_operand_save(&mut vm_ir, op);
+                    Self::compile_operand_save(&mut vm_ir, op, image_base);
                 }
 
                 IrOpcode::Dec { op } => {
                     vm_ir.push(VmOpcode::VPushImm32(0xFFFFFFFF)); // -1
-                    Self::compile_operand(&mut vm_ir, op);
+                    Self::compile_operand(&mut vm_ir, op, image_base);
                     vm_ir.push(VmOpcode::VAdd);
                     // VAdd 的 EFLAGS 已保存到保存槽
-                    Self::compile_operand_save(&mut vm_ir, op);
+                    Self::compile_operand_save(&mut vm_ir, op, image_base);
                 }
 
                 IrOpcode::Neg { op } => {
                     // Neg = NOT(op) + 1
-                    Self::compile_operand(&mut vm_ir, op);
-                    Self::compile_operand(&mut vm_ir, op);
+                    Self::compile_operand(&mut vm_ir, op, image_base);
+                    Self::compile_operand(&mut vm_ir, op, image_base);
                     vm_ir.push(VmOpcode::VNand);    // NOT(op), EFLAGS → slot
                     vm_ir.push(VmOpcode::VPushImm32(1));
                     vm_ir.push(VmOpcode::VAdd);     // -op, EFLAGS → slot
-                    Self::compile_operand_save(&mut vm_ir, op);
+                    Self::compile_operand_save(&mut vm_ir, op, image_base);
                 }
 
                 IrOpcode::Mul { src } => {
-                    Self::compile_operand(&mut vm_ir, src);
+                    Self::compile_operand(&mut vm_ir, src, image_base);
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
                     vm_ir.push(VmOpcode::VAdd);     // EFLAGS → slot
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
                 }
 
-                IrOpcode::Imul { src1, .. } => {
-                    Self::compile_operand(&mut vm_ir, src1);
-                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
-                    vm_ir.push(VmOpcode::VAdd);     // EFLAGS → slot
-                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
+                IrOpcode::Imul { dst, src1, src2 } => {
+                    // Push both multiplicands, multiply, save result
+                    Self::compile_operand(&mut vm_ir, src1, image_base);
+                    if let Some(s2) = src2 {
+                        Self::compile_operand(&mut vm_ir, s2, image_base);
+                    } else {
+                        vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
+                    }
+                    vm_ir.push(VmOpcode::VMul);     // A * B, EFLAGS → slot
+                    if let Some(d) = dst {
+                        Self::compile_operand_save(&mut vm_ir, d, image_base);
+                    } else {
+                        vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
+                    }
                 }
 
                 IrOpcode::Div { src } | IrOpcode::Idiv { src } => {
-                    Self::compile_operand(&mut vm_ir, src);
+                    Self::compile_operand(&mut vm_ir, src, image_base);
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rdx)));
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
@@ -230,52 +251,51 @@ impl LoweringPass {
                 // === 逻辑指令 ===
                 IrOpcode::And { dst, src } => {
                     // A AND B = NOT(NOT(A) OR NOT(B)) = NOR(NAND(A,A), NAND(B,B))
-                    Self::compile_operand(&mut vm_ir, src);
-                    Self::compile_operand(&mut vm_ir, src);
+                    Self::compile_operand(&mut vm_ir, src, image_base);
+                    Self::compile_operand(&mut vm_ir, src, image_base);
                     vm_ir.push(VmOpcode::VNand);    // NOT(src)
-                    Self::compile_operand(&mut vm_ir, dst);
-                    Self::compile_operand(&mut vm_ir, dst);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
                     vm_ir.push(VmOpcode::VNand);    // NOT(dst)
                     vm_ir.push(VmOpcode::VNor);     // NOT(NOT(src) OR NOT(dst)) = src AND dst
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Or { dst, src } => {
                     // A OR B = NOT(NOT(A) AND NOT(B)) = NAND(NAND(A,A), NAND(B,B))
-                    Self::compile_operand(&mut vm_ir, src);
-                    Self::compile_operand(&mut vm_ir, src);
+                    Self::compile_operand(&mut vm_ir, src, image_base);
+                    Self::compile_operand(&mut vm_ir, src, image_base);
                     vm_ir.push(VmOpcode::VNand);    // NOT(src)
-                    Self::compile_operand(&mut vm_ir, dst);
-                    Self::compile_operand(&mut vm_ir, dst);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
                     vm_ir.push(VmOpcode::VNand);    // NOT(dst)
                     vm_ir.push(VmOpcode::VNand);    // NOT(NOT(src) AND NOT(dst)) = src OR dst
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Xor { dst, src } => {
                     // 简化：使用已有的 VXor handler
-                    Self::compile_operand(&mut vm_ir, dst); // A
-                    Self::compile_operand(&mut vm_ir, src); // B
+                    Self::compile_operand(&mut vm_ir, dst, image_base); // A
+                    Self::compile_operand(&mut vm_ir, src, image_base); // B
                     vm_ir.push(VmOpcode::VXor);             // A^B, EFLAGS → slot
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Not { op } => {
                     // NOT(op) = NAND(op, op)
-                    Self::compile_operand(&mut vm_ir, op);
-                    Self::compile_operand(&mut vm_ir, op);
+                    Self::compile_operand(&mut vm_ir, op, image_base);
+                    Self::compile_operand(&mut vm_ir, op, image_base);
                     vm_ir.push(VmOpcode::VNand);    // EFLAGS → slot
-                    Self::compile_operand_save(&mut vm_ir, op);
+                    Self::compile_operand_save(&mut vm_ir, op, image_base);
                 }
 
                 IrOpcode::Test { op1, op2 } => {
                     // Test = And but discard result, keep EFLAGS
-                    Self::compile_operand(&mut vm_ir, op2);
-                    Self::compile_operand(&mut vm_ir, op2);
-                    Self::compile_operand(&mut vm_ir, op2);
+                    Self::compile_operand(&mut vm_ir, op2, image_base);
+                    Self::compile_operand(&mut vm_ir, op2, image_base);
                     vm_ir.push(VmOpcode::VNand);    // NOT(op2)
-                    Self::compile_operand(&mut vm_ir, op1);
-                    Self::compile_operand(&mut vm_ir, op1);
+                    Self::compile_operand(&mut vm_ir, op1, image_base);
+                    Self::compile_operand(&mut vm_ir, op1, image_base);
                     vm_ir.push(VmOpcode::VNand);    // NOT(op1)
                     vm_ir.push(VmOpcode::VNor);     // op1 AND op2, EFLAGS → slot
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax))); // discard result
@@ -283,38 +303,38 @@ impl LoweringPass {
 
                 // === 移位指令 ===
                 IrOpcode::Shl { dst, count } => {
-                    Self::compile_operand(&mut vm_ir, dst);
-                    Self::compile_operand(&mut vm_ir, dst);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
                     vm_ir.push(VmOpcode::VAdd);     // EFLAGS → slot
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Shr { dst, count } => {
-                    Self::compile_operand(&mut vm_ir, dst);
-                    Self::compile_operand(&mut vm_ir, dst);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
                     vm_ir.push(VmOpcode::VSub);     // EFLAGS → slot
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Sar { dst, count } => {
-                    Self::compile_operand(&mut vm_ir, dst);
-                    Self::compile_operand(&mut vm_ir, dst);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
                     vm_ir.push(VmOpcode::VSub);     // EFLAGS → slot
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Rol { dst, count } | IrOpcode::Ror { dst, count } => {
-                    Self::compile_operand(&mut vm_ir, dst);
-                    Self::compile_operand(&mut vm_ir, dst);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
+                    Self::compile_operand(&mut vm_ir, dst, image_base);
                     vm_ir.push(VmOpcode::VAdd);     // EFLAGS → slot
-                    Self::compile_operand_save(&mut vm_ir, dst);
+                    Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 // === 位操作指令 ===
                 IrOpcode::Bt { base, offset } |
                 IrOpcode::Bts { base, offset } => {
-                    Self::compile_operand(&mut vm_ir, base);
-                    Self::compile_operand(&mut vm_ir, offset);
+                    Self::compile_operand(&mut vm_ir, base, image_base);
+                    Self::compile_operand(&mut vm_ir, offset, image_base);
                     vm_ir.push(VmOpcode::VPushImm32(1));
                     vm_ir.push(VmOpcode::VSub);     // EFLAGS → slot
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax))); // discard result
@@ -435,8 +455,9 @@ impl LoweringPass {
     fn compile_jump_target(vm_ir: &mut Vec<VmOpcode>, target: &IrJumpTarget, image_base: u64) {
         match target {
             IrJumpTarget::Direct(addr) => {
-                // 绝对地址，直接压入（截断为32位，适用于默认ImageBase 0x140000000）
-                vm_ir.push(VmOpcode::VPushImm32(*addr as u32));
+                // 直接调用：addr 是 RVA，需要加上 ImageBase 得到 VA
+                let va = image_base.wrapping_add(*addr as u64);
+                vm_ir.push(VmOpcode::VPushImm64(va));
             }
             IrJumpTarget::Register(reg) => {
                 // 寄存器间接调用：寄存器中就是函数地址
@@ -475,7 +496,7 @@ impl LoweringPass {
     }
 
     /// 编译操作数（入栈）
-    fn compile_operand(vm_ir: &mut Vec<VmOpcode>, op: &IrOperand) {
+    fn compile_operand(vm_ir: &mut Vec<VmOpcode>, op: &IrOperand, image_base: u64) {
         match op {
             IrOperand::Register(reg) => {
                 vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(*reg)));
@@ -486,9 +507,10 @@ impl LoweringPass {
             IrOperand::Memory(mem) => {
                 // 内存操作数：计算地址并读取
                 if mem.base == Some(IrRegister::Rip) {
-                    // RIP 相对寻址：displacement 已经是绝对地址 (由 iced_x86 解码器计算)
-                    // 使用 VPushImm64 确保 64 位地址不被截断
-                    vm_ir.push(VmOpcode::VPushImm64(mem.displacement as u64));
+                    // RIP 相对寻址：decoder 使用 RVA 作为 IP，displacement 是 RVA
+                    // 需要加上 ImageBase 得到 VA
+                    let va = image_base.wrapping_add(mem.displacement as u64);
+                    vm_ir.push(VmOpcode::VPushImm64(va));
                 } else if let Some(base) = mem.base {
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(base)));
                     if mem.displacement != 0 {
@@ -506,7 +528,7 @@ impl LoweringPass {
     }
 
     /// 编译操作数（出栈保存）
-    fn compile_operand_save(vm_ir: &mut Vec<VmOpcode>, op: &IrOperand) {
+    fn compile_operand_save(vm_ir: &mut Vec<VmOpcode>, op: &IrOperand, image_base: u64) {
         match op {
             IrOperand::Register(reg) => {
                 vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(*reg)));
@@ -514,8 +536,10 @@ impl LoweringPass {
             IrOperand::Memory(mem) => {
                 // 内存操作数：计算地址并写入
                 if mem.base == Some(IrRegister::Rip) {
-                    // RIP 相对寻址：displacement 已经是绝对地址
-                    vm_ir.push(VmOpcode::VPushImm64(mem.displacement as u64));
+                    // RIP 相对寻址：decoder 使用 RVA 作为 IP，displacement 是 RVA
+                    // 需要加上 ImageBase 得到 VA
+                    let va = image_base.wrapping_add(mem.displacement as u64);
+                    vm_ir.push(VmOpcode::VPushImm64(va));
                 } else if let Some(base) = mem.base {
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(base)));
                 } else {
@@ -556,7 +580,7 @@ impl LoweringPass {
             IrRegister::Rcx => 13,
             IrRegister::Rdx => 12,
             IrRegister::Rbx => 11,
-            IrRegister::Rsp => 11, // RSP 无保存槽，暂映射到 RBX 槽
+            IrRegister::Rsp => 16, // RSP: 特殊索引，handler 中实时计算而非读保存槽
             IrRegister::Rbp => 10,
             IrRegister::Rsi => 9,
             IrRegister::Rdi => 8,
@@ -574,7 +598,7 @@ impl LoweringPass {
             IrRegister::Ecx => 13,
             IrRegister::Edx => 12,
             IrRegister::Ebx => 11,
-            IrRegister::Esp => 11,
+            IrRegister::Esp => 16,
             IrRegister::Ebp => 10,
             IrRegister::Esi => 9,
             IrRegister::Edi => 8,
@@ -592,7 +616,7 @@ impl LoweringPass {
             IrRegister::Cx => 13,
             IrRegister::Dx => 12,
             IrRegister::Bx => 11,
-            IrRegister::Sp => 11,
+            IrRegister::Sp => 16,
             IrRegister::Bp => 10,
             IrRegister::Si => 9,
             IrRegister::Di => 8,
@@ -603,7 +627,7 @@ impl LoweringPass {
             IrRegister::Dl | IrRegister::Dh => 12,
             IrRegister::Bl | IrRegister::Bh => 11,
 
-            IrRegister::Spl => 11,
+            IrRegister::Spl => 16,
             IrRegister::Bpl => 10,
             IrRegister::Sil => 9,
             IrRegister::Dil => 8,

@@ -187,10 +187,10 @@ impl ArchConfig {
         // 为核心指令分配乱序操作码 (必须包含所有 lowering 可能生成的指令)
         let core_ops = vec![
             VmOpcode::VNop, VmOpcode::VAdd, VmOpcode::VSub,
-            VmOpcode::VXor, VmOpcode::VNand, VmOpcode::VNor,
+            VmOpcode::VXor, VmOpcode::VNand, VmOpcode::VNor, VmOpcode::VMul,
             VmOpcode::VJmp(0), VmOpcode::VJcc(0, 0), VmOpcode::VCall(0), VmOpcode::VExit,
             VmOpcode::VPushImm32(0), VmOpcode::VPushImm64(0), VmOpcode::VPushReg(0), VmOpcode::VPopReg(0),
-            VmOpcode::VReadMem(0), VmOpcode::VLabel(0),
+            VmOpcode::VReadMem(0), VmOpcode::VWriteMem(0), VmOpcode::VLabel(0),
         ];
 
         for (i, op) in core_ops.into_iter().enumerate() {

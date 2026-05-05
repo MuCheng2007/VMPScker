@@ -523,6 +523,12 @@ impl<'a> HandlerGenerator<'a> {
         // 1. Pop function address from VM stack
         self.vpop(ctx.scratch1)?;
 
+        // 1.5. Skip the 4-byte arg_count operand in bytecode.
+        // The dispatcher already advanced VIP past the VCall opcode,
+        // but the operand (encrypted arg_count) still needs to be consumed
+        // so VIP points to the next real instruction after re-entry.
+        self.asm.add(ctx.vip, 4_i32)?;
+
         // 2. Save VM context to .vmp0 save area
         self.asm.mov(ctx.scratch2, save_area_va)?;
         self.asm.mov(qword_ptr(ctx.scratch2), ctx.vip)?;          // [save+0]  = VIP

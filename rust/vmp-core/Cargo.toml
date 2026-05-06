@@ -1,0 +1,43 @@
+[package]
+name = "vmp-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Workspace dependencies
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+serde.workspace = true
+toml.workspace = true
+bytes.workspace = true
+
+# 二进制解析
+goblin = "0.8"
+
+# 反汇编
+iced-x86 = { version = "1.21", features = ["code_asm"] }
+
+# 压缩
+zstd = "0.13"
+
+# 加密
+rsa = "0.9"
+aes-gcm = "0.10"
+sha2 = "0.10"
+rand = "0.8"
+
+# 符号还原（可选）
+cpp_demangle = { version = "0.4", optional = true }
+rustc-demangle = "0.1"
+
+# 其他工具
+bitflags = "2.5"
+crc32fast = "1.3"
+ouroboros = "0.18"
+
+[features]
+default = ["demangle"]
+demangle = ["dep:cpp_demangle"]

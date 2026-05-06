@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{ea5615d1-b664-4354-ada0-c0033e26207c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{cb40700d-7f2b-496b-b4ea-fca91daa3209}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\core_internal">
+      <UniqueIdentifier>{915455e1-9295-4156-af15-3f8352fdff3a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\intel">
+      <UniqueIdentifier>{a1b2c3d4-e5f6-7890-abcd-ef1234567890}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\intel\crypto">
+      <UniqueIdentifier>{b2c3d4e5-f6a7-8901-bcde-f23456789012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\intel\ir">
+      <UniqueIdentifier>{c3d4e5f6-a789-0123-cdef-345678901234}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\intel\vm">
+      <UniqueIdentifier>{d4e5f6a7-8901-2345-def4-567890123456}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\pe">
+      <UniqueIdentifier>{e5f6a7b8-9012-3456-ef56-789012345678}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\files">
+      <UniqueIdentifier>{a7b8c9d0-1234-5678-fa78-012345678901}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\processors">
+      <UniqueIdentifier>{f6a7b8c9-0123-4567-0678-901234567890}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\core\files\utils.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\references.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\mapping.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\sections.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\imports.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\exports.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\fixups.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\relocations.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\seh.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\resources.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\runtime_func.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\compiler_func.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\memory.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\markers.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\files\architecture.cc">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\objects.cc">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_types.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_interfaces.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_info.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_command.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_command_link.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_command_block.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_function.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_vm.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\processors\proc_crypto.cc">
+      <Filter>src\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\streams.cc">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\osutils.cc">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\packer.cc">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\runtime\crypto.cc">
+      <Filter>common</Filter>
+    </ClCompile>
+
+    <ClCompile Include="..\core\precompiled.cc">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\core_utils.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\rsa.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\core.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\core_internal\license.cc">
+      <Filter>src\core_internal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\crypto\SectionCryptor.cc">
+      <Filter>src\intel\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelCommand.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelCommandInfo.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelFunction.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelFunctionList.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelLoader.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelMisc.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelObfuscation.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelOpcodeInfo.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelOperand.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelSDK.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelStack.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\ir\IntelVMCommand.cc">
+      <Filter>src\intel\ir</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachine.cc">
+      <Filter>src\intel\vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachineList.cc">
+      <Filter>src\intel\vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\intel\vm\IntelVirtualMachineProcessor.cc">
+      <Filter>src\intel\vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEArchitecture.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEDebug.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEDelayImport.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEDirectory.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEExport.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEFile.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEFixup.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEImport.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEMapFile.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PEResource.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PERuntimeFunction.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PESegment.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PESEHandler.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\pe\PETLS.cc">
+      <Filter>src\pe</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\core\pefile.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\osutils.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\resources.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\packer.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\types.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\utils.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\references.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\mapping.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\sections.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\imports.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\exports.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\fixups.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\relocations.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\seh.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\resources.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\runtime_func.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\compiler_func.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\memory.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\markers.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\files\architecture.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_types.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_interfaces.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_info.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_command.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_command_link.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_command_block.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_function.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_vm.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\processors\proc_crypto.h">
+      <Filter>src\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\objects.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\streams.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\runtime\crypto.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\runtime\common.h">
+      <Filter>common</Filter>
+    </ClInclude>
+
+    <ClInclude Include="..\core\precompiled.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\mach-o.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\dotnet.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\elf.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pdb.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\core_utils.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\rsa.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\core.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\core_internal\license.h">
+      <Filter>src\core_internal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\crypto\SectionCryptor.h">
+      <Filter>src\intel\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelCommand.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelCommandInfo.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelCommandType.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelFunction.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelFunctionList.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelLoader.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelMisc.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelObfuscation.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelOpcodeInfo.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelOperand.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelSDK.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelStack.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\ir\IntelVMCommand.h">
+      <Filter>src\intel\ir</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachine.h">
+      <Filter>src\intel\vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachineList.h">
+      <Filter>src\intel\vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\intel\vm\IntelVirtualMachineProcessor.h">
+      <Filter>src\intel\vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEArchitecture.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEDebug.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEDelayImport.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEDirectory.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEExport.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEFile.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEFixup.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEImport.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEMapFile.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PEResource.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PERuntimeFunction.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PESegment.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PESEHandler.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+    <ClInclude Include="..\core\pe\PETLS.h">
+      <Filter>src\pe</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

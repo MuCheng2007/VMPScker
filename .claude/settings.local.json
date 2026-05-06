@@ -40,7 +40,19 @@
       "Bash(./test_enhanced_protected.exe)",
       "Bash(python *)",
       "Bash(git checkout *)",
-      "Bash(grep *)"
+      "Bash(grep *)",
+      "Bash(git mv *)",
+      "Bash(mv bin/ cpp/)",
+      "Bash(mv tools/ cpp/)",
+      "Bash(cp -r bin/ cpp/bin/)",
+      "Bash(rm -rf bin/)",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(mv Cargo.lock rust/)",
+      "Bash(mv rust-toolchain.toml rust/)",
+      "Bash(mv target/ rust/)",
+      "Bash(mv Doc/ rust/)",
+      "Bash(mv examples/ rust/)"
     ]
   }
 }

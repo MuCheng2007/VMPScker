@@ -520,6 +520,10 @@ pub enum IrOpcode {
     Div { src: IrOperand },
     /// 有符号除法
     Idiv { src: IrOperand },
+    /// 有符号扩展 RAX → RDX:RAX (用于 idiv 前)
+    Cqo,
+    /// 有符号扩展 EAX → EDX:EAX
+    Cdq,
     /// 自增
     Inc { op: IrOperand },
     /// 自减

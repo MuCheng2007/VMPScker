@@ -107,6 +107,11 @@ impl IrConverter {
                 let src = self.convert_memory_operand(instruction, 1)?;
                 Ok(Some(IrOpcode::Lea { dst, src }))
             }
+            Mnemonic::Movsxd | Mnemonic::Movsx | Mnemonic::Movzx => {
+                let dst = self.convert_operand(instruction, 0)?;
+                let src = self.convert_operand(instruction, 1)?;
+                Ok(Some(IrOpcode::Mov { dst, src }))
+            }
             _ => self.convert_generic(instruction),
         }
     }
@@ -150,6 +155,21 @@ impl IrConverter {
                     let src2 = self.convert_operand(instruction, 2)?;
                     Ok(Some(IrOpcode::Imul { dst: Some(dst), src1, src2: Some(src2) }))
                 }
+            }
+            Mnemonic::Mul => {
+                let src = self.convert_operand(instruction, 0)?;
+                Ok(Some(IrOpcode::Mul { src }))
+            }
+            Mnemonic::Div => {
+                let src = self.convert_operand(instruction, 0)?;
+                Ok(Some(IrOpcode::Div { src }))
+            }
+            Mnemonic::Idiv => {
+                let src = self.convert_operand(instruction, 0)?;
+                Ok(Some(IrOpcode::Idiv { src }))
+            }
+            Mnemonic::Cqo | Mnemonic::Cdq => {
+                Ok(Some(IrOpcode::Cqo))
             }
             _ => self.convert_generic(instruction),
         }

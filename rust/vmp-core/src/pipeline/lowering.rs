@@ -154,39 +154,29 @@ impl LoweringPass {
 
                 IrOpcode::Sub { dst, src } => {
                     // Sub = dst - src = dst + NOT(src) + 1 (two's complement)
-                    // NOT(src) = NAND(src, src)
+                    // Compute -src on VM stack without RAX scratch to avoid register corruption
                     Self::compile_operand(&mut vm_ir, src, image_base);    // push src
-                    Self::compile_operand(&mut vm_ir, src, image_base);    // push src (NAND 需要两个相同操作数)
-                    vm_ir.push(VmOpcode::VNand);               // NOT(src), EFLAGS → 保存槽
-                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax))); // RAX = NOT(src)
-                    // -src = NOT(src) + 1
-                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
+                    Self::compile_operand(&mut vm_ir, src, image_base);    // push src
+                    vm_ir.push(VmOpcode::VNand);               // NOT(src)
                     vm_ir.push(VmOpcode::VPushImm32(1));
-                    vm_ir.push(VmOpcode::VAdd);                // -src, EFLAGS → 保存槽
-                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax))); // RAX = -src
+                    vm_ir.push(VmOpcode::VAdd);                // -src = NOT(src) + 1
                     // dst + (-src)
                     Self::compile_operand(&mut vm_ir, dst, image_base);
-                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
-                    vm_ir.push(VmOpcode::VAdd);                // dst - src, EFLAGS → 保存槽
+                    vm_ir.push(VmOpcode::VAdd);                // dst - src
                     Self::compile_operand_save(&mut vm_ir, dst, image_base);
                 }
 
                 IrOpcode::Cmp { op1, op2 } => {
                     // Cmp = op1 - op2, discard result, keep EFLAGS
-                    // NOT(op2) = NAND(op2, op2)
+                    // Compute -op2 on VM stack without RAX scratch
                     Self::compile_operand(&mut vm_ir, op2, image_base);    // push op2
                     Self::compile_operand(&mut vm_ir, op2, image_base);    // push op2
-                    vm_ir.push(VmOpcode::VNand);               // NOT(op2), EFLAGS → 保存槽
-                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
-                    // -op2 = NOT(op2) + 1
-                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
+                    vm_ir.push(VmOpcode::VNand);               // NOT(op2)
                     vm_ir.push(VmOpcode::VPushImm32(1));
-                    vm_ir.push(VmOpcode::VAdd);                // -op2, EFLAGS → 保存槽
-                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
+                    vm_ir.push(VmOpcode::VAdd);                // -op2 = NOT(op2) + 1
                     // op1 + (-op2) = op1 - op2
                     Self::compile_operand(&mut vm_ir, op1, image_base);
-                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
-                    vm_ir.push(VmOpcode::VAdd);                // op1 - op2, EFLAGS → 保存槽
+                    vm_ir.push(VmOpcode::VAdd);                // op1 - op2
                     // 弹出并丢弃结果，EFLAGS 保留在保存槽供 VJcc 使用
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
                 }
@@ -220,7 +210,7 @@ impl LoweringPass {
                 IrOpcode::Mul { src } => {
                     Self::compile_operand(&mut vm_ir, src, image_base);
                     vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
-                    vm_ir.push(VmOpcode::VAdd);     // EFLAGS → slot
+                    vm_ir.push(VmOpcode::VMul);     // RAX * src (low 64 bits)
                     vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
                 }
 
@@ -240,12 +230,12 @@ impl LoweringPass {
                     }
                 }
 
-                IrOpcode::Div { src } | IrOpcode::Idiv { src } => {
-                    Self::compile_operand(&mut vm_ir, src, image_base);
-                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
-                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rdx)));
-                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
-                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rdx)));
+                IrOpcode::Div { .. } | IrOpcode::Idiv { .. } => {
+                    // Division not yet implemented in VM; leave RAX/RDX unchanged.
+                }
+
+                IrOpcode::Cqo | IrOpcode::Cdq => {
+                    // Sign extension not yet implemented in VM; leave RDX unchanged.
                 }
 
                 // === 逻辑指令 ===
@@ -554,8 +544,13 @@ impl LoweringPass {
                     vm_ir.push(VmOpcode::VAdd); // EFLAGS → slot, addr stays on stack
                 }
                 
-                // VWriteMem pops addr first, then value.
-                // Stack is [value, addr] (addr on top), so no swap needed.
+                // 交换地址和值，然后写入内存
+                // 栈顶: [value, addr] -> 需要: [addr, value]
+                vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
+                vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rcx)));
+                vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
+                vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rcx)));
+
                 vm_ir.push(VmOpcode::VWriteMem((mem.size_bits / 8) as u8));
             }
             _ => {}

@@ -144,7 +144,8 @@ impl Instruction {
         use iced_x86::Mnemonic;
         match self.iced.mnemonic() {
             Mnemonic::Nop => InstructionCategory::Nop,
-            Mnemonic::Mov | Mnemonic::Push | Mnemonic::Pop | Mnemonic::Lea | Mnemonic::Xchg => {
+            Mnemonic::Mov | Mnemonic::Movsxd | Mnemonic::Movsx | Mnemonic::Movzx |
+            Mnemonic::Push | Mnemonic::Pop | Mnemonic::Lea | Mnemonic::Xchg => {
                 InstructionCategory::DataTransfer
             }
             Mnemonic::Add
@@ -153,6 +154,8 @@ impl Instruction {
             | Mnemonic::Imul
             | Mnemonic::Div
             | Mnemonic::Idiv
+            | Mnemonic::Cqo
+            | Mnemonic::Cdq
             | Mnemonic::Inc
             | Mnemonic::Dec
             | Mnemonic::Neg

@@ -1,0 +1,167 @@
+set(CORE_SOURCES
+    core_internal/core.cc
+    core_internal/core_utils.cc
+    core_internal/license.cc
+    core_internal/rsa.cc
+    files/utils.cc
+    files/references.cc
+    files/mapping.cc
+    files/sections.cc
+    files/imports.cc
+    files/exports.cc
+    files/fixups.cc
+    files/relocations.cc
+    files/seh.cc
+    files/resources.cc
+    files/runtime_func.cc
+    files/compiler_func.cc
+    files/memory.cc
+    files/markers.cc
+    files/architecture.cc
+    intel/crypto/SectionCryptor.cc
+    intel/ir/IntelCommand.cc
+    intel/ir/IntelCommandInfo.cc
+    intel/ir/IntelFunction.cc
+    intel/ir/IntelFunctionList.cc
+    intel/ir/IntelLoader.cc
+    intel/ir/IntelMisc.cc
+    intel/ir/IntelObfuscation.cc
+    intel/ir/IntelOpcodeInfo.cc
+    intel/ir/IntelOperand.cc
+    intel/ir/IntelSDK.cc
+    intel/ir/IntelStack.cc
+    intel/ir/IntelVMCommand.cc
+    intel/vm/IntelVirtualMachine.cc
+    intel/vm/IntelVirtualMachineList.cc
+    intel/vm/IntelVirtualMachineProcessor.cc
+    objects.cc
+    osutils.cc
+    packer.cc
+    pe/PEDebug.cc
+    pe/PEDelayImport.cc
+    pe/PEDirectory.cc
+    pe/PEExport.cc
+    pe/PEFile.cc
+    pe/PEFixup.cc
+    pe/PEImport.cc
+    pe/PEMapFile.cc
+    pe/PEResource.cc
+    pe/PERuntimeFunction.cc
+    pe/PESegment.cc
+    pe/PESEHandler.cc
+    pe/PETLS.cc
+    pe/PEArchitecture.cc
+    precompiled.cc
+    processors/proc_command.cc
+    processors/proc_command_block.cc
+    processors/proc_command_link.cc
+    processors/proc_crypto.cc
+    processors/proc_function.cc
+    processors/proc_info.cc
+    processors/proc_interfaces.cc
+    processors/proc_types.cc
+    processors/proc_vm.cc
+    streams.cc
+    ../runtime/crypto.cc
+)
+
+set(CORE_HEADERS
+    core_internal/core.h
+    core_internal/core_utils.h
+    core_internal/license.h
+    core_internal/rsa.h
+    files/types.h
+    files/utils.h
+    files/references.h
+    files/mapping.h
+    files/sections.h
+    files/imports.h
+    files/exports.h
+    files/fixups.h
+    files/relocations.h
+    files/seh.h
+    files/runtime_func.h
+    files/compiler_func.h
+    files/memory.h
+    files/markers.h
+    files/architecture.h
+    intel/crypto/SectionCryptor.h
+    intel/ir/IntelCommand.h
+    intel/ir/IntelCommandInfo.h
+    intel/ir/IntelCommandType.h
+    intel/ir/IntelFunction.h
+    intel/ir/IntelFunctionList.h
+    intel/ir/IntelLoader.h
+    intel/ir/IntelMisc.h
+    intel/ir/IntelObfuscation.h
+    intel/ir/IntelOpcodeInfo.h
+    intel/ir/IntelOperand.h
+    intel/ir/IntelSDK.h
+    intel/ir/IntelStack.h
+    intel/ir/IntelVMCommand.h
+    intel/vm/IntelVirtualMachine.h
+    intel/vm/IntelVirtualMachineList.h
+    intel/vm/IntelVirtualMachineProcessor.h
+    objects.h
+    osutils.h
+    packer.h
+    pdb.h
+    pe.h
+    pe/PEDebug.h
+    pe/PEDelayImport.h
+    pe/PEDirectory.h
+    pe/PEExport.h
+    pe/PEFile.h
+    pe/PEFixup.h
+    pe/PEImport.h
+    pe/PEMapFile.h
+    pe/PEResource.h
+    pe/PERuntimeFunction.h
+    pe/PESegment.h
+    pe/PESEHandler.h
+    pe/PETLS.h
+    pe/PEArchitecture.h
+    precompiled.h
+    processors/proc_command.h
+    processors/proc_command_block.h
+    processors/proc_command_link.h
+    processors/proc_crypto.h
+    processors/proc_function.h
+    processors/proc_info.h
+    processors/proc_interfaces.h
+    processors/proc_types.h
+    processors/proc_vm.h
+    streams.h
+    ../runtime/common.h
+    ../runtime/crypto.h
+)
+
+add_library(core STATIC ${CORE_SOURCES} ${CORE_HEADERS})
+
+target_include_directories(core PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../runtime
+)
+
+target_link_libraries(core PUBLIC invariant_core)
+
+if(MSVC)
+    target_compile_options(core PRIVATE /Yu"precompiled.h" /FI"precompiled.h")
+    set_source_files_properties(precompiled.cc PROPERTIES COMPILE_FLAGS "/Yc\"precompiled.h\"")
+    target_link_libraries(core PUBLIC
+        psapi.lib
+        imagehlp.lib
+        kernel32.lib
+        user32.lib
+        gdi32.lib
+        winspool.lib
+        comdlg32.lib
+        advapi32.lib
+        shell32.lib
+        ole32.lib
+        oleaut32.lib
+        uuid.lib
+        odbc32.lib
+        odbccp32.lib
+    )
+endif()

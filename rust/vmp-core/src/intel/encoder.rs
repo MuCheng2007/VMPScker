@@ -184,6 +184,8 @@ impl Encoder {
             IrOpcode::Imul { dst, src1, src2 } => self.encode_imul(dst.as_ref(), src1, src2.as_ref()),
             IrOpcode::Div { src } => self.encode_div(src),
             IrOpcode::Idiv { src } => self.encode_idiv(src),
+            IrOpcode::Cqo => self.encode_cqo(),
+            IrOpcode::Cdq => self.encode_cdq(),
             IrOpcode::Cmp { op1, op2 } => self.encode_cmp(op1, op2),
             IrOpcode::And { dst, src } => self.encode_and(dst, src),
             IrOpcode::Or { dst, src } => self.encode_or(dst, src),
@@ -2135,6 +2137,20 @@ impl Encoder {
     /// 编码 idiv 指令
     fn encode_idiv(&mut self, src: &IrOperand) -> DisassemblyResult<()> {
         self.encode_mul_div(src, 0xF6, 0xF7, 7)
+    }
+
+    /// 编码 cqo 指令 (REX.W + 99)
+    fn encode_cqo(&mut self) -> DisassemblyResult<()> {
+        // REX.W prefix for 64-bit operand size
+        self.output.push(0x48);
+        self.output.push(0x99);
+        Ok(())
+    }
+
+    /// 编码 cdq 指令 (99)
+    fn encode_cdq(&mut self) -> DisassemblyResult<()> {
+        self.output.push(0x99);
+        Ok(())
     }
 
     /// 通用乘除法指令编码

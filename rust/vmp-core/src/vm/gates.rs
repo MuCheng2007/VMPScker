@@ -29,32 +29,42 @@ impl VmGates {
         let entry_offset = asm.instructions().len();
         let ctx = &arch.context;
 
-        // 1. 保存所有原生寄存器到 .vmp0 寄存器缓冲区 (避免污染原生栈)
-        // 保存顺序必须与 VExit 恢复顺序完全逆序！
-        // 索引 15 = EFLAGS (pushfq)
+        // 1. 保存所有原生寄存器到 .vmp0 寄存器缓冲区
+        // 使用 RBP 作为基址 (RBP 不在 VM 寄存器池中，不会冲突)
+        asm.push(rbp)?;
+        asm.mov(rbp, save_area_va)?;
+
+        // 先保存 RAX (释放 RAX 作为临时寄存器)
+        asm.mov(qword_ptr(rbp + 40 + 14 * 8), rax)?;
+
+        // 索引 15 = EFLAGS (使用已保存的 RAX 作为临时寄存器)
         asm.pushfq()?;
-        asm.pop(ctx.scratch1)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 15 * 8), ctx.scratch1)?;
+        asm.pop(rax)?;
+        asm.mov(qword_ptr(rbp + 40 + 15 * 8), rax)?;
 
-        // 索引 14..0: RAX, RCX, RDX, RBX, RBP, RSI, RDI, R8..R15
-        asm.mov(qword_ptr(save_area_va + 40 + 14 * 8), rax)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 13 * 8), rcx)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 12 * 8), rdx)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 11 * 8), rbx)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 10 * 8), rbp)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 9 * 8), rsi)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 8 * 8), rdi)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 7 * 8), r8)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 6 * 8), r9)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 5 * 8), r10)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 4 * 8), r11)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 3 * 8), r12)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 2 * 8), r13)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 1 * 8), r14)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 0 * 8), r15)?;
+        // 索引 13..0: RCX, RDX, RBX, RSI, RDI, R8..R15
+        // (RBP 保存在原生栈中，稍后恢复再保存)
+        asm.mov(qword_ptr(rbp + 40 + 13 * 8), rcx)?;
+        asm.mov(qword_ptr(rbp + 40 + 12 * 8), rdx)?;
+        asm.mov(qword_ptr(rbp + 40 + 11 * 8), rbx)?;
+        // RBP: 稍后从栈中恢复并保存
+        asm.mov(qword_ptr(rbp + 40 + 9 * 8), rsi)?;
+        asm.mov(qword_ptr(rbp + 40 + 8 * 8), rdi)?;
+        asm.mov(qword_ptr(rbp + 40 + 7 * 8), r8)?;
+        asm.mov(qword_ptr(rbp + 40 + 6 * 8), r9)?;
+        asm.mov(qword_ptr(rbp + 40 + 5 * 8), r10)?;
+        asm.mov(qword_ptr(rbp + 40 + 4 * 8), r11)?;
+        asm.mov(qword_ptr(rbp + 40 + 3 * 8), r12)?;
+        asm.mov(qword_ptr(rbp + 40 + 2 * 8), r13)?;
+        asm.mov(qword_ptr(rbp + 40 + 1 * 8), r14)?;
+        asm.mov(qword_ptr(rbp + 40 + 0 * 8), r15)?;
 
-        // 索引 16 = 跟踪的原生 RSP (VPushReg(16)/VPopReg(16) 更新此槽)
-        asm.mov(qword_ptr(save_area_va + 40 + 16 * 8), rsp)?;
+        // 弹出原始 RBP 并保存
+        asm.pop(rcx)?;
+        asm.mov(qword_ptr(rbp + 40 + 10 * 8), rcx)?;
+
+        // 索引 16 = 跟踪的原生 RSP
+        asm.mov(qword_ptr(rbp + 40 + 16 * 8), rsp)?;
 
         // 2. 初始化虚拟上下文
         // VSP 初始化为 RSP_entry - 136 (与旧版语义一致，留出空间)
@@ -121,30 +131,39 @@ impl VmGates {
         let ctx = &arch.context;
 
         // 1. 保存原生上下文到 .vmp0 寄存器缓冲区
-        //    API 返回后，RAX 持有返回值，必须保存
-        //    索引 15 = EFLAGS
-        asm.pushfq()?;
-        asm.pop(ctx.scratch1)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 15 * 8), ctx.scratch1)?;
+        // 使用 RBP 作为基址 (不在 VM 寄存器池中，不会覆盖 RAX 返回值)
+        asm.push(rbp)?;
+        asm.mov(rbp, save_area_va)?;
 
-        asm.mov(qword_ptr(save_area_va + 40 + 14 * 8), rax)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 13 * 8), rcx)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 12 * 8), rdx)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 11 * 8), rbx)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 10 * 8), rbp)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 9 * 8), rsi)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 8 * 8), rdi)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 7 * 8), r8)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 6 * 8), r9)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 5 * 8), r10)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 4 * 8), r11)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 3 * 8), r12)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 2 * 8), r13)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 1 * 8), r14)?;
-        asm.mov(qword_ptr(save_area_va + 40 + 0 * 8), r15)?;
+        // 先保存 RAX (API 返回值，必须在任何 scratch 操作前保存)
+        asm.mov(qword_ptr(rbp + 40 + 14 * 8), rax)?;
+
+        // 索引 15 = EFLAGS (使用已保存的 RAX 作为临时寄存器)
+        asm.pushfq()?;
+        asm.pop(rax)?;
+        asm.mov(qword_ptr(rbp + 40 + 15 * 8), rax)?;
+
+        // 索引 13..0: RCX, RDX, RBX, RSI, RDI, R8..R15
+        asm.mov(qword_ptr(rbp + 40 + 13 * 8), rcx)?;
+        asm.mov(qword_ptr(rbp + 40 + 12 * 8), rdx)?;
+        asm.mov(qword_ptr(rbp + 40 + 11 * 8), rbx)?;
+        asm.mov(qword_ptr(rbp + 40 + 9 * 8), rsi)?;
+        asm.mov(qword_ptr(rbp + 40 + 8 * 8), rdi)?;
+        asm.mov(qword_ptr(rbp + 40 + 7 * 8), r8)?;
+        asm.mov(qword_ptr(rbp + 40 + 6 * 8), r9)?;
+        asm.mov(qword_ptr(rbp + 40 + 5 * 8), r10)?;
+        asm.mov(qword_ptr(rbp + 40 + 4 * 8), r11)?;
+        asm.mov(qword_ptr(rbp + 40 + 3 * 8), r12)?;
+        asm.mov(qword_ptr(rbp + 40 + 2 * 8), r13)?;
+        asm.mov(qword_ptr(rbp + 40 + 1 * 8), r14)?;
+        asm.mov(qword_ptr(rbp + 40 + 0 * 8), r15)?;
+
+        // 弹出 API 调用者的 RBP 并保存
+        asm.pop(rcx)?;
+        asm.mov(qword_ptr(rbp + 40 + 10 * 8), rcx)?;
 
         // 索引 16 = 跟踪的原生 RSP (API 返回后的栈指针)
-        asm.mov(qword_ptr(save_area_va + 40 + 16 * 8), rsp)?;
+        asm.mov(qword_ptr(rbp + 40 + 16 * 8), rsp)?;
 
         // 2. 分配 VM 栈空间
         asm.sub(rsp, 0x2000_i32)?;

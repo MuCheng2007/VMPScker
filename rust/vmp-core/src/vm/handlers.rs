@@ -23,14 +23,22 @@ impl<'a> HandlerGenerator<'a> {
         Self { asm, arch, save_area_va }
     }
 
-    /// 寄存器保存区基址 (.vmp0 中 [save_area + 40])，返回 i64 供 qword_ptr 使用
+    /// 返回寄存器保存区基址 (.vmp0 中 [save_area + 40]) 作为 i64 立即数
     fn reg_save_base(&self) -> i64 {
         self.save_area_va as i64 + 40
     }
 
-    /// 寄存器保存区中指定偏移的内存操作数 (base + offset)
-    fn reg_mem(&self, offset: i32) -> AsmMemoryOperand {
-        qword_ptr(self.reg_save_base() + offset as i64)
+    /// 加载寄存器保存区基址 (.vmp0 中 [save_area + 40]) 到指定寄存器
+    fn load_reg_save_base(&mut self, reg: AsmRegister64) -> Result<(), IcedError> {
+        self.asm.mov(reg, self.save_area_va)?;
+        self.asm.add(reg, 40_i32)?;
+        Ok(())
+    }
+
+    /// 加载 save_area_va 到指定寄存器 (用于访问 save_area 头部)
+    fn load_save_area_va(&mut self, reg: AsmRegister64) -> Result<(), IcedError> {
+        self.asm.mov(reg, self.save_area_va)?;
+        Ok(())
     }
 
     /// 辅助：将 AsmRegister64 转换为对应的 AsmRegister32
@@ -64,8 +72,11 @@ impl<'a> HandlerGenerator<'a> {
     fn save_eflags(&mut self) -> Result<(), IcedError> {
         let ctx = &self.arch.context;
         self.asm.pushfq()?;
-        self.asm.pop(ctx.scratch2)?;
-        self.asm.mov(self.reg_mem(15 * 8), ctx.scratch2)?;
+        self.asm.pop(ctx.scratch2)?;            // scratch2 = EFLAGS
+        self.asm.push(ctx.scratch1)?;           // save result to native stack
+        self.load_reg_save_base(ctx.scratch1)?; // scratch1 = base
+        self.asm.mov(qword_ptr(ctx.scratch1 + 15 * 8), ctx.scratch2)?;
+        self.asm.pop(ctx.scratch1)?;            // restore result
         Ok(())
     }
 
@@ -88,7 +99,8 @@ impl<'a> HandlerGenerator<'a> {
         self.asm.jne(label_rsp_done)?;
 
         // RSP 路径: 从 [base + 16*8] 直接读取跟踪的原生 RSP
-        self.asm.mov(ctx.scratch1, self.reg_mem(16 * 8))?;
+        self.load_reg_save_base(ctx.scratch2)?;
+        self.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 16 * 8))?;
         let mut label_push = self.asm.create_label();
         self.asm.jmp(label_push)?;
 
@@ -136,7 +148,8 @@ impl<'a> HandlerGenerator<'a> {
         self.asm.jne(label_rsp_done)?;
 
         // RSP 路径: 直接写入 (存储实际 RSP 值，无需 -128 变换)
-        self.asm.mov(self.reg_mem(16 * 8), ctx.scratch2)?;
+        self.load_reg_save_base(ctx.scratch1)?;
+        self.asm.mov(qword_ptr(ctx.scratch1 + 16 * 8), ctx.scratch2)?;
         let mut label_dispatch = self.asm.create_label();
         self.asm.jmp(label_dispatch)?;
 
@@ -405,44 +418,46 @@ impl<'a> HandlerGenerator<'a> {
     /// 生成虚拟机退出门 (VMExit)
     /// 恢复物理上下文并跳转到 OEP (原始入口点)
     ///
-    /// 使用 add rsp, 0x2000 定位寄存器保存区，而非依赖可能被 VPopReg(16) 修改的 [rsp + 0x1FF8]。
-    /// 寄存器保存在 .vmp0 中，直接从缓冲区加载。原生 RSP 从 [save+24] 恢复。
+    /// 先使用 scratch2 保存 tracked RSP，再用 r15 作为基址恢复原生寄存器 (r15 最后恢复)。
     pub fn gen_vexit(&mut self, oep_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
-        let reg_base = save_area_va as i64 + 40;
 
-        // 1. 备份最新的原生 RSP 到 [save+24] (从寄存器缓冲区读取，无需 +128)
+        // Save tracked RSP using scratch2 as temp base (safe: doesn't clobber any context reg)
         self.asm.mov(ctx.scratch2, save_area_va)?;
-        self.asm.mov(ctx.scratch1, qword_ptr(reg_base + 16 * 8))?;
+        self.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 40 + 16 * 8))?;
         self.asm.mov(qword_ptr(ctx.scratch2 + 24), ctx.scratch1)?;
 
-        // 2. 从 .vmp0 寄存器缓冲区恢复 15 个通用寄存器
-        self.asm.mov(r15, qword_ptr(reg_base + 0 * 8))?;
-        self.asm.mov(r14, qword_ptr(reg_base + 1 * 8))?;
-        self.asm.mov(r13, qword_ptr(reg_base + 2 * 8))?;
-        self.asm.mov(r12, qword_ptr(reg_base + 3 * 8))?;
-        self.asm.mov(r11, qword_ptr(reg_base + 4 * 8))?;
-        self.asm.mov(r10, qword_ptr(reg_base + 5 * 8))?;
-        self.asm.mov(r9, qword_ptr(reg_base + 6 * 8))?;
-        self.asm.mov(r8, qword_ptr(reg_base + 7 * 8))?;
-        self.asm.mov(rdi, qword_ptr(reg_base + 8 * 8))?;
-        self.asm.mov(rsi, qword_ptr(reg_base + 9 * 8))?;
-        self.asm.mov(rbp, qword_ptr(reg_base + 10 * 8))?;
-        self.asm.mov(rbx, qword_ptr(reg_base + 11 * 8))?;
-        self.asm.mov(rdx, qword_ptr(reg_base + 12 * 8))?;
-        self.asm.mov(rcx, qword_ptr(reg_base + 13 * 8))?;
-        self.asm.mov(rax, qword_ptr(reg_base + 14 * 8))?;
+        // Load r15 as base for register restore (safe to clobber any context reg now)
+        self.asm.mov(r15, save_area_va)?;
 
-        // 恢复 EFLAGS
-        self.asm.push(qword_ptr(reg_base + 15 * 8))?;
+        // Restore R14..RAX (index 1..14), R15 restored last
+        self.asm.mov(r14, qword_ptr(r15 + 40 + 1 * 8))?;
+        self.asm.mov(r13, qword_ptr(r15 + 40 + 2 * 8))?;
+        self.asm.mov(r12, qword_ptr(r15 + 40 + 3 * 8))?;
+        self.asm.mov(r11, qword_ptr(r15 + 40 + 4 * 8))?;
+        self.asm.mov(r10, qword_ptr(r15 + 40 + 5 * 8))?;
+        self.asm.mov(r9, qword_ptr(r15 + 40 + 6 * 8))?;
+        self.asm.mov(r8, qword_ptr(r15 + 40 + 7 * 8))?;
+        self.asm.mov(rdi, qword_ptr(r15 + 40 + 8 * 8))?;
+        self.asm.mov(rsi, qword_ptr(r15 + 40 + 9 * 8))?;
+        self.asm.mov(rbp, qword_ptr(r15 + 40 + 10 * 8))?;
+        self.asm.mov(rbx, qword_ptr(r15 + 40 + 11 * 8))?;
+        self.asm.mov(rdx, qword_ptr(r15 + 40 + 12 * 8))?;
+        self.asm.mov(rcx, qword_ptr(r15 + 40 + 13 * 8))?;
+        self.asm.mov(rax, qword_ptr(r15 + 40 + 14 * 8))?;
+
+        // Restore EFLAGS
+        self.asm.push(qword_ptr(r15 + 40 + 15 * 8))?;
         self.asm.popfq()?;
 
-        // 4. 恢复原生 RSP (从 .vmp0 保存区读取)
-        self.asm.mov(rsp, save_area_va)?;
-        self.asm.mov(rsp, qword_ptr(rsp + 24))?;
+        // Restore native RSP from [save+24]
+        self.asm.mov(rsp, qword_ptr(r15 + 24))?;
 
-        // 5. 跳转到 OEP，不破坏 RAX 中的返回值
+        // Restore R15 LAST (index 0)
+        self.asm.mov(r15, qword_ptr(r15 + 40 + 0 * 8))?;
+
+        // Jump to OEP
         self.asm.mov(r10, oep_va)?;
         self.asm.jmp(r10)?;
 
@@ -510,7 +525,8 @@ impl<'a> HandlerGenerator<'a> {
         self.asm.add(ctx.vip, 4_i32)?;
 
         // 5. 从 .vmp0 寄存器缓冲区读取 EFLAGS (index 15)
-        self.asm.mov(ctx.scratch2, self.reg_mem(15 * 8))?;
+        self.load_reg_save_base(ctx.scratch2)?;
+        self.asm.mov(ctx.scratch2, qword_ptr(ctx.scratch2 + 15 * 8))?;
 
         // 6. 清零 scratch2，然后恢复 EFLAGS
         self.asm.push(ctx.scratch2)?;              // 保存 EFLAGS 值到原生栈
@@ -561,76 +577,67 @@ impl<'a> HandlerGenerator<'a> {
     ///   [save+0]  = VIP (8)
     ///   [save+8]  = VSP (8)
     ///   [save+16] = VKEY (4)
-    ///   [save+24] = Native RSP (8)  — VCall/VExit 恢复用
+    ///   [save+24] = Native RSP (8)
     ///   [save+32] = function address (8)
     ///   [save+40] = 寄存器保存区 (17×8=136 bytes)
     ///
-    /// 关键改进:
-    /// - 寄存器保存区在 .vmp0 中，不污染原生栈
-    /// - 原生 RSP 独立存储在 [save+24]
-    /// - push reentry_va; jmp r10 替代 call r10, 保持栈对齐
+    /// 注册器保存区在 .vmp0 中，不污染原生栈。
+    /// 先使用 scratch2 保存 VM 上下文，再用 r15 作为基址恢复原生寄存器 (r15 最后恢复)。
     pub fn gen_vcall(&mut self, _arg_count: u8, reentry_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
-        let reg_base = save_area_va as i64 + 40; // 寄存器保存区基址 (i64 供 qword_ptr)
 
-        // 1. Pop function address from VM stack
+        // Phase 1: Pop func addr from VM stack
         self.vpop(ctx.scratch1)?;
 
-        // 1.5. Skip the 4-byte arg_count operand in bytecode.
-        self.asm.add(ctx.vip, 4_i32)?;
-
-        // 2. Save VM context to .vmp0 save area
+        // Phase 2: Save VM context using scratch2 as temp base
         self.asm.mov(ctx.scratch2, save_area_va)?;
-        self.asm.mov(qword_ptr(ctx.scratch2), ctx.vip)?;          // [save+0]  = VIP
-        self.asm.mov(qword_ptr(ctx.scratch2 + 8), ctx.vsp)?;      // [save+8]  = VSP
-        self.asm.mov(dword_ptr(ctx.scratch2 + 16), ctx.vkey_32)?; // [save+16] = VKEY
-        self.asm.mov(qword_ptr(ctx.scratch2 + 32), ctx.scratch1)?;// [save+32] = 目标API地址
+        self.asm.mov(qword_ptr(ctx.scratch2), ctx.vip)?;               // [save+0]  = VIP
+        self.asm.mov(qword_ptr(ctx.scratch2 + 8), ctx.vsp)?;           // [save+8]  = VSP
+        self.asm.mov(dword_ptr(ctx.scratch2 + 16), ctx.vkey_32)?;      // [save+16] = VKEY
+        self.asm.mov(qword_ptr(ctx.scratch2 + 32), ctx.scratch1)?;     // [save+32] = func addr
 
-        // 3. 将最新的原生 RSP 写入 [save+24] (从寄存器保存区读取，无需 +128)
-        self.asm.mov(ctx.scratch1, qword_ptr(reg_base + 16 * 8))?;
+        // Save tracked native RSP to [save+24]
+        self.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 40 + 16 * 8))?;
         self.asm.mov(qword_ptr(ctx.scratch2 + 24), ctx.scratch1)?;
 
-        // === Leaving VM, restoring native state ===
+        // === VM context ops complete. Safe to clobber r15 for register restore. ===
 
-        // 4. 从 .vmp0 寄存器缓冲区恢复 15 个通用寄存器 (逆序)
-        //    顺序: R15..RAX (索引 0..14)
-        self.asm.mov(r15, qword_ptr(reg_base + 0 * 8))?;
-        self.asm.mov(r14, qword_ptr(reg_base + 1 * 8))?;
-        self.asm.mov(r13, qword_ptr(reg_base + 2 * 8))?;
-        self.asm.mov(r12, qword_ptr(reg_base + 3 * 8))?;
-        self.asm.mov(r11, qword_ptr(reg_base + 4 * 8))?;
-        self.asm.mov(r10, qword_ptr(reg_base + 5 * 8))?;
-        self.asm.mov(r9, qword_ptr(reg_base + 6 * 8))?;
-        self.asm.mov(r8, qword_ptr(reg_base + 7 * 8))?;
-        self.asm.mov(rdi, qword_ptr(reg_base + 8 * 8))?;
-        self.asm.mov(rsi, qword_ptr(reg_base + 9 * 8))?;
-        self.asm.mov(rbp, qword_ptr(reg_base + 10 * 8))?;
-        self.asm.mov(rbx, qword_ptr(reg_base + 11 * 8))?;
-        self.asm.mov(rdx, qword_ptr(reg_base + 12 * 8))?;
-        self.asm.mov(rcx, qword_ptr(reg_base + 13 * 8))?;
-        self.asm.mov(rax, qword_ptr(reg_base + 14 * 8))?;
+        // Phase 3: Load r15 as base for register restore (r15 restored last)
+        self.asm.mov(r15, save_area_va)?;
 
-        // 恢复 EFLAGS: push [reg_base+15*8]; popfq
-        self.asm.push(qword_ptr(reg_base + 15 * 8))?;
+        // Restore R14..RAX (index 1..14)
+        self.asm.mov(r14, qword_ptr(r15 + 40 + 1 * 8))?;
+        self.asm.mov(r13, qword_ptr(r15 + 40 + 2 * 8))?;
+        self.asm.mov(r12, qword_ptr(r15 + 40 + 3 * 8))?;
+        self.asm.mov(r11, qword_ptr(r15 + 40 + 4 * 8))?;
+        self.asm.mov(r10, qword_ptr(r15 + 40 + 5 * 8))?;
+        self.asm.mov(r9, qword_ptr(r15 + 40 + 6 * 8))?;
+        self.asm.mov(r8, qword_ptr(r15 + 40 + 7 * 8))?;
+        self.asm.mov(rdi, qword_ptr(r15 + 40 + 8 * 8))?;
+        self.asm.mov(rsi, qword_ptr(r15 + 40 + 9 * 8))?;
+        self.asm.mov(rbp, qword_ptr(r15 + 40 + 10 * 8))?;
+        self.asm.mov(rbx, qword_ptr(r15 + 40 + 11 * 8))?;
+        self.asm.mov(rdx, qword_ptr(r15 + 40 + 12 * 8))?;
+        self.asm.mov(rcx, qword_ptr(r15 + 40 + 13 * 8))?;
+        self.asm.mov(rax, qword_ptr(r15 + 40 + 14 * 8))?;
+
+        // Restore EFLAGS
+        self.asm.push(qword_ptr(r15 + 40 + 15 * 8))?;
         self.asm.popfq()?;
 
-        // === Now fully in native state ===
+        // Restore native RSP
+        self.asm.mov(rsp, qword_ptr(r15 + 24))?;
 
-        // 6. 恢复物理 RSP 到最新的 Native RSP
-        //    直接从 .vmp0 保存区解引用, 不污染任何传参寄存器
-        self.asm.mov(rsp, save_area_va)?;
-        self.asm.mov(rsp, qword_ptr(rsp + 24))?;
+        // Load function address into r10 (before restoring r15)
+        self.asm.mov(r10, qword_ptr(r15 + 32))?;
 
-        // 7. R10 = API 函数地址 (R10 是易失性寄存器, 不用于传参)
-        self.asm.mov(r10, save_area_va)?;
-        self.asm.mov(r10, qword_ptr(r10 + 32))?;
+        // Restore r15 LAST (index 0)
+        self.asm.mov(r15, qword_ptr(r15 + 40 + 0 * 8))?;
 
-        // 8. 将重入桩地址压入真实 Native 栈, 伪造 CALL 行为
+        // Push reentry stub address, jump to API
         self.asm.mov(r11, reentry_va)?;
         self.asm.push(r11)?;
-
-        // 9. JMP 进入 API (API 的 ret 会弹出 reentry_va 并跳转到重入桩)
         self.asm.jmp(r10)?;
 
         Ok(offset)

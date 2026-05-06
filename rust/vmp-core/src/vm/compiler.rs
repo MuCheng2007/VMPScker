@@ -105,11 +105,8 @@ impl<'a> BytecodeCompiler<'a> {
                             bytecode.extend_from_slice(&cipher_hi.to_le_bytes());
                             current_key = current_key.wrapping_add(hi);
                         }
-                        VmOpcode::VCall(arg_count) => {
-                            let plain_arg = *arg_count as u32;
-                            let cipher_arg = self.arch.opcode_cryptor.encrypt(plain_arg, current_key);
-                            bytecode.extend_from_slice(&cipher_arg.to_le_bytes());
-                            current_key = current_key.wrapping_add(plain_arg);
+                        VmOpcode::VCall(_) => {
+                            // VCall has no inline operand — func addr is on the VM stack
                         }
                         _ => {}
                     }

@@ -554,13 +554,8 @@ impl LoweringPass {
                     vm_ir.push(VmOpcode::VAdd); // EFLAGS → slot, addr stays on stack
                 }
                 
-                // 交换地址和值，然后写入内存
-                // 栈顶: [value, addr] -> 需要: [addr, value]
-                vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
-                vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rcx)));
-                vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
-                vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rcx)));
-                
+                // VWriteMem pops addr first, then value.
+                // Stack is [value, addr] (addr on top), so no swap needed.
                 vm_ir.push(VmOpcode::VWriteMem((mem.size_bits / 8) as u8));
             }
             _ => {}

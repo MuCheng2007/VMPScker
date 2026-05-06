@@ -47,7 +47,7 @@ impl VmPayload {
 
         let temp_table_va = new_section_va;
         let temp_bytecode_va = new_section_va;
-        VmGates::gen_vmentry(&mut asm, arch, temp_table_va, temp_bytecode_va)?;
+        VmGates::gen_vmentry(&mut asm, arch, temp_table_va, temp_bytecode_va, 0)?;
 
         let mut handler_gen = HandlerGenerator::new(&mut asm, arch);
         let mut handler_offsets: std::collections::HashMap<VmOpcode, (usize, usize)> =
@@ -80,7 +80,7 @@ impl VmPayload {
 
         // 布局: [code] [save_area(40)] [handler_table(2048)] [bytecode]
         let save_area_offset = code_size;
-        let save_area_size = 40usize; // VIP(8) + VSP(8) + VKEY(4) + padding(4) + scratch(8) + scratch(8)
+        let save_area_size = 176usize; // VIP(8)+VSP(8)+VKEY(4)+pad(4)+NativeRSP(8)+func_addr(8) + reg_save_area(17*8=136)
         let table_offset = save_area_offset + save_area_size;
         let table_size = 256 * 8;
         let bytecode_offset = table_offset + table_size;
@@ -105,10 +105,10 @@ impl VmPayload {
 
         // 1. 重新生成 VM_Entry
         let (final_entry_idx, _) =
-            VmGates::gen_vmentry(&mut final_asm, arch, table_va, bytecode_va)?;
+            VmGates::gen_vmentry(&mut final_asm, arch, table_va, bytecode_va, save_area_va)?;
 
-        // 2. 重新生成所有 Handlers (VCall 使用实际地址)
-        let mut final_handler_gen = HandlerGenerator::new(&mut final_asm, arch);
+        // 2. 重新生成所有 Handlers (VCall 使用实际地址，save_area_va 提供给寄存器保存区访问)
+        let mut final_handler_gen = HandlerGenerator::with_save_area(&mut final_asm, arch, save_area_va);
         let mut final_handler_offsets: std::collections::HashMap<VmOpcode, (usize, usize)> =
             std::collections::HashMap::new();
 
@@ -167,8 +167,8 @@ impl VmPayload {
 
         // 6. 合并: code + save_area(zeros) + handler_table + bytecode
         let mut final_binary = final_code_bytes;
-        // Save area (40 bytes, zeroed — will be written at runtime by VCall)
-        final_binary.extend_from_slice(&[0u8; 40]);
+        // Save area (176 bytes: 40 header + 136 register buffer, zeroed — written at runtime)
+        final_binary.extend_from_slice(&[0u8; 176]);
         final_binary.extend_from_slice(&handler_table_bytes);
         final_binary.extend_from_slice(bytecode);
 

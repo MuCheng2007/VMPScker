@@ -344,7 +344,8 @@ pub fn encrypt_and_write_pe(input: PathBuf, output: PathBuf) -> Result<(), Box<d
         })
         .collect();
 
-    LoweringPass::run_with_range(&mut nodes, code_start, code_end);
+    let image_base = pe_file.image_base();
+    LoweringPass::run_with_range_and_base(&mut nodes, code_start, code_end, image_base);
 
     let mut all_vm_ir = Vec::new();
     for node in &nodes {
@@ -366,7 +367,6 @@ pub fn encrypt_and_write_pe(input: PathBuf, output: PathBuf) -> Result<(), Box<d
     // 5. 计算新节区 RVA 并构建 VM 载荷
     println!("\n[5/7] 构建 VM 载荷...");
     let section_alignment = 0x1000u64;
-    let image_base = pe_file.image_base();
 
     let new_section_rva = if let Some(pe) = pe_file.pe() {
         if let Some(last_sec) = pe.sections.last() {

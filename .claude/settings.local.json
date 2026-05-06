@@ -52,7 +52,13 @@
       "Bash(mv rust-toolchain.toml rust/)",
       "Bash(mv target/ rust/)",
       "Bash(mv Doc/ rust/)",
-      "Bash(mv examples/ rust/)"
+      "Bash(mv examples/ rust/)",
+      "Bash(./rust/target/release/vmp.exe --help)",
+      "Bash(./rust/target/release/vmp.exe protect *)",
+      "Bash(./rust/target/release/vmp.exe encrypt-vm *)",
+      "Bash(cp *)",
+      "Bash(./ConsoleApplication1_encrypted.exe)",
+      "Bash(echo \"Exit: $?\")"
     ]
   }
 }

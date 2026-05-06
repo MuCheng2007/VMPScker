@@ -11,11 +11,26 @@ use iced_x86::IcedError;
 pub struct HandlerGenerator<'a> {
     pub asm: &'a mut CodeAssembler,
     pub arch: &'a ArchConfig,
+    pub save_area_va: u64,
 }
 
 impl<'a> HandlerGenerator<'a> {
     pub fn new(asm: &'a mut CodeAssembler, arch: &'a ArchConfig) -> Self {
-        Self { asm, arch }
+        Self { asm, arch, save_area_va: 0 }
+    }
+
+    pub fn with_save_area(asm: &'a mut CodeAssembler, arch: &'a ArchConfig, save_area_va: u64) -> Self {
+        Self { asm, arch, save_area_va }
+    }
+
+    /// 寄存器保存区基址 (.vmp0 中 [save_area + 40])，返回 i64 供 qword_ptr 使用
+    fn reg_save_base(&self) -> i64 {
+        self.save_area_va as i64 + 40
+    }
+
+    /// 寄存器保存区中指定偏移的内存操作数 (base + offset)
+    fn reg_mem(&self, offset: i32) -> AsmMemoryOperand {
+        qword_ptr(self.reg_save_base() + offset as i64)
     }
 
     /// 辅助：将 AsmRegister64 转换为对应的 AsmRegister32
@@ -45,22 +60,21 @@ impl<'a> HandlerGenerator<'a> {
         Ok(())
     }
 
-    /// 辅助：保存当前 EFLAGS 到原生栈的 EFLAGS 保存槽 (index 15)
-    /// 保存区域在 [RSP + 0x2000]，EFLAGS 在 index 15 = offset 120
-    /// (VM_Entry 中 pushfq 是第一个 push，位于最高地址)
+    /// 辅助：保存当前 EFLAGS 到 .vmp0 寄存器保存区的 EFLAGS 槽 (index 15)
     fn save_eflags(&mut self) -> Result<(), IcedError> {
         let ctx = &self.arch.context;
         self.asm.pushfq()?;
         self.asm.pop(ctx.scratch2)?;
-        self.asm.mov(qword_ptr(rsp + 0x2000 + 15 * 8), ctx.scratch2)?;
+        self.asm.mov(self.reg_mem(15 * 8), ctx.scratch2)?;
         Ok(())
     }
 
-    /// 生成 VPushReg 处理器 (从 Native Context 读取寄存器并压栈)
-    /// 索引 16 是 RSP 哨兵值，handler 运行时实时计算 RSP_original 而不读保存槽
+    /// 生成 VPushReg 处理器 (从 .vmp0 寄存器缓冲区读取寄存器并压栈)
+    /// 索引 16 = 原生 RSP (从 [+40+16*8] 读取跟踪的原生 RSP)
     pub fn gen_vpush_reg(&mut self) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
+        let base = self.reg_save_base();
 
         // 1. 从字节码读取寄存器偏移量 (加密的)
         self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
@@ -68,24 +82,20 @@ impl<'a> HandlerGenerator<'a> {
         self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
         self.asm.add(ctx.vkey_32, ctx.scratch1_32)?;
 
-        // 2. 哨兵检查：索引 16 = RSP，需要实时计算而非读保存槽
+        // 2. 哨兵检查：索引 16 = Native RSP (直接存储，无需 +128)
         let mut label_rsp_done = self.asm.create_label();
         self.asm.cmp(ctx.scratch1_32, 16_i32)?;
         self.asm.jne(label_rsp_done)?;
 
-        // RSP 路径: 从 [rsp + 0x1FF8] 读取保存的 RSP_vm (= RSP_original - 128)
-        // RSP_original = [rsp + 0x1FF8] + 128
-        self.asm.mov(ctx.scratch1, qword_ptr(rsp + 0x1FF8))?;
-        self.asm.add(ctx.scratch1, 128_i32)?;
-        // 跳过正常路径，直接到 push
+        // RSP 路径: 从 [base + 16*8] 直接读取跟踪的原生 RSP
+        self.asm.mov(ctx.scratch1, self.reg_mem(16 * 8))?;
         let mut label_push = self.asm.create_label();
         self.asm.jmp(label_push)?;
 
-        // 正常路径: 从保存区域读取 (rsp + 0x2000 + index*8)
+        // 正常路径: 从寄存器保存区读取 (base + index*8)
         self.asm.set_label(&mut label_rsp_done)?;
         self.asm.shl(ctx.scratch1_32, 3_i32)?; // scratch1 = index * 8
-        self.asm.mov(ctx.scratch2, rsp)?;
-        self.asm.add(ctx.scratch2, 0x2000_i32)?;
+        self.asm.mov(ctx.scratch2, base)?;
         self.asm.add(ctx.scratch2, ctx.scratch1)?;
         self.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2))?;
 
@@ -104,11 +114,12 @@ impl<'a> HandlerGenerator<'a> {
         Ok((label_offset, end_offset))
     }
 
-    /// 生成 VPopReg 处理器 (从虚拟栈弹出数据到 Native Context)
-    /// 索引 16 是 RSP 哨兵值，写入时更新 [rsp + 0x1FF8] 保存的 RSP_vm
+    /// 生成 VPopReg 处理器 (从虚拟栈弹出数据到 .vmp0 寄存器缓冲区)
+    /// 索引 16 = 原生 RSP (直接写入 [+40+16*8]，无需 -128)
     pub fn gen_vpop_reg(&mut self) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
+        let base = self.reg_save_base();
 
         // 1. 从字节码读取寄存器偏移量
         self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
@@ -119,25 +130,26 @@ impl<'a> HandlerGenerator<'a> {
         // 2. 从虚拟栈弹出值到 scratch2
         self.vpop(ctx.scratch2)?;
 
-        // 3. 哨兵检查：索引 16 = RSP
+        // 3. 哨兵检查：索引 16 = Native RSP (直接存储实际值)
         let mut label_rsp_done = self.asm.create_label();
         self.asm.cmp(ctx.scratch1_32, 16_i32)?;
         self.asm.jne(label_rsp_done)?;
 
-        // RSP 路径: [rsp + 0x1FF8] = popped_value - 128 (保存为 RSP_vm 格式)
-        self.asm.mov(ctx.scratch1, ctx.scratch2)?;  // scratch1 = new RSP_original
-        self.asm.sub(ctx.scratch1, 128_i32)?;        // scratch1 = new RSP_vm
-        self.asm.mov(qword_ptr(rsp + 0x1FF8), ctx.scratch1)?;
-        // 跳过正常路径
+        // RSP 路径: 直接写入 (存储实际 RSP 值，无需 -128 变换)
+        self.asm.mov(self.reg_mem(16 * 8), ctx.scratch2)?;
         let mut label_dispatch = self.asm.create_label();
         self.asm.jmp(label_dispatch)?;
 
-        // 正常路径: 写入保存区域
+        // 正常路径: 写入寄存器保存区 (base + index*8)
+        //  scratch2 = value to write, scratch1_32 = raw index
         self.asm.set_label(&mut label_rsp_done)?;
-        self.asm.shl(ctx.scratch1_32, 3_i32)?; // scratch1 = index * 8
-        self.asm.add(ctx.scratch1, rsp)?;
-        self.asm.add(ctx.scratch1, 0x2000_i32)?;
-        self.asm.mov(qword_ptr(ctx.scratch1), ctx.scratch2)?;
+        self.asm.shl(ctx.scratch1_32, 3_i32)?; // scratch1 (64) = index * 8 (zero-extended)
+        // 暂存 value 到原生栈以释放 scratch2 用于地址计算
+        self.asm.push(ctx.scratch2)?;
+        self.asm.mov(ctx.scratch2, base)?;       // scratch2 = base (64-bit imm)
+        self.asm.add(ctx.scratch2, ctx.scratch1)?;// scratch2 = base + index*8
+        self.asm.pop(ctx.scratch1)?;              // scratch1 = value
+        self.asm.mov(qword_ptr(ctx.scratch2), ctx.scratch1)?; // [base+index*8] = value
 
         self.asm.set_label(&mut label_dispatch)?;
         DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
@@ -394,27 +406,36 @@ impl<'a> HandlerGenerator<'a> {
     /// 恢复物理上下文并跳转到 OEP (原始入口点)
     ///
     /// 使用 add rsp, 0x2000 定位寄存器保存区，而非依赖可能被 VPopReg(16) 修改的 [rsp + 0x1FF8]。
-    /// 原生 RSP 从 .vmp0 保存区 [save+24] 恢复，实现寄存器恢复与栈恢复的彻底解耦。
+    /// 寄存器保存在 .vmp0 中，直接从缓冲区加载。原生 RSP 从 [save+24] 恢复。
     pub fn gen_vexit(&mut self, oep_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
+        let reg_base = save_area_va as i64 + 40;
 
-        // 1. 备份最新的原生 RSP 到 [save+24]
-        self.asm.mov(ctx.scratch1, qword_ptr(rsp + 0x1FF8))?;
-        self.asm.add(ctx.scratch1, 128_i32)?;
+        // 1. 备份最新的原生 RSP 到 [save+24] (从寄存器缓冲区读取，无需 +128)
         self.asm.mov(ctx.scratch2, save_area_va)?;
+        self.asm.mov(ctx.scratch1, qword_ptr(reg_base + 16 * 8))?;
         self.asm.mov(qword_ptr(ctx.scratch2 + 24), ctx.scratch1)?;
 
-        // 2. 指向真实的寄存器保存区 (永远在 RSP_vm + 0x2000)
-        self.asm.add(rsp, 0x2000_i32)?;
+        // 2. 从 .vmp0 寄存器缓冲区恢复 15 个通用寄存器
+        self.asm.mov(r15, qword_ptr(reg_base + 0 * 8))?;
+        self.asm.mov(r14, qword_ptr(reg_base + 1 * 8))?;
+        self.asm.mov(r13, qword_ptr(reg_base + 2 * 8))?;
+        self.asm.mov(r12, qword_ptr(reg_base + 3 * 8))?;
+        self.asm.mov(r11, qword_ptr(reg_base + 4 * 8))?;
+        self.asm.mov(r10, qword_ptr(reg_base + 5 * 8))?;
+        self.asm.mov(r9, qword_ptr(reg_base + 6 * 8))?;
+        self.asm.mov(r8, qword_ptr(reg_base + 7 * 8))?;
+        self.asm.mov(rdi, qword_ptr(reg_base + 8 * 8))?;
+        self.asm.mov(rsi, qword_ptr(reg_base + 9 * 8))?;
+        self.asm.mov(rbp, qword_ptr(reg_base + 10 * 8))?;
+        self.asm.mov(rbx, qword_ptr(reg_base + 11 * 8))?;
+        self.asm.mov(rdx, qword_ptr(reg_base + 12 * 8))?;
+        self.asm.mov(rcx, qword_ptr(reg_base + 13 * 8))?;
+        self.asm.mov(rax, qword_ptr(reg_base + 14 * 8))?;
 
-        // 3. 安全弹出所有原生寄存器
-        let regs_reversed = [
-            r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rbx, rdx, rcx, rax,
-        ];
-        for reg in regs_reversed.iter() {
-            self.asm.pop(*reg)?;
-        }
+        // 恢复 EFLAGS
+        self.asm.push(qword_ptr(reg_base + 15 * 8))?;
         self.asm.popfq()?;
 
         // 4. 恢复原生 RSP (从 .vmp0 保存区读取)
@@ -488,9 +509,8 @@ impl<'a> HandlerGenerator<'a> {
         // 4. VIP += 4 (跳过操作数)
         self.asm.add(ctx.vip, 4_i32)?;
 
-        // 5. 从 EFLAGS 保存槽读取标志 (index 15, offset 120)
-        //    保存区域在 [RSP + 0x2000]，EFLAGS 在 +120 (pushfq 是第一个 push，最高地址)
-        self.asm.mov(ctx.scratch2, qword_ptr(rsp + 0x2000 + 15 * 8))?;
+        // 5. 从 .vmp0 寄存器缓冲区读取 EFLAGS (index 15)
+        self.asm.mov(ctx.scratch2, self.reg_mem(15 * 8))?;
 
         // 6. 清零 scratch2，然后恢复 EFLAGS
         self.asm.push(ctx.scratch2)?;              // 保存 EFLAGS 值到原生栈
@@ -537,20 +557,22 @@ impl<'a> HandlerGenerator<'a> {
 
     /// 生成 VCall 处理器 (执行原生函数调用并重入 VM)
     ///
-    /// Save area layout (40 bytes):
+    /// Save area layout (176 bytes):
     ///   [save+0]  = VIP (8)
     ///   [save+8]  = VSP (8)
     ///   [save+16] = VKEY (4)
-    ///   [save+24] = Native RSP (8)  ← 新增: 解耦寄存器保存区与原生栈
+    ///   [save+24] = Native RSP (8)  — VCall/VExit 恢复用
     ///   [save+32] = function address (8)
+    ///   [save+40] = 寄存器保存区 (17×8=136 bytes)
     ///
     /// 关键改进:
-    /// - 使用 add rsp, 0x2000 直接定位寄存器保存区, 而非依赖可能被修改的 [rsp + 0x1FF8]
-    /// - 原生 RSP 独立存储在 [save+24], 寄存器恢复后再切换栈
+    /// - 寄存器保存区在 .vmp0 中，不污染原生栈
+    /// - 原生 RSP 独立存储在 [save+24]
     /// - push reentry_va; jmp r10 替代 call r10, 保持栈对齐
     pub fn gen_vcall(&mut self, _arg_count: u8, reentry_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
+        let reg_base = save_area_va as i64 + 40; // 寄存器保存区基址 (i64 供 qword_ptr)
 
         // 1. Pop function address from VM stack
         self.vpop(ctx.scratch1)?;
@@ -565,23 +587,32 @@ impl<'a> HandlerGenerator<'a> {
         self.asm.mov(dword_ptr(ctx.scratch2 + 16), ctx.vkey_32)?; // [save+16] = VKEY
         self.asm.mov(qword_ptr(ctx.scratch2 + 32), ctx.scratch1)?;// [save+32] = 目标API地址
 
-        // 3. 将最新的原生 RSP 写入 [save+24]
-        self.asm.mov(ctx.scratch1, qword_ptr(rsp + 0x1FF8))?;
-        self.asm.add(ctx.scratch1, 128_i32)?;
+        // 3. 将最新的原生 RSP 写入 [save+24] (从寄存器保存区读取，无需 +128)
+        self.asm.mov(ctx.scratch1, qword_ptr(reg_base + 16 * 8))?;
         self.asm.mov(qword_ptr(ctx.scratch2 + 24), ctx.scratch1)?;
 
         // === Leaving VM, restoring native state ===
 
-        // 4. 将物理 RSP 对齐到真实的寄存器保存区 (永远在 RSP_vm + 0x2000)
-        self.asm.add(rsp, 0x2000_i32)?;
+        // 4. 从 .vmp0 寄存器缓冲区恢复 15 个通用寄存器 (逆序)
+        //    顺序: R15..RAX (索引 0..14)
+        self.asm.mov(r15, qword_ptr(reg_base + 0 * 8))?;
+        self.asm.mov(r14, qword_ptr(reg_base + 1 * 8))?;
+        self.asm.mov(r13, qword_ptr(reg_base + 2 * 8))?;
+        self.asm.mov(r12, qword_ptr(reg_base + 3 * 8))?;
+        self.asm.mov(r11, qword_ptr(reg_base + 4 * 8))?;
+        self.asm.mov(r10, qword_ptr(reg_base + 5 * 8))?;
+        self.asm.mov(r9, qword_ptr(reg_base + 6 * 8))?;
+        self.asm.mov(r8, qword_ptr(reg_base + 7 * 8))?;
+        self.asm.mov(rdi, qword_ptr(reg_base + 8 * 8))?;
+        self.asm.mov(rsi, qword_ptr(reg_base + 9 * 8))?;
+        self.asm.mov(rbp, qword_ptr(reg_base + 10 * 8))?;
+        self.asm.mov(rbx, qword_ptr(reg_base + 11 * 8))?;
+        self.asm.mov(rdx, qword_ptr(reg_base + 12 * 8))?;
+        self.asm.mov(rcx, qword_ptr(reg_base + 13 * 8))?;
+        self.asm.mov(rax, qword_ptr(reg_base + 14 * 8))?;
 
-        // 5. 安全弹出 15 个通用寄存器和 EFLAGS
-        let regs_reversed = [
-            r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rbp, rbx, rdx, rcx, rax,
-        ];
-        for reg in regs_reversed.iter() {
-            self.asm.pop(*reg)?;
-        }
+        // 恢复 EFLAGS: push [reg_base+15*8]; popfq
+        self.asm.push(qword_ptr(reg_base + 15 * 8))?;
         self.asm.popfq()?;
 
         // === Now fully in native state ===

@@ -19,6 +19,10 @@ pub enum VmOpcode {
     VNor,
     /// 栈顶两个元素相乘: POP B, POP A, PUSH (A*B)
     VMul,
+    /// 无符号除法: POP Divisor, POP Dividend, PUSH (Dividend / Divisor)
+    VDiv,
+    /// 有符号除法: POP Divisor, POP Dividend, PUSH (Dividend / Divisor)
+    VIdiv,
     
     /// 从当前上下文 (Native Context) 读取寄存器压入虚拟栈
     /// 这里的 u8 是该寄存器在 Context 数组中的偏移/索引

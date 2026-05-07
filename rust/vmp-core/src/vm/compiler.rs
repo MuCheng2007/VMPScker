@@ -205,6 +205,8 @@ impl<'a> BytecodeCompiler<'a> {
             VmOpcode::VJmp(_) => VmOpcode::VJmp(0),
             VmOpcode::VReadMem(_) => VmOpcode::VReadMem(0),
             VmOpcode::VWriteMem(_) => VmOpcode::VWriteMem(0),
+            VmOpcode::VDiv => VmOpcode::VDiv,
+            VmOpcode::VIdiv => VmOpcode::VIdiv,
             _ => ir.clone(),
         }
     }

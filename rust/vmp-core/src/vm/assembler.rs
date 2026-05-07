@@ -59,6 +59,8 @@ impl VmPayload {
         handler_offsets.insert(VmOpcode::VNand, handler_gen.gen_vnand_with_label()?);
         handler_offsets.insert(VmOpcode::VNor, handler_gen.gen_vnor_with_label()?);
         handler_offsets.insert(VmOpcode::VMul, handler_gen.gen_vmul_with_label()?);
+        handler_offsets.insert(VmOpcode::VDiv, handler_gen.gen_vdiv_with_label()?);
+        handler_offsets.insert(VmOpcode::VIdiv, handler_gen.gen_vidiv_with_label()?);
         handler_offsets.insert(VmOpcode::VPushImm32(0), handler_gen.gen_vpush_imm32_with_label()?);
         handler_offsets.insert(VmOpcode::VPushImm64(0), handler_gen.gen_vpush_imm64_with_label()?);
         handler_offsets.insert(VmOpcode::VPushReg(0), handler_gen.gen_vpush_reg_with_label()?);
@@ -121,6 +123,8 @@ impl VmPayload {
         final_handler_offsets.insert(VmOpcode::VNand, final_handler_gen.gen_vnand_with_label()?);
         final_handler_offsets.insert(VmOpcode::VNor, final_handler_gen.gen_vnor_with_label()?);
         final_handler_offsets.insert(VmOpcode::VMul, final_handler_gen.gen_vmul_with_label()?);
+        final_handler_offsets.insert(VmOpcode::VDiv, final_handler_gen.gen_vdiv_with_label()?);
+        final_handler_offsets.insert(VmOpcode::VIdiv, final_handler_gen.gen_vidiv_with_label()?);
         final_handler_offsets.insert(VmOpcode::VPushImm32(0), final_handler_gen.gen_vpush_imm32_with_label()?);
         final_handler_offsets.insert(VmOpcode::VPushImm64(0), final_handler_gen.gen_vpush_imm64_with_label()?);
         final_handler_offsets.insert(VmOpcode::VPushReg(0), final_handler_gen.gen_vpush_reg_with_label()?);

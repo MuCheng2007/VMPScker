@@ -74,7 +74,8 @@
       "Bash(objdump -d -M intel --start-address=0x1096 --stop-address=0x1379 \"E:/Test_C++/ConsoleApplication1/x64/Release/ConsoleApplication1.exe\")",
       "Bash(objdump -d -M intel --start-address=0x9000 --stop-address=0xA000 \"E:/VMPScker/test_vm_protected.exe\")",
       "Bash(./ConsoleApplication1_protected_test.exe)",
-      "Bash(\"E:\\\\VMPScker\\\\ConsoleApplication1_protected.exe\")"
+      "Bash(\"E:\\\\VMPScker\\\\ConsoleApplication1_protected.exe\")",
+      "Bash(E:/VMPScker/ConsoleApplication1_protected.exe *)"
     ]
   }
 }

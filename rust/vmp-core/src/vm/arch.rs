@@ -189,6 +189,7 @@ impl ArchConfig {
         let core_ops = vec![
             VmOpcode::VNop, VmOpcode::VAdd, VmOpcode::VSub,
             VmOpcode::VXor, VmOpcode::VNand, VmOpcode::VNor, VmOpcode::VMul,
+            VmOpcode::VDiv, VmOpcode::VIdiv,
             VmOpcode::VJmp(0), VmOpcode::VCall(0), VmOpcode::VExit,
             VmOpcode::VPushImm32(0), VmOpcode::VPushImm64(0), VmOpcode::VPushReg(0), VmOpcode::VPopReg(0),
             VmOpcode::VReadMem(0), VmOpcode::VWriteMem(0), VmOpcode::VLabel(0),

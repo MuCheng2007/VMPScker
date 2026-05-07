@@ -42,13 +42,75 @@ impl<'a> HandlerGenerator<'a> {
     }
 
     /// 辅助：将 AsmRegister64 转换为对应的 AsmRegister32
+    /// 使用 iced_x86::Register 枚举进行匹配，避免 Rust match 变量绑定陷阱
     fn to_32(reg: AsmRegister64) -> AsmRegister32 {
-        match reg {
-            rax => eax, rcx => ecx, rdx => edx, rbx => ebx,
-            rbp => ebp, rsi => esi, rdi => edi,
-            r8 => r8d, r9 => r9d, r10 => r10d, r11 => r11d,
-            r12 => r12d, r13 => r13d, r14 => r14d, r15 => r15d,
+        let r: iced_x86::Register = reg.into();
+        match r {
+            iced_x86::Register::RAX => eax,
+            iced_x86::Register::RCX => ecx,
+            iced_x86::Register::RDX => edx,
+            iced_x86::Register::RBX => ebx,
+            iced_x86::Register::RSP => esp,
+            iced_x86::Register::RBP => ebp,
+            iced_x86::Register::RSI => esi,
+            iced_x86::Register::RDI => edi,
+            iced_x86::Register::R8  => r8d,
+            iced_x86::Register::R9  => r9d,
+            iced_x86::Register::R10 => r10d,
+            iced_x86::Register::R11 => r11d,
+            iced_x86::Register::R12 => r12d,
+            iced_x86::Register::R13 => r13d,
+            iced_x86::Register::R14 => r14d,
+            iced_x86::Register::R15 => r15d,
             _ => eax,
+        }
+    }
+
+    /// 辅助：将 AsmRegister64 转换为对应的 AsmRegister16
+    fn to_16(reg: AsmRegister64) -> AsmRegister16 {
+        let r: iced_x86::Register = reg.into();
+        match r {
+            iced_x86::Register::RAX => ax,
+            iced_x86::Register::RCX => cx,
+            iced_x86::Register::RDX => dx,
+            iced_x86::Register::RBX => bx,
+            iced_x86::Register::RSP => sp,
+            iced_x86::Register::RBP => bp,
+            iced_x86::Register::RSI => si,
+            iced_x86::Register::RDI => di,
+            iced_x86::Register::R8  => r8w,
+            iced_x86::Register::R9  => r9w,
+            iced_x86::Register::R10 => r10w,
+            iced_x86::Register::R11 => r11w,
+            iced_x86::Register::R12 => r12w,
+            iced_x86::Register::R13 => r13w,
+            iced_x86::Register::R14 => r14w,
+            iced_x86::Register::R15 => r15w,
+            _ => ax,
+        }
+    }
+
+    /// 辅助：将 AsmRegister64 转换为对应的 AsmRegister8
+    fn to_8(reg: AsmRegister64) -> AsmRegister8 {
+        let r: iced_x86::Register = reg.into();
+        match r {
+            iced_x86::Register::RAX => al,
+            iced_x86::Register::RCX => cl,
+            iced_x86::Register::RDX => dl,
+            iced_x86::Register::RBX => bl,
+            iced_x86::Register::RSP => spl,
+            iced_x86::Register::RBP => bpl,
+            iced_x86::Register::RSI => sil,
+            iced_x86::Register::RDI => dil,
+            iced_x86::Register::R8  => r8b,
+            iced_x86::Register::R9  => r9b,
+            iced_x86::Register::R10 => r10b,
+            iced_x86::Register::R11 => r11b,
+            iced_x86::Register::R12 => r12b,
+            iced_x86::Register::R13 => r13b,
+            iced_x86::Register::R14 => r14b,
+            iced_x86::Register::R15 => r15b,
+            _ => al,
         }
     }
 
@@ -304,24 +366,15 @@ impl<'a> HandlerGenerator<'a> {
 
     /// 生成 VMUL 处理器
     /// 语义：POP B, POP A, PUSH (A*B)
-    /// 使用单操作数 IMUL: RDX:RAX = RAX * src，仅保留低64位
+    /// 使用双操作数 IMUL 避免 RDX:RAX 隐式寄存器冲突
     pub fn gen_vmul(&mut self) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
 
-        self.vpop(ctx.scratch2)?; // B
-        self.vpop(ctx.scratch1)?; // A
+        self.vpop(ctx.scratch2)?;
+        self.vpop(ctx.scratch1)?;
 
-        // Save RDX (imul clobbers it)
-        self.asm.push(rdx)?;
-        // Move A to RAX for imul
-        self.asm.mov(rax, ctx.scratch1)?;
-        // RAX = RAX * scratch2 (low 64 bits)
-        self.asm.imul(ctx.scratch2)?;
-        // Save result
-        self.asm.mov(ctx.scratch1, rax)?;
-        // Restore RDX
-        self.asm.pop(rdx)?;
+        self.asm.imul_2(ctx.scratch1, ctx.scratch2)?;
 
         self.save_eflags()?;
         self.vpush(ctx.scratch1)?;
@@ -333,6 +386,77 @@ impl<'a> HandlerGenerator<'a> {
     pub fn gen_vmul_with_label(&mut self) -> Result<(usize, usize), IcedError> {
         let label_offset = self.asm.instructions().len();
         self.gen_vmul()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VDiv 处理器 (无符号除法)
+    /// 语义：栈上 [divisor(below), dividend(top)]，弹出后计算 dividend / divisor
+    /// 注意：将除数先压入原生栈，防止 xor rdx,rdx 时误伤 scratch1(=RDX)
+    pub fn gen_vdiv(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        self.vpop(ctx.scratch2)?; // Dividend (pushed last, on top)
+        self.vpop(ctx.scratch1)?; // Divisor  (pushed first, below)
+
+        self.asm.push(ctx.scratch1)?;        // save divisor to native stack
+        self.asm.mov(rax, ctx.scratch2)?;    // RAX = dividend
+        self.asm.xor(rdx, rdx)?;             // clear RDX (safe: divisor on stack)
+        self.asm.div(qword_ptr(rsp))?;       // RAX = quotient, RDX = remainder
+        self.asm.add(rsp, 8_i32)?;           // pop saved divisor
+
+        self.asm.mov(ctx.scratch1, rax)?;    // scratch1 = quotient
+        self.asm.push(rdx)?;                 // save remainder to native stack (safe_eflags uses native stack too)
+
+        self.save_eflags()?;                 // clobbers scratch2; native stack balanced
+        self.asm.pop(ctx.scratch2)?;         // scratch2 = remainder
+
+        self.vpush(ctx.scratch2)?;           // push remainder first (below)
+        self.vpush(ctx.scratch1)?;           // push quotient (on top)
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vdiv_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vdiv()?;
+        let end_offset = self.asm.instructions().len();
+        Ok((label_offset, end_offset))
+    }
+
+    /// 生成 VIdiv 处理器 (有符号除法)
+    /// 语义：栈上 [divisor(below), dividend(top)]，弹出后计算 dividend / divisor
+    /// 结果压入 [remainder(below), quotient(top)]，对应 lowering 先 pop RAX 再 pop RDX
+    pub fn gen_vidiv(&mut self) -> Result<usize, IcedError> {
+        let offset = self.asm.instructions().len();
+        let ctx = &self.arch.context;
+
+        self.vpop(ctx.scratch2)?; // Dividend (pushed last, on top)
+        self.vpop(ctx.scratch1)?; // Divisor  (pushed first, below)
+
+        self.asm.push(ctx.scratch1)?;        // save divisor to native stack (cqo clobbers RDX)
+        self.asm.mov(rax, ctx.scratch2)?;    // RAX = dividend
+        self.asm.cqo()?;                     // sign-extend RAX → RDX:RAX
+        self.asm.idiv(qword_ptr(rsp))?;      // RAX = quotient, RDX = remainder
+        self.asm.add(rsp, 8_i32)?;           // pop saved divisor
+        self.asm.mov(ctx.scratch1, rax)?;    // scratch1 = quotient
+        self.asm.push(rdx)?;                 // save remainder to native stack
+
+        self.save_eflags()?;                 // clobbers scratch2; native stack balanced
+        self.asm.pop(ctx.scratch2)?;         // scratch2 = remainder
+
+        self.vpush(ctx.scratch2)?;           // push remainder first (below)
+        self.vpush(ctx.scratch1)?;           // push quotient (on top)
+
+        DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
+        Ok(offset)
+    }
+
+    pub fn gen_vidiv_with_label(&mut self) -> Result<(usize, usize), IcedError> {
+        let label_offset = self.asm.instructions().len();
+        self.gen_vidiv()?;
         let end_offset = self.asm.instructions().len();
         Ok((label_offset, end_offset))
     }
@@ -416,19 +540,23 @@ impl<'a> HandlerGenerator<'a> {
     }
 
     /// 生成虚拟机退出门 (VMExit)
-    /// 恢复物理上下文并跳转到 OEP (原始入口点)
-    ///
-    /// 先使用 scratch2 保存 tracked RSP，再用 r15 作为基址恢复原生寄存器 (r15 最后恢复)。
+    /// 使用 ret 跳板技术：在恢复寄存器前将 OEP 压入原生栈，
+    /// 全部寄存器恢复后用 ret 弹出 OEP → 零寄存器污染回宿主。
     pub fn gen_vexit(&mut self, oep_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
 
-        // Save tracked RSP using scratch2 as temp base (safe: doesn't clobber any context reg)
+        // Save tracked RSP, reserve 8 bytes and push OEP for ret-trampoline
         self.asm.mov(ctx.scratch2, save_area_va)?;
         self.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 40 + 16 * 8))?;
+
+        self.asm.sub(ctx.scratch1, 8_i32)?;
         self.asm.mov(qword_ptr(ctx.scratch2 + 24), ctx.scratch1)?;
 
-        // Load r15 as base for register restore (safe to clobber any context reg now)
+        self.asm.mov(ctx.scratch2, oep_va)?;
+        self.asm.mov(qword_ptr(ctx.scratch1), ctx.scratch2)?;
+
+        // Load r15 as base for register restore
         self.asm.mov(r15, save_area_va)?;
 
         // Restore R14..RAX (index 1..14), R15 restored last
@@ -451,15 +579,14 @@ impl<'a> HandlerGenerator<'a> {
         self.asm.push(qword_ptr(r15 + 40 + 15 * 8))?;
         self.asm.popfq()?;
 
-        // Restore native RSP from [save+24]
+        // Restore native RSP (points to OEP on stack)
         self.asm.mov(rsp, qword_ptr(r15 + 24))?;
 
         // Restore R15 LAST (index 0)
         self.asm.mov(r15, qword_ptr(r15 + 40 + 0 * 8))?;
 
-        // Jump to OEP
-        self.asm.mov(r10, oep_va)?;
-        self.asm.jmp(r10)?;
+        // ret 从栈顶弹出 OEP → 零寄存器污染跳回宿主
+        self.asm.ret()?;
 
         Ok(offset)
     }
@@ -595,16 +722,9 @@ impl<'a> HandlerGenerator<'a> {
 
     /// 生成 VCall 处理器 (执行原生函数调用并重入 VM)
     ///
-    /// Save area layout (176 bytes):
-    ///   [save+0]  = VIP (8)
-    ///   [save+8]  = VSP (8)
-    ///   [save+16] = VKEY (4)
-    ///   [save+24] = Native RSP (8)
-    ///   [save+32] = function address (8)
-    ///   [save+40] = 寄存器保存区 (17×8=136 bytes)
-    ///
-    /// 注册器保存区在 .vmp0 中，不污染原生栈。
-    /// 先使用 scratch2 保存 VM 上下文，再用 r15 作为基址恢复原生寄存器 (r15 最后恢复)。
+    /// 使用 ret 跳板技术：在恢复寄存器前将 [func_addr, reentry_va] 压入原生栈，
+    /// 全部寄存器恢复后用 ret 弹出 func_addr → 零寄存器污染跳入 API。
+    /// 当 API 执行 ret 时自动返回到 reentry_va。
     pub fn gen_vcall(&mut self, _arg_count: u8, reentry_va: u64, save_area_va: u64) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
@@ -614,14 +734,26 @@ impl<'a> HandlerGenerator<'a> {
 
         // Phase 2: Save VM context using scratch2 as temp base
         self.asm.mov(ctx.scratch2, save_area_va)?;
-        self.asm.mov(qword_ptr(ctx.scratch2), ctx.vip)?;               // [save+0]  = VIP
-        self.asm.mov(qword_ptr(ctx.scratch2 + 8), ctx.vsp)?;           // [save+8]  = VSP
-        self.asm.mov(dword_ptr(ctx.scratch2 + 16), ctx.vkey_32)?;      // [save+16] = VKEY
-        self.asm.mov(qword_ptr(ctx.scratch2 + 32), ctx.scratch1)?;     // [save+32] = func addr
+        self.asm.mov(qword_ptr(ctx.scratch2), ctx.vip)?;
+        self.asm.mov(qword_ptr(ctx.scratch2 + 8), ctx.vsp)?;
+        self.asm.mov(dword_ptr(ctx.scratch2 + 16), ctx.vkey_32)?;
+        self.asm.mov(qword_ptr(ctx.scratch2 + 32), ctx.scratch1)?;
 
-        // Save tracked native RSP to [save+24]
+        // Build ret trampoline on native stack:
+        // Reserve 16 bytes, write [func_addr, reentry_va] so that after register
+        // restore, a single `ret` pops func_addr into RIP with zero register pollution.
         self.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 40 + 16 * 8))?;
+        self.asm.sub(ctx.scratch1, 16_i32)?;
         self.asm.mov(qword_ptr(ctx.scratch2 + 24), ctx.scratch1)?;
+
+        // Write func_addr to [native RSP]
+        self.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 24))?;
+        self.asm.mov(ctx.scratch2, qword_ptr(ctx.scratch2 + 32))?;
+        self.asm.mov(qword_ptr(ctx.scratch1), ctx.scratch2)?;
+
+        // Write reentry_va to [native RSP + 8]
+        self.asm.mov(ctx.scratch2, reentry_va)?;
+        self.asm.mov(qword_ptr(ctx.scratch1 + 8_i32), ctx.scratch2)?;
 
         // === VM context ops complete. Safe to clobber r15 for register restore. ===
 
@@ -648,19 +780,14 @@ impl<'a> HandlerGenerator<'a> {
         self.asm.push(qword_ptr(r15 + 40 + 15 * 8))?;
         self.asm.popfq()?;
 
-        // Restore native RSP
+        // Restore native RSP (points to func_addr on stack, reentry_va underneath)
         self.asm.mov(rsp, qword_ptr(r15 + 24))?;
-
-        // Load function address into r10 (before restoring r15)
-        self.asm.mov(r10, qword_ptr(r15 + 32))?;
 
         // Restore r15 LAST (index 0)
         self.asm.mov(r15, qword_ptr(r15 + 40 + 0 * 8))?;
 
-        // Push reentry stub address, jump to API
-        self.asm.mov(r11, reentry_va)?;
-        self.asm.push(r11)?;
-        self.asm.jmp(r10)?;
+        // ret pops func_addr → jump to API; API's ret lands on reentry_va
+        self.asm.ret()?;
 
         Ok(offset)
     }
@@ -726,17 +853,15 @@ impl<'a> HandlerGenerator<'a> {
         // 2. 从虚拟栈弹出值到 scratch2
         self.vpop(ctx.scratch2)?;
 
-        // 3. 写入内存
+        // 3. 安全精准的对齐写入
         match size {
             1 => {
-                // Write 1 byte: use dword write as fallback (writes 4 bytes but functional)
-                let scratch2_32 = Self::to_32(ctx.scratch2);
-                self.asm.mov(dword_ptr(ctx.scratch1), scratch2_32)?;
+                let scratch2_8 = Self::to_8(ctx.scratch2);
+                self.asm.mov(byte_ptr(ctx.scratch1), scratch2_8)?;
             }
             2 => {
-                // Write 2 bytes: use dword write as fallback (writes 4 bytes but functional)
-                let scratch2_32 = Self::to_32(ctx.scratch2);
-                self.asm.mov(dword_ptr(ctx.scratch1), scratch2_32)?;
+                let scratch2_16 = Self::to_16(ctx.scratch2);
+                self.asm.mov(word_ptr(ctx.scratch1), scratch2_16)?;
             }
             4 => {
                 let scratch2_32 = Self::to_32(ctx.scratch2);

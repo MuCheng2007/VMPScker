@@ -230,12 +230,28 @@ impl LoweringPass {
                     }
                 }
 
-                IrOpcode::Div { .. } | IrOpcode::Idiv { .. } => {
-                    // Division not yet implemented in VM; leave RAX/RDX unchanged.
+                IrOpcode::Div { src } => {
+                    // Unsigned: RAX = quotient, RDX = remainder
+                    // Handler pushes both: [remainder(below), quotient(top)]
+                    Self::compile_operand(&mut vm_ir, src, image_base);
+                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
+                    vm_ir.push(VmOpcode::VDiv);
+                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
+                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rdx)));
+                }
+
+                IrOpcode::Idiv { src } => {
+                    // Signed: RAX = quotient, RDX = remainder
+                    // Handler pushes both: [remainder(below), quotient(top)]
+                    Self::compile_operand(&mut vm_ir, src, image_base);
+                    vm_ir.push(VmOpcode::VPushReg(Self::reg_to_offset(IrRegister::Rax)));
+                    vm_ir.push(VmOpcode::VIdiv);
+                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rax)));
+                    vm_ir.push(VmOpcode::VPopReg(Self::reg_to_offset(IrRegister::Rdx)));
                 }
 
                 IrOpcode::Cqo | IrOpcode::Cdq => {
-                    // Sign extension not yet implemented in VM; leave RDX unchanged.
+                    // Handled internally by VIdiv; standalone CQO/CWD not implemented
                 }
 
                 // === 逻辑指令 ===

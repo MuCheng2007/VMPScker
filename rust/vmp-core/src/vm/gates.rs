@@ -67,11 +67,14 @@ impl VmGates {
         asm.mov(qword_ptr(rbp + 40 + 16 * 8), rsp)?;
 
         // 2. 初始化虚拟上下文
-        // VSP 初始化为 RSP_entry - 136 (与旧版语义一致，留出空间)
+        // 分配 64KB 沙盒，彻底隔离 Native 栈与 VM 栈
+        asm.sub(rsp, 0x10000_i32)?;
+
+        // VSP 初始化为 RSP + 0x8000 (位于 64KB 缓冲区的正中间)
+        // 上半部分 (32KB): 原生代码局部变量可以从 entry_RSP 向下安全生长
+        // 下半部分 (32KB): VM 虚拟栈从 VSP 向下安全生长
         asm.mov(ctx.vsp, rsp)?;
-        asm.sub(ctx.vsp, 136_i32)?;
-        // 分配 VM 栈空间 (在原生栈上)
-        asm.sub(rsp, 0x2000_i32)?;
+        asm.add(ctx.vsp, 0x8000_i32)?;
 
         // 2.2 加载初始滚动密钥
         asm.mov(ctx.vkey_32, arch.initial_crypt_key)?;
@@ -165,8 +168,8 @@ impl VmGates {
         // 索引 16 = 跟踪的原生 RSP (API 返回后的栈指针)
         asm.mov(qword_ptr(rbp + 40 + 16 * 8), rsp)?;
 
-        // 2. 分配 VM 栈空间
-        asm.sub(rsp, 0x2000_i32)?;
+        // 2. 分配 64KB 沙盒
+        asm.sub(rsp, 0x10000_i32)?;
 
         // 3. 从 .vmp0 固定保存区恢复 VM 上下文
         asm.mov(ctx.scratch2, save_area_va)?;

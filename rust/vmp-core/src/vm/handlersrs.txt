@@ -472,33 +472,25 @@ impl<'a> HandlerGenerator<'a> {
     }
 
     /// 生成 VJMP 处理器（字节码内部无条件跳转）
-    /// 语义：从字节码读取 i32 偏移量和目标 VKEY，VIP += offset，VKEY = target_vkey，继续分发
-    /// 字节码格式: [encrypted_distance(4)] [encrypted_target_vkey(4)]
+    /// 语义：从字节码读取 i32 偏移量，VIP += offset，继续分发
     pub fn gen_vjmp(&mut self) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
-        let scratch2_32 = Self::to_32(ctx.scratch2);
 
-        // 1. 从 [VIP] 读取加密的距离
+        // 1. 从 [VIP] 读取加密的偏移量
         self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
-        // 2. 从 [VIP+4] 读取加密的目标 VKEY
-        self.asm.mov(scratch2_32, dword_ptr(ctx.vip + 4_i32))?;
-        self.asm.add(ctx.vip, 8_i32)?;
+        self.asm.add(ctx.vip, 4_i32)?;
 
-        // 3. 解密两个操作数（使用相同的 VKEY）
+        // 2. 解密偏移量（偏移量不参与滚动密钥，仅用于VIP调整）
         self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
-        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, scratch2_32)?;
 
-        // 4. 符号扩展距离
+        // 3. 符号扩展: mov r32, [mem] 零扩展到 r64，偏移量是 i32 需要符号扩展到 i64
         self.asm.movsxd(ctx.scratch1, ctx.scratch1_32)?;
 
-        // 5. VIP += offset
+        // 4. VIP += offset (偏移量是相对于当前 VIP 的有符号偏移)
         self.asm.add(ctx.vip, ctx.scratch1)?;
 
-        // 6. VKEY = target_vkey
-        self.asm.mov(ctx.vkey_32, scratch2_32)?;
-
-        // 7. 继续分发下一条指令
+        // 5. 继续分发下一条指令
         DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
 
         Ok(offset)
@@ -511,76 +503,62 @@ impl<'a> HandlerGenerator<'a> {
         Ok((label_offset, end_offset))
     }
 
-    /// 生成 VJCC 处理器（字节码内部条件跳转，含目标 VKEY 同步）
-    /// 语义：从 EFLAGS 保存槽读取标志，从字节码读取 i32 偏移量和目标 VKEY，
-    ///       条件成立时 VIP += offset 且 VKEY = target_vkey，确保回跳/前跳后密钥同步
-    /// 字节码格式: [encrypted_distance(4)] [encrypted_target_vkey(4)]
+    /// 生成 VJCC 处理器（字节码内部条件跳转）
+    /// 语义：从 EFLAGS 保存槽读取标志，从字节码读取 i32 偏移量，检查条件，分支或跳过
+    /// EFLAGS 由 VAdd/VSub/VXor/VNand/VNor 等算术 handler 自动保存到保存槽
     /// condition: 0=E/Z, 1=NE/NZ, 2=C, 3=NC, 4=S, 5=NS, 6=O, 7=NO,
     ///            8=A, 9=AE, 10=B, 11=BE, 12=G, 13=GE, 14=L, 15=LE
     pub fn gen_vjcc(&mut self, condition: u8) -> Result<usize, IcedError> {
         let offset = self.asm.instructions().len();
         let ctx = &self.arch.context;
-        let scratch2_32 = Self::to_32(ctx.scratch2);
 
-        // 1. 从 [VIP] 读取加密的距离
+        // 1. 从 [VIP] 读取加密的偏移量到 scratch1
         self.asm.mov(ctx.scratch1_32, dword_ptr(ctx.vip))?;
-        // 2. 从 [VIP+4] 读取加密的目标 VKEY
-        self.asm.mov(scratch2_32, dword_ptr(ctx.vip + 4_i32))?;
-        self.asm.add(ctx.vip, 8_i32)?;
 
-        // 3. 解密两个操作数（使用相同的 VKEY，跳转时不更新 VKEY）
+        // 2. 解密偏移量（偏移量不参与滚动密钥，仅用于VIP调整）
         self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, ctx.scratch1_32)?;
-        self.arch.opcode_cryptor.emit_asm_decrypt(self.asm, ctx, scratch2_32)?;
 
-        // 4. 符号扩展距离
+        // 3. 符号扩展: mov r32, [mem] 零扩展到 r64，偏移量是 i32 需要符号扩展到 i64
         self.asm.movsxd(ctx.scratch1, ctx.scratch1_32)?;
 
-        // 5. 保存 target_vkey 到原生栈 (scratch2 将被用于 EFLAGS 加载)
-        self.asm.push(ctx.scratch2)?;
+        // 4. VIP += 4 (跳过操作数)
+        self.asm.add(ctx.vip, 4_i32)?;
 
-        // 6. 从 .vmp0 寄存器缓冲区恢复 EFLAGS
-        self.asm.mov(ctx.scratch2, self.save_area_va)?;
-        self.asm.push(qword_ptr(ctx.scratch2 + 40_i32 + 15_i32 * 8_i32))?;
-        self.asm.popfq()?;
+        // 4. 从 .vmp0 寄存器缓冲区读取 EFLAGS (index 15)
+        self.load_reg_save_base(ctx.scratch2)?;
+        self.asm.mov(ctx.scratch2, qword_ptr(ctx.scratch2 + 15 * 8))?;
 
-        // 7. 条件跳转: 使用逆条件跳过 branch-taken 代码块
-        //    条件成立 → 执行 VIP+=offset, VKEY=target_vkey
-        //    条件不成立 → 跳过 (fallthrough VIP, 保持当前 VKEY)
-        let mut skip_label = self.asm.create_label();
+        // 6. 清零 scratch2，然后恢复 EFLAGS
+        self.asm.push(ctx.scratch2)?;              // 保存 EFLAGS 值到原生栈
+        self.asm.xor(ctx.scratch2, ctx.scratch2)?; // scratch2 = 0 (破坏 flags，但马上恢复)
+        self.asm.popfq()?;                          // 从原生栈恢复 EFLAGS
+
+        // 7. 条件移动：cmovcc 根据 EFLAGS 条件选择 scratch1 或 scratch2(=0)
+        //    条件成立 → scratch2 = scratch1 (偏移量)
+        //    条件不成立 → scratch2 = 0
         match condition {
-            0 => { self.asm.jnz(skip_label)?; }    // E/Z  → skip if NZ
-            1 => { self.asm.jz(skip_label)?; }      // NE/NZ → skip if Z
-            2 => { self.asm.jnc(skip_label)?; }     // C     → skip if NC
-            3 => { self.asm.jc(skip_label)?; }      // NC    → skip if C
-            4 => { self.asm.jns(skip_label)?; }     // S     → skip if NS
-            5 => { self.asm.js(skip_label)?; }      // NS    → skip if S
-            6 => { self.asm.jno(skip_label)?; }     // O     → skip if NO
-            7 => { self.asm.jo(skip_label)?; }      // NO    → skip if O
-            8 => { self.asm.jbe(skip_label)?; }     // A     → skip if BE (CF=1||ZF=1)
-            9 => { self.asm.jb(skip_label)?; }      // AE    → skip if B (CF=1)
-            10 => { self.asm.jae(skip_label)?; }    // B     → skip if AE (CF=0)
-            11 => { self.asm.ja(skip_label)?; }     // BE    → skip if A (CF=0&&ZF=0)
-            12 => { self.asm.jle(skip_label)?; }    // G     → skip if LE (ZF=1||SF!=OF)
-            13 => { self.asm.jl(skip_label)?; }     // GE    → skip if L (SF!=OF)
-            14 => { self.asm.jge(skip_label)?; }    // L     → skip if GE (SF=OF)
-            15 => { self.asm.jg(skip_label)?; }     // LE    → skip if G (ZF=0&&SF=OF)
-            _ => {}
+            0 => { self.asm.cmovz(ctx.scratch2, ctx.scratch1)?; }    // E/Z
+            1 => { self.asm.cmovnz(ctx.scratch2, ctx.scratch1)?; }   // NE/NZ
+            2 => { self.asm.cmovc(ctx.scratch2, ctx.scratch1)?; }    // C
+            3 => { self.asm.cmovnc(ctx.scratch2, ctx.scratch1)?; }   // NC
+            4 => { self.asm.cmovs(ctx.scratch2, ctx.scratch1)?; }    // S
+            5 => { self.asm.cmovns(ctx.scratch2, ctx.scratch1)?; }   // NS
+            6 => { self.asm.cmovo(ctx.scratch2, ctx.scratch1)?; }    // O
+            7 => { self.asm.cmovno(ctx.scratch2, ctx.scratch1)?; }   // NO
+            8 => { self.asm.cmova(ctx.scratch2, ctx.scratch1)?; }    // A (CF=0 && ZF=0)
+            9 => { self.asm.cmovae(ctx.scratch2, ctx.scratch1)?; }   // AE (CF=0)
+            10 => { self.asm.cmovb(ctx.scratch2, ctx.scratch1)?; }   // B (CF=1)
+            11 => { self.asm.cmovbe(ctx.scratch2, ctx.scratch1)?; }  // BE (CF=1 || ZF=1)
+            12 => { self.asm.cmovg(ctx.scratch2, ctx.scratch1)?; }   // G
+            13 => { self.asm.cmovge(ctx.scratch2, ctx.scratch1)?; }  // GE
+            14 => { self.asm.cmovl(ctx.scratch2, ctx.scratch1)?; }   // L
+            15 => { self.asm.cmovle(ctx.scratch2, ctx.scratch1)?; }  // LE
+            _ => {} // fallback: scratch2 stays 0, no jump
         }
 
-        // Branch taken: VIP += offset, VKEY = target_vkey
-        self.asm.add(ctx.vip, ctx.scratch1)?;
-        self.asm.pop(ctx.scratch2)?;  // restore target_vkey
-        self.asm.mov(ctx.vkey_32, scratch2_32)?;
+        // 8. VIP += scratch2 (条件成立时跳转，否则 VIP 不变)
+        self.asm.add(ctx.vip, ctx.scratch2)?;
 
-        // Jump to dispatch, bypassing stack-cleanup at skip_label
-        let mut dispatch_label = self.asm.create_label();
-        self.asm.jmp(dispatch_label)?;
-
-        // Branch NOT taken: pop and discard saved target_vkey (balance stack)
-        self.asm.set_label(&mut skip_label)?;
-        self.asm.pop(ctx.scratch2)?;  // discard saved target_vkey
-
-        self.asm.set_label(&mut dispatch_label)?;
         DispatcherGen::append_dispatch_logic(self.asm, self.arch)?;
 
         Ok(offset)

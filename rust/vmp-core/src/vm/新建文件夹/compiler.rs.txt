@@ -25,54 +25,9 @@ impl<'a> BytecodeCompiler<'a> {
         Self { arch }
     }
 
-    /// 预扫描 IR，计算每个 label 处的 VKEY 值 (不含 label 之后指令的贡献)
-    fn compute_label_keys(&self, vm_irs: &[VmOpcode]) -> HashMap<u32, u32> {
-        let mut label_keys: HashMap<u32, u32> = HashMap::new();
-        let mut current_key = self.arch.initial_crypt_key;
-
-        for ir in vm_irs {
-            match ir {
-                VmOpcode::VLabel(id) => {
-                    label_keys.insert(*id, current_key);
-                    continue;
-                }
-                VmOpcode::VJmp(_) | VmOpcode::VJcc(_, _) => {
-                    let core_opcode = self.extract_core_opcode(ir);
-                    let plain_index = *self.arch.opcode_map.get(&core_opcode).unwrap_or(&0) as u32;
-                    current_key = current_key.wrapping_add(plain_index);
-                    // jump operands do not update key (consistent with runtime handlers)
-                }
-                _ => {
-                    let core_opcode = self.extract_core_opcode(ir);
-                    let plain_index = *self.arch.opcode_map.get(&core_opcode).unwrap_or(&0) as u32;
-                    current_key = current_key.wrapping_add(plain_index);
-
-                    match ir {
-                        VmOpcode::VPushReg(offset) | VmOpcode::VPopReg(offset) => {
-                            current_key = current_key.wrapping_add(*offset as u32);
-                        }
-                        VmOpcode::VPushImm32(val) => {
-                            current_key = current_key.wrapping_add(*val);
-                        }
-                        VmOpcode::VPushImm64(val) => {
-                            current_key = current_key.wrapping_add(*val as u32);
-                            current_key = current_key.wrapping_add((*val >> 32) as u32);
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-
-        label_keys
-    }
-
     /// 将给定的 VM IR 序列编译为加密的 Vec<u8>
     /// 支持标签解析：VLabel 标记位置，VJmp(id)/VJcc(cond, id) 引用标签
     pub fn compile_block(&self, vm_irs: &[VmOpcode]) -> Vec<u8> {
-        // Pre-pass: compute VKEY at each label position
-        let label_keys = self.compute_label_keys(vm_irs);
-
         // === Pass 1: 生成字节码并记录标签位置 ===
         let mut bytecode = Vec::new();
         let mut label_positions: HashMap<u32, usize> = HashMap::new();
@@ -88,50 +43,36 @@ impl<'a> BytecodeCompiler<'a> {
                     continue;
                 }
                 VmOpcode::VJmp(target_label) => {
-                    // 无条件内部跳转: [encrypted_distance(4)] [encrypted_target_vkey(4)]
+                    // 无条件内部跳转
                     let core_opcode = self.extract_core_opcode(ir);
                     let plain_index = *self.arch.opcode_map.get(&core_opcode).unwrap_or(&0) as u32;
                     let cipher_opcode = self.arch.opcode_cryptor.encrypt(plain_index, current_key);
                     bytecode.extend_from_slice(&cipher_opcode.to_le_bytes());
                     current_key = current_key.wrapping_add(plain_index);
 
-                    let operand_key = current_key;
-
-                    // 占位 distance (4 bytes)，Pass 2 修补
+                    // 占位操作数 (4 bytes)，Pass 2 修补
                     patches.push(PatchInfo {
                         operand_offset: bytecode.len(),
                         target_label: *target_label,
-                        encrypt_key: operand_key,
+                        encrypt_key: current_key,
                     });
                     bytecode.extend_from_slice(&[0u8; 4]);
-
-                    // target_vkey (4 bytes, encrypted with same operand_key)
-                    let target_vkey = label_keys.get(target_label).copied().unwrap_or(self.arch.initial_crypt_key);
-                    let cipher_vkey = self.arch.opcode_cryptor.encrypt(target_vkey, operand_key);
-                    bytecode.extend_from_slice(&cipher_vkey.to_le_bytes());
                 }
                 VmOpcode::VJcc(_cond, target_label) => {
-                    // 条件跳转: [encrypted_distance(4)] [encrypted_target_vkey(4)]
+                    // 条件跳转
                     let core_opcode = self.extract_core_opcode(ir);
                     let plain_index = *self.arch.opcode_map.get(&core_opcode).unwrap_or(&0) as u32;
                     let cipher_opcode = self.arch.opcode_cryptor.encrypt(plain_index, current_key);
                     bytecode.extend_from_slice(&cipher_opcode.to_le_bytes());
                     current_key = current_key.wrapping_add(plain_index);
 
-                    let operand_key = current_key;
-
-                    // 占位 distance (4 bytes)，Pass 2 修补
+                    // 占位操作数 (4 bytes)，Pass 2 修补
                     patches.push(PatchInfo {
                         operand_offset: bytecode.len(),
                         target_label: *target_label,
-                        encrypt_key: operand_key,
+                        encrypt_key: current_key,
                     });
                     bytecode.extend_from_slice(&[0u8; 4]);
-
-                    // target_vkey (4 bytes, encrypted with same operand_key)
-                    let target_vkey = label_keys.get(target_label).copied().unwrap_or(self.arch.initial_crypt_key);
-                    let cipher_vkey = self.arch.opcode_cryptor.encrypt(target_vkey, operand_key);
-                    bytecode.extend_from_slice(&cipher_vkey.to_le_bytes());
                 }
                 _ => {
                     // 常规指令处理
@@ -176,9 +117,9 @@ impl<'a> BytecodeCompiler<'a> {
         // === Pass 2: 修补跳转偏移量 ===
         for patch in &patches {
             if let Some(&target_pos) = label_positions.get(&patch.target_label) {
-                // 计算相对偏移量: target_pos - (operand_offset + 8)
-                // VIP 在读取两个操作数 (distance + target_vkey) 后指向 operand_offset + 8
-                let current_pos = patch.operand_offset + 8;
+                // 计算相对偏移量: target_pos - (operand_offset + 4)
+                // VIP 在读取操作数后指向 operand_offset + 4
+                let current_pos = patch.operand_offset + 4;
                 let offset = target_pos as i64 - current_pos as i64;
                 let offset_i32 = offset as i32;
 

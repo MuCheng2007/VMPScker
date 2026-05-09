@@ -3,6 +3,7 @@ use vmp_core::pe::vmp_marker_finder::{VmpMarkerFinder, VmpMarkerType};
 use vmp_core::intel::{disassemble_to_ir, DisassemblyMode};
 use vmp_core::vm::arch::ArchConfig;
 use vmp_core::vm::compiler::BytecodeCompiler;
+use vmp_core::vm::ir::VmInstruction;
 use vmp_core::vm::opcode::VmOpcode;
 use vmp_core::vm::assembler::VmPayload;
 use vmp_core::pipeline::node::InstNode;
@@ -47,31 +48,18 @@ pub fn run_test(input: PathBuf, mode_str: String) -> Result<(), Box<dyn std::err
     
     println!("找到 {} 个标记对\n", virt_pairs.len());
     
-    // 初始化加密架构
-    let arch_config = ArchConfig::new_random();
-    println!("\n=== VMProtect 加密架构初始化 ===");
-    println!("Initial Key: {:08X}", arch_config.initial_crypt_key);
-    
-    // 显示加密链
-    println!("\n=== 加密链配置 ===");
-    for (i, op) in arch_config.opcode_cryptor.ops.iter().enumerate() {
-        println!("  [{}] {:?}", i, op);
-    }
-    
+    println!("\n=== VM 架构初始化 (简化明文版) ===");
+
     for (i, pair) in virt_pairs.iter().enumerate() {
         println!("\n=== 测试虚拟化标记 #{} ===", i + 1);
         println!("Begin RVA: 0x{:08X}", pair.begin.call_rva);
-        println!("Code Range: 0x{:08X} - 0x{:08X} ({} bytes)", 
+        println!("Code Range: 0x{:08X} - 0x{:08X} ({} bytes)",
             pair.code_start, pair.code_end, pair.code_end - pair.code_start);
-        
+
         // 提取标记范围内的代码
         let code_bytes = finder.read_protected_code(&pe_file, pair)?;
         if !code_bytes.is_empty() {
             test_advanced_vm_pipeline(&pe_file, &code_bytes, pair.code_start, disasm_mode)?;
-            
-            // 对标记进行虚拟标记加密
-            println!("\n=== 虚拟标记加密 ===");
-            encrypt_virtual_markers(&arch_config, pair.code_start, pair.code_end);
         } else {
             println!("  跳过空代码块");
         }
@@ -85,65 +73,22 @@ fn test_advanced_vm_pipeline(_pe_file: &PeFile, code_bytes: &[u8], base_rva: u64
     let ir_instructions = disassemble_to_ir(code_bytes, mode, base_rva)?;
     println!("  解码指令数: {} 条", ir_instructions.len());
 
-    println!("\n【阶段 2】初始化 ArchConfig 架构");
-    let arch_config = ArchConfig::new_random();
-    println!("  Initial Crypt Key: {:#X}", arch_config.initial_crypt_key);
+    println!("\n【阶段 2】编译至明文 VM 字节码");
+    let compiler = BytecodeCompiler::new();
 
-    println!("\n【阶段 3】编译至加密 VM 字节码");
-    let compiler = BytecodeCompiler::new(&arch_config);
-    
     // 创建简单的 VM IR 序列用于测试
     let mut vm_ir = Vec::new();
-    vm_ir.push(VmOpcode::VPushImm32(0x12345678));
-    vm_ir.push(VmOpcode::VPushImm32(0x87654321));
-    vm_ir.push(VmOpcode::VAdd);
-    vm_ir.push(VmOpcode::VNand);
-    vm_ir.push(VmOpcode::VExit);
-    
-    let bytecode = compiler.compile_block(&vm_ir);
+    vm_ir.push(VmInstruction::new(VmOpcode::VPushImm32(0x12345678)));
+    vm_ir.push(VmInstruction::new(VmOpcode::VPushImm32(0x87654321)));
+    vm_ir.push(VmInstruction::new(VmOpcode::VAdd));
+    vm_ir.push(VmInstruction::new(VmOpcode::VNand));
+    vm_ir.push(VmInstruction::new(VmOpcode::VExit));
+
+    let (bytecode, _) = compiler.compile_block(&vm_ir);
     println!("  生成字节码大小: {} bytes", bytecode.len());
     println!("  字节码前16字节: {:02X?}", &bytecode[..bytecode.len().min(16)]);
-    
-    Ok(())
-}
 
-/// 对虚拟标记进行加密
-fn encrypt_virtual_markers(arch: &ArchConfig, code_start: u64, code_end: u64) {
-    println!("  加密范围: 0x{:08X} - 0x{:08X}", code_start, code_end);
-    
-    let compiler = BytecodeCompiler::new(arch);
-    let mut vm_ir = Vec::new();
-    
-    // 将地址转换为字节码序列
-    let start_low = code_start as u32;
-    let start_high = (code_start >> 32) as u32;
-    let end_low = code_end as u32;
-    let end_high = (code_end >> 32) as u32;
-    
-    // 构建加密序列
-    vm_ir.push(VmOpcode::VPushImm32(start_low));
-    vm_ir.push(VmOpcode::VPushImm32(start_high));
-    vm_ir.push(VmOpcode::VXor);
-    vm_ir.push(VmOpcode::VPushImm32(end_low));
-    vm_ir.push(VmOpcode::VPushImm32(end_high));
-    vm_ir.push(VmOpcode::VXor);
-    vm_ir.push(VmOpcode::VNand);
-    vm_ir.push(VmOpcode::VPushImm32(arch.initial_crypt_key));
-    vm_ir.push(VmOpcode::VXor);
-    vm_ir.push(VmOpcode::VExit);
-    
-    let encrypted = compiler.compile_block(&vm_ir);
-    
-    println!("  原始标记大小: {} 字节", (code_end - code_start) as usize);
-    println!("  加密后大小: {} 字节", encrypted.len());
-    println!("  加密数据: {:02X?}", &encrypted[..encrypted.len().min(32)]);
-    
-    // 使用加密链对地址进行额外加密
-    let encrypted_start = arch.opcode_cryptor.encrypt(start_low, arch.initial_crypt_key);
-    let encrypted_end = arch.opcode_cryptor.encrypt(end_low, encrypted_start);
-    
-    println!("  加密后的起始地址: {:08X}", encrypted_start);
-    println!("  加密后的结束地址: {:08X}", encrypted_end);
+    Ok(())
 }
 
 /// 运行导入表加密测试
@@ -156,17 +101,8 @@ pub fn run_import_encryption_test(input: PathBuf) -> Result<(), Box<dyn std::err
         println!("Machine: {:04X}", pe.header.coff_header.machine);
         println!("Number of sections: {}", pe.sections.len());
         
-        // 初始化加密架构
-        let arch_config = ArchConfig::new_random();
-        println!("\n=== VMProtect 加密架构初始化 ===");
-        println!("Initial Key: {:08X}", arch_config.initial_crypt_key);
-        
-        // 显示加密链
-        println!("\n=== 加密链配置 ===");
-        for (i, op) in arch_config.opcode_cryptor.ops.iter().enumerate() {
-            println!("  [{}] {:?}", i, op);
-        }
-        
+        println!("\n=== VM 架构 (简化明文版) ===");
+
         // 检查导入表
         if let Some(optional_header) = pe.header.optional_header {
             let data_dirs = &optional_header.data_directories;
@@ -212,7 +148,7 @@ pub fn run_import_encryption_test(input: PathBuf) -> Result<(), Box<dyn std::err
                                     println!("    Number of functions: {}", lookup_table.len());
                                     
                                     // 创建字节码编译器
-                                    let compiler = BytecodeCompiler::new(&arch_config);
+                                    let compiler = BytecodeCompiler::new();
                                     
                                     for (i, lookup_entry) in lookup_table.iter().enumerate() {
                                         match lookup_entry {
@@ -229,33 +165,27 @@ pub fn run_import_encryption_test(input: PathBuf) -> Result<(), Box<dyn std::err
                                                 
                                                 // 为每个字符创建 PushImm 指令
                                                 for (j, byte) in func_name.bytes().enumerate() {
-                                                    vm_ir.push(VmOpcode::VPushImm32(byte as u32));
+                                                    vm_ir.push(VmInstruction::new(VmOpcode::VPushImm32(byte as u32)));
                                                     
                                                     // 每4个字节执行一次 XOR 混淆
                                                     if j % 4 == 3 {
-                                                        vm_ir.push(VmOpcode::VXor);
+                                                        vm_ir.push(VmInstruction::new(VmOpcode::VXor));
                                                     }
                                                 }
                                                 
                                                 // 添加结束标记
-                                                vm_ir.push(VmOpcode::VPushImm32(0xDEADBEEF));
-                                                vm_ir.push(VmOpcode::VNand);
+                                                vm_ir.push(VmInstruction::new(VmOpcode::VPushImm32(0xDEADBEEF)));
+                                                vm_ir.push(VmInstruction::new(VmOpcode::VNand));
                                                 
-                                                // 编译为加密字节码
-                                                let encrypted_bytecode = compiler.compile_block(&vm_ir);
-                                                
+                                                // 编译为字节码
+                                                let (encrypted_bytecode, _islands) = compiler.compile_block(&vm_ir);
+
                                                 println!("        -> 原始长度: {} 字节", func_name.len());
-                                                println!("        -> 加密后长度: {} 字节", encrypted_bytecode.len());
-                                                println!("        -> 加密数据 (前16字节): {:02X?}", 
+                                                println!("        -> 字节码长度: {} 字节", encrypted_bytecode.len());
+                                                println!("        -> 字节码数据 (前16字节): {:02X?}",
                                                     &encrypted_bytecode[..encrypted_bytecode.len().min(16)]);
-                                                
-                                                // 使用加密链对 RVA 进行加密
-                                                let encrypted_rva = arch_config.opcode_cryptor.encrypt(
-                                                    thunk_rva as u32, 
-                                                    arch_config.initial_crypt_key
-                                                );
-                                                println!("        -> 原始 RVA: {:08X}", thunk_rva);
-                                                println!("        -> 加密 RVA: {:08X}", encrypted_rva);
+
+                                                println!("        -> RVA: {:08X}", thunk_rva);
                                             }
                                             _ => {}
                                         }
@@ -264,9 +194,7 @@ pub fn run_import_encryption_test(input: PathBuf) -> Result<(), Box<dyn std::err
                             }
                         }
                         
-                        println!("\n=== 虚拟标记加密完成 ===");
-                        println!("所有 VMP 导入函数已使用滚动密钥加密");
-                        println!("加密密钥流: {:08X} -> ...", arch_config.initial_crypt_key);
+                        println!("\n=== 虚拟标记编译完成 ===");
                     }
                     Err(e) => {
                         println!("Failed to parse import data: {:?}", e);
@@ -297,7 +225,17 @@ pub fn encrypt_and_write_pe(input: PathBuf, output: PathBuf) -> Result<(), Box<d
 
     // 2. 查找 VMProtectBeginVirtualization 标记
     println!("[2/7] 查找虚拟化标记...");
-    let finder = VmpMarkerFinder::with_mode(DisassemblyMode::Mode64);
+    
+    // 检测架构
+    let is_64bit = if let Some(pe) = pe_file.pe() {
+        pe.header.coff_header.machine == goblin::pe::header::COFF_MACHINE_X86_64
+    } else {
+        true
+    };
+    let mode = if is_64bit { DisassemblyMode::Mode64 } else { DisassemblyMode::Mode32 };
+    println!("  检测到架构: {}", if is_64bit { "x64" } else { "x86" });
+
+    let finder = VmpMarkerFinder::with_mode(mode);
     let pairs = finder.find_marker_pairs(&pe_file)?;
 
     let virt_pair = pairs.iter()
@@ -306,7 +244,7 @@ pub fn encrypt_and_write_pe(input: PathBuf, output: PathBuf) -> Result<(), Box<d
             p.begin.marker_type == VmpMarkerType::Begin
         });
 
-    let (code_bytes, code_start, code_end) = match virt_pair {
+    let (code_bytes, code_start, code_end, end_call_rva, begin_call_rva) = match virt_pair {
         Some(pair) => {
             println!("  找到标记:");
             println!("    Begin RVA: 0x{:08X}", pair.begin.call_rva);
@@ -319,7 +257,7 @@ pub fn encrypt_and_write_pe(input: PathBuf, output: PathBuf) -> Result<(), Box<d
                 return Err("Empty code block".into());
             }
             println!("  提取代码大小: {} 字节", code_bytes.len());
-            (code_bytes, pair.code_start, pair.code_end)
+            (code_bytes, pair.code_start, pair.code_end, pair.end.call_rva, pair.begin.call_rva)
         }
         None => {
             println!("  未找到虚拟化标记！OEP 不加密，跳过保护。");
@@ -328,44 +266,48 @@ pub fn encrypt_and_write_pe(input: PathBuf, output: PathBuf) -> Result<(), Box<d
         }
     };
 
-    // 3. 反汇编并降级为 VM IR
-    println!("\n[3/7] 反汇编并降级为 VM IR...");
-    let ir_instructions = disassemble_to_ir(&code_bytes, DisassemblyMode::Mode64, code_start)?;
-    println!("  反汇编指令数: {} 条", ir_instructions.len());
-
-    let mut nodes: Vec<InstNode> = ir_instructions.into_iter()
-        .map(|ir| InstNode {
-            rva: ir.rva,
-            native_inst: None,
-            x86_ir: Some(ir),
-            liveness: Default::default(),
-            vm_ir: Vec::new(),
-            is_junk: false,
-        })
-        .collect();
+    // 3. 反汇编 → IR → 降级 → 编译字节码
+    println!("\n[3/7] 编译 VM 字节码 (逐指令)...");
 
     let image_base = pe_file.image_base();
-    LoweringPass::run_with_range_and_base(&mut nodes, code_start, code_end, image_base);
 
-    let mut all_vm_ir = Vec::new();
-    for node in &nodes {
-        all_vm_ir.extend_from_slice(&node.vm_ir);
+    let x86_ir = vmp_core::intel::disassemble_to_ir(&code_bytes, mode, code_start)?;
+    let raw_instructions = vmp_core::intel::disassemble(&code_bytes, mode, code_start)?;
+
+    // 创建 pipeline 节点 (每个 x86 指令一个)
+    let mut nodes: Vec<InstNode> = Vec::new();
+    for (i, ir_inst) in x86_ir.iter().enumerate() {
+        if i < raw_instructions.len() {
+            nodes.push(InstNode::new(ir_inst.rva, *raw_instructions[i].iced(), ir_inst.clone()));
+        }
     }
-    all_vm_ir.push(VmOpcode::VExit);
+    println!("  解码指令数: {} 条", nodes.len());
 
-    println!("  VM IR 指令数: {} 条", all_vm_ir.len());
+    // 运行降级通道: matched → VM bytecode, unmatched → island (VPushImm64 + VExec)
+    LoweringPass::run_with_range_and_base(
+        &mut nodes, code_start, code_end, image_base,
+    );
 
-    // 4. 初始化架构并编译字节码
-    println!("\n[4/7] 编译 VM 字节码...");
-    let arch_config = ArchConfig::new_random();
-    println!("  Initial Key: {:08X}", arch_config.initial_crypt_key);
+    // 收集所有 VM IR + 末尾 VExit
+    let mut all_vm_ir: Vec<VmInstruction> = Vec::new();
+    for node in &nodes {
+        let matched = !node.vm_ir.is_empty();
+        all_vm_ir.extend(node.vm_ir.clone());
+        if !matched {
+            println!("    [unmatched] RVA {:08X} -> island VExec", node.rva);
+        }
+    }
+    all_vm_ir.push(VmInstruction::new(VmOpcode::VExit));
 
-    let compiler = BytecodeCompiler::new(&arch_config);
-    let bytecode = compiler.compile_block(&all_vm_ir);
-    println!("  字节码大小: {} 字节", bytecode.len());
+    println!("  VM IR 指令数: {} 条 (+VExit)", all_vm_ir.len() - 1);
 
-    // 5. 计算新节区 RVA 并构建 VM 载荷
-    println!("\n[5/7] 构建 VM 载荷...");
+    let arch_config = ArchConfig::new_default();
+    let compiler = BytecodeCompiler::new();
+    let (bytecode, islands) = compiler.compile_block(&all_vm_ir);
+    println!("  字节码大小: {} 字节, 孤岛数: {}", bytecode.len(), islands.len());
+
+    // 4. 计算新节区 RVA 并构建 VM 载荷
+    println!("\n[4/7] 构建 VM 载荷...");
     let section_alignment = 0x1000u64;
 
     let new_section_rva = if let Some(pe) = pe_file.pe() {
@@ -380,60 +322,54 @@ pub fn encrypt_and_write_pe(input: PathBuf, output: PathBuf) -> Result<(), Box<d
     };
 
     let new_section_va = image_base + new_section_rva;
-    // VM 退出后跳转到被保护代码之后的下一条指令（不是 OEP）
-    let return_va = image_base + code_end;
-    println!("  .vmp0 VA: 0x{:016X}", new_section_va);
-    println!("  VM 返回地址: 0x{:016X} (code_end)", return_va);
 
-    let vm_payload = VmPayload::build(&arch_config, &bytecode, new_section_va, return_va)?;
+    // 跳过 END 标记的 call 指令 (通常 5-6 字节)
+    let end_call_size = finder.get_call_instruction_size(&pe_file, end_call_rva)
+        .unwrap_or(5);
+    let return_va = image_base + code_end + end_call_size;
+    println!("  .vmp0 VA: 0x{:016X}", new_section_va);
+    println!("  VM 返回地址: 0x{:016X} (code_end + {})", return_va, end_call_size);
+
+    let vm_payload = VmPayload::build(&arch_config, &bytecode, &islands, new_section_va, return_va, image_base)?;
     println!("  VM 载荷大小: {} 字节", vm_payload.binary_data.len());
     println!("  VM Entry 偏移: 0x{:08X}", vm_payload.entry_offset);
 
-    // 6. 重建 PE 文件（不修改入口点）
-    println!("\n[6/7] 重建 PE 文件...");
+    // 5. 重建 PE 文件（不修改入口点）
+    println!("\n[5/7] 重建 PE 文件...");
     let mut rebuilder = PeRebuilder::new(pe_file);
 
     let vmp_section = NewSection::new(".vmp0", vm_payload.binary_data.clone())
         .as_code()
         .with_characteristics(0xE0000060);
     rebuilder.add_section(vmp_section);
-    // 注意：不调用 set_entry_point，保持原始 OEP
 
     let mut new_pe_bytes = rebuilder.rebuild()?;
 
-    // 7. 在新 PE 中修补被保护区域的起始位置：替换为 jmp VM_Entry
-    println!("[7/7] 修补被保护区域跳转...");
+    // 6. 修补 BEGIN 标记的 CALL：替换为 call VM_Entry
+    //    原始: FF 15 xx xx xx xx (6字节 IAT call)
+    //    替换: E8 xx xx xx xx 90 (5字节 direct call + 1字节 NOP)
+    //    注意：不破坏被保护区域代码，保持 .text 原样以便 VExec 原地执行
+    println!("[6/7] 修补 BEGIN 标记跳转...");
     let vm_entry_rva = new_section_rva + vm_payload.entry_offset as u64;
     println!("  VM Entry RVA: 0x{:08X}", vm_entry_rva);
 
-    // 重新加载新 PE 来获取正确的节区映射
     let new_pe = PeFile::new(new_pe_bytes.clone())?;
-    let code_start_offset = new_pe.rva_to_offset(code_start)
-        .ok_or("Cannot locate code_start in rebuilt PE")? as usize;
 
-    // 计算相对偏移: target - (patch_addr + 5)
-    // patch_addr = image_base + code_start
-    // target = image_base + vm_entry_rva
-    let patch_va = image_base + code_start;
+    let begin_call_offset = new_pe.rva_to_offset(begin_call_rva)
+        .ok_or("Cannot locate begin call in rebuilt PE")? as usize;
+
+    let patch_va = image_base + begin_call_rva;
     let target_va = image_base + vm_entry_rva;
     let rel_offset = (target_va as i64) - (patch_va as i64) - 5;
 
     if rel_offset >= i32::MIN as i64 && rel_offset <= i32::MAX as i64 {
-        // 修补: E9 xx xx xx xx (near relative jmp)
-        new_pe_bytes[code_start_offset] = 0xE9;
-        new_pe_bytes[code_start_offset + 1..code_start_offset + 5]
+        new_pe_bytes[begin_call_offset] = 0xE8;
+        new_pe_bytes[begin_call_offset + 1..begin_call_offset + 5]
             .copy_from_slice(&(rel_offset as i32).to_le_bytes());
-        // NOP 填充剩余的原始代码区域（防止 CPU 执行到原始代码）
-        let patch_end = code_start_offset + 5;
-        let code_end_offset = new_pe.rva_to_offset(code_end)
-            .ok_or("Cannot locate code_end in rebuilt PE")? as usize;
-        let clear_end = code_end_offset.min(new_pe_bytes.len());
-        if patch_end < clear_end {
-            for byte in &mut new_pe_bytes[patch_end..clear_end] {
-                *byte = 0x90;
-            }
+        if begin_call_offset + 5 < new_pe_bytes.len() {
+            new_pe_bytes[begin_call_offset + 5] = 0x90; // NOP the 6th byte
         }
-        println!("  已修补: 0x{:08X} -> jmp 0x{:016X}", code_start, target_va);
+        println!("  已修补: call @ 0x{:08X} -> call VM_Entry @ 0x{:016X}", begin_call_rva, target_va);
     } else {
         return Err("Jump offset exceeds 32-bit range".into());
     }
@@ -447,7 +383,6 @@ pub fn encrypt_and_write_pe(input: PathBuf, output: PathBuf) -> Result<(), Box<d
     println!("VM 区域 RVA: 0x{:08X} ({} 字节)", new_section_rva, vm_payload.binary_data.len());
     println!("OEP 保持不变: 0x{:08X}", oep);
     println!("VM 返回地址: 0x{:08X}", code_end);
-    println!("滚动密钥: {:08X}", arch_config.initial_crypt_key);
 
     Ok(())
 }

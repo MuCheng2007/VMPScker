@@ -1,0 +1,59 @@
+use crate::vm::handlers::HandlerGenerator;
+use iced_x86::code_asm::*;
+use iced_x86::IcedError;
+
+// ========== VExit: 退出虚拟机，返回原生调用者 ==========
+
+pub fn gen_vexit(gen: &mut HandlerGenerator) -> Result<(usize, usize), IcedError> {
+    let start = gen.asm.instructions().len();
+    let ctx = &gen.arch.context;
+
+    // 构造返回跳板：在 Native RSP 之下分配 8 字节存入 return_va
+    gen.asm.mov(ctx.scratch2, gen.save_area_va)?;
+    gen.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 40 + 16 * 8))?; // scratch1 = Native RSP
+    
+    // 减 8 字节存放跳板地址 (确保 ret 之后 RSP 恢复到原本的 Native RSP)
+    gen.asm.sub(ctx.scratch1, 8_i32)?;
+    gen.asm.mov(qword_ptr(ctx.scratch2 + 24), ctx.scratch1)?; // 保存新 RSP 供 restore 使用
+    
+    // 将 return_va 压入跳板
+    gen.asm.mov(ctx.scratch2, gen.return_va)?;
+    gen.asm.mov(qword_ptr(ctx.scratch1), ctx.scratch2)?;
+
+    gen.restore_native_and_ret()?;
+
+    let end = gen.asm.instructions().len();
+    Ok((start, end))
+}
+
+// ========== VExec: 陷阱到原生执行，返回后重入 VM ==========
+
+pub fn gen_vexec(gen: &mut HandlerGenerator) -> Result<(usize, usize), IcedError> {
+    let start = gen.asm.instructions().len();
+    let ctx = &gen.arch.context;
+
+    // 1. 从 VM 栈弹出函数地址
+    gen.vpop(ctx.scratch1)?;
+
+    // 2. 保存 VM 上下文 (VIP, VSP, func_addr) 到 save_area
+    gen.asm.mov(ctx.scratch2, gen.save_area_va)?;
+    gen.asm.mov(qword_ptr(ctx.scratch2), ctx.vip)?;
+    gen.asm.mov(qword_ptr(ctx.scratch2 + 8), ctx.vsp)?;
+    gen.asm.mov(qword_ptr(ctx.scratch2 + 32), ctx.scratch1)?;
+
+    // 3. 在原生栈上构建 ret 跳板: [func_addr, reentry_va]
+    gen.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 40 + 16 * 8))?;
+    gen.asm.sub(ctx.scratch1, 16_i32)?;
+    gen.asm.mov(qword_ptr(ctx.scratch2 + 24), ctx.scratch1)?;
+    gen.asm.mov(ctx.scratch1, qword_ptr(ctx.scratch2 + 24))?;
+    gen.asm.mov(ctx.scratch2, qword_ptr(ctx.scratch2 + 32))?;
+    gen.asm.mov(qword_ptr(ctx.scratch1), ctx.scratch2)?;        // func_addr
+    gen.asm.mov(ctx.scratch2, gen.reentry_va)?;
+    gen.asm.mov(qword_ptr(ctx.scratch1 + 8_i32), ctx.scratch2)?; // reentry_va
+
+    // 4. 恢复原生寄存器并 ret 跳转到 func_addr
+    gen.restore_native_and_ret()?;
+
+    let end = gen.asm.instructions().len();
+    Ok((start, end))
+}

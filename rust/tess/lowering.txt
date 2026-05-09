@@ -1,0 +1,178 @@
+use crate::intel::ir::{IrOpcode, IrOperand, IrRegister};
+use crate::pipeline::node::InstNode;
+use crate::vm::opcode::VmOpcode;
+use crate::vm::ir::VmInstruction;
+use iced_x86::Register;
+
+pub struct LoweringPass;
+
+impl LoweringPass {
+    pub fn run_with_range_and_base(
+        nodes: &mut Vec<InstNode>,
+        code_start: u64,
+        code_end: u64,
+        image_base: u64,
+    ) {
+        if code_start >= code_end {
+            return;
+        }
+
+        for node in nodes.iter_mut() {
+            if node.is_junk || node.x86_ir.is_none() {
+                continue;
+            }
+
+            let ir = node.x86_ir.as_ref().unwrap();
+            let mut lowered = false;
+            let mut vm_irs = Vec::new();
+
+            // Try to match common instructions → VM bytecode
+            match &ir.opcode {
+                IrOpcode::Push { src } => {
+                    if let IrOperand::Register(reg) = src {
+                        let offset = Self::reg_to_offset(*reg);
+                        vm_irs.push(VmInstruction::new(VmOpcode::VPushReg(offset)));
+                        lowered = true;
+                    }
+                }
+                IrOpcode::Pop { dst } => {
+                    if let IrOperand::Register(reg) = dst {
+                        let offset = Self::reg_to_offset(*reg);
+                        vm_irs.push(VmInstruction::new(VmOpcode::VPopReg(offset)));
+                        lowered = true;
+                    }
+                }
+                IrOpcode::Mov { dst, src } => {
+                    if let (IrOperand::Register(dst_reg), IrOperand::Register(src_reg)) = (dst, src) {
+                        let src_offset = Self::reg_to_offset(*src_reg);
+                        let dst_offset = Self::reg_to_offset(*dst_reg);
+                        vm_irs.push(VmInstruction::new(VmOpcode::VPushReg(src_offset)));
+                        vm_irs.push(VmInstruction::new(VmOpcode::VPopReg(dst_offset)));
+                        lowered = true;
+                    }
+                    else if let (IrOperand::Register(dst_reg), IrOperand::Immediate(imm)) = (dst, src) {
+                        let dst_offset = Self::reg_to_offset(*dst_reg);
+                        vm_irs.push(VmInstruction::new(VmOpcode::VPushImm64(imm.as_u64())));
+                        vm_irs.push(VmInstruction::new(VmOpcode::VPopReg(dst_offset)));
+                        lowered = true;
+                    }
+                }
+                _ => {}
+            }
+
+            // For unmatched instructions: either island (safe) or native fallback (RIP-relative/control-flow)
+            if !lowered {
+                if let Some(native_inst) = &node.native_inst {
+                    if Self::is_safe_for_island(native_inst) {
+                        let instructions = [native_inst.clone()];
+                        let block = iced_x86::InstructionBlock::new(
+                            &instructions,
+                            native_inst.ip(),
+                        );
+                        match iced_x86::BlockEncoder::encode(64, block, iced_x86::BlockEncoderOptions::NONE) {
+                            Ok(result) => {
+                                vm_irs.push(VmInstruction::new_native(result.code_buffer));
+                            }
+                            Err(_) => {
+                                Self::emit_native_fallback(&mut node.vm_ir, image_base + node.rva);
+                                return;
+                            }
+                        }
+                    } else {
+                        // RIP-relative or control-flow: execute remaining function natively
+                        // from this instruction's original VA (.text is intact)
+                        Self::emit_native_fallback(&mut node.vm_ir, image_base + node.rva);
+                        return;
+                    }
+                }
+            }
+
+            node.vm_ir = vm_irs;
+        }
+    }
+
+    /// Check if an instruction can be safely copied to an island and executed there.
+    /// Unsafe: RIP-relative memory operands, control flow (jmp/call/ret/jcc), string ops.
+    fn is_safe_for_island(inst: &iced_x86::Instruction) -> bool {
+        // IP-relative memory operand — displacement is wrong when copied
+        if inst.memory_base() == Register::RIP || inst.memory_index() == Register::RIP {
+            return false;
+        }
+        // Control flow instructions — won't hit the RET we append
+        match inst.mnemonic() {
+            iced_x86::Mnemonic::Jmp
+            | iced_x86::Mnemonic::Call
+            | iced_x86::Mnemonic::Ret
+            | iced_x86::Mnemonic::Iret
+            | iced_x86::Mnemonic::Iretd
+            | iced_x86::Mnemonic::Iretq
+            | iced_x86::Mnemonic::Je
+            | iced_x86::Mnemonic::Jne
+            | iced_x86::Mnemonic::Ja
+            | iced_x86::Mnemonic::Jae
+            | iced_x86::Mnemonic::Jb
+            | iced_x86::Mnemonic::Jbe
+            | iced_x86::Mnemonic::Jg
+            | iced_x86::Mnemonic::Jge
+            | iced_x86::Mnemonic::Jl
+            | iced_x86::Mnemonic::Jle
+            | iced_x86::Mnemonic::Jno
+            | iced_x86::Mnemonic::Jo
+            | iced_x86::Mnemonic::Jns
+            | iced_x86::Mnemonic::Js
+            | iced_x86::Mnemonic::Jnp
+            | iced_x86::Mnemonic::Jp
+            | iced_x86::Mnemonic::Jcxz
+            | iced_x86::Mnemonic::Jecxz
+            | iced_x86::Mnemonic::Jrcxz
+            | iced_x86::Mnemonic::Loop
+            | iced_x86::Mnemonic::Loope
+            | iced_x86::Mnemonic::Loopne
+            | iced_x86::Mnemonic::Syscall
+            | iced_x86::Mnemonic::Sysret
+            | iced_x86::Mnemonic::Int
+            | iced_x86::Mnemonic::Int3
+            | iced_x86::Mnemonic::Into
+            | iced_x86::Mnemonic::Uiret => return false,
+            _ => {}
+        }
+        true
+    }
+
+    /// Emit a native fallback: VPushImm64(original_va) + VExec + VExit
+    /// This hands off execution to the remaining native code at the original .text location.
+    fn emit_native_fallback(vm_ir: &mut Vec<VmInstruction>, original_va: u64) {
+        vm_ir.push(VmInstruction::new(VmOpcode::VPushImm64(original_va)));
+        vm_ir.push(VmInstruction::new(VmOpcode::VExec));
+        vm_ir.push(VmInstruction::new(VmOpcode::VExit));
+    }
+
+    // === 辅助方法 ===
+
+    /// 将原生寄存器映射到 VM 保存区域中的索引
+    fn reg_to_offset(reg: IrRegister) -> u8 {
+        match reg {
+            IrRegister::Rax => 14, IrRegister::Eax => 14, IrRegister::Ax => 14,
+            IrRegister::Al | IrRegister::Ah => 14,
+            IrRegister::Rcx => 13, IrRegister::Ecx => 13, IrRegister::Cx => 13,
+            IrRegister::Cl | IrRegister::Ch => 13,
+            IrRegister::Rdx => 12, IrRegister::Edx => 12, IrRegister::Dx => 12,
+            IrRegister::Dl | IrRegister::Dh => 12,
+            IrRegister::Rbx => 11, IrRegister::Ebx => 11, IrRegister::Bx => 11,
+            IrRegister::Bl | IrRegister::Bh => 11,
+            IrRegister::Rsp => 16, IrRegister::Esp => 16, IrRegister::Sp => 16, IrRegister::Spl => 16,
+            IrRegister::Rbp => 10, IrRegister::Ebp => 10, IrRegister::Bp => 10, IrRegister::Bpl => 10,
+            IrRegister::Rsi => 9, IrRegister::Esi => 9, IrRegister::Si => 9, IrRegister::Sil => 9,
+            IrRegister::Rdi => 8, IrRegister::Edi => 8, IrRegister::Di => 8, IrRegister::Dil => 8,
+            IrRegister::R8 => 7, IrRegister::R8d => 7, IrRegister::R8b => 7,
+            IrRegister::R9 => 6, IrRegister::R9d => 6, IrRegister::R9b => 6,
+            IrRegister::R10 => 5, IrRegister::R10d => 5, IrRegister::R10b => 5,
+            IrRegister::R11 => 4, IrRegister::R11d => 4, IrRegister::R11b => 4,
+            IrRegister::R12 => 3, IrRegister::R12d => 3, IrRegister::R12b => 3,
+            IrRegister::R13 => 2, IrRegister::R13d => 2, IrRegister::R13b => 2,
+            IrRegister::R14 => 1, IrRegister::R14d => 1, IrRegister::R14b => 1,
+            IrRegister::R15 => 0, IrRegister::R15d => 0, IrRegister::R15b => 0,
+            _ => 0,
+        }
+    }
+}

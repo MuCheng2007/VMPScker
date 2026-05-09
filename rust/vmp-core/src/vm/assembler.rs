@@ -1,23 +1,26 @@
 //! 载荷装配器 (Payload Assembler)
-//! 将生成的机器码和字节码合并，处理所有相对地址引用
+//! 将生成的机器码和字节码合并，构建最终 VM 内存布局
+//!
+//! 布局: [code] [save_area(184)] [handler_table(2048)] [bytecode]
+//! 双趟汇编：第一趟用占位地址测算大小，第二趟用实际地址生成最终代码。
+//! 占位地址与实际地址编码长度相同，避免布局漂移。
 
-use crate::vm::arch::ArchConfig;
-use crate::vm::opcode::VmOpcode;
-use crate::vm::handlers::HandlerGenerator;
+use crate::vm::arch::{ArchConfig, OpcodeMapping};
+use crate::vm::handlers::{HandlerGenerator, HandlerRegistry};
 use crate::vm::gates::VmGates;
+use crate::vm::compiler::IslandPatch;
 use iced_x86::code_asm::*;
 use iced_x86::{Decoder, DecoderOptions, Instruction, IcedError};
 
 pub struct VmPayload {
-    pub binary_data: Vec<u8>, // 最终要写入 PE Section 的二进制数据
-    pub entry_offset: usize,  // VM_Entry 在 binary_data 中的字节偏移量
+    pub binary_data: Vec<u8>,
+    pub entry_offset: usize,
 }
 
-/// 计算指令索引到字节偏移量的映射
-/// 用 Decoder 从已汇编的字节流中解析每条指令的边界
-fn compute_byte_offsets_from_bytes(asm: &CodeAssembler, code_bytes: &[u8], base_rip: u64) -> Vec<usize> {
+/// 用 Decoder 从已汇编的字节流中解析每条指令的字节偏移
+fn compute_byte_offsets(code_bytes: &[u8], base_rip: u64) -> Vec<usize> {
     let mut decoder = Decoder::with_ip(64, code_bytes, base_rip, DecoderOptions::NONE);
-    let mut offsets = Vec::with_capacity(asm.instructions().len());
+    let mut offsets = Vec::new();
     let mut inst = Instruction::default();
 
     while decoder.can_decode() {
@@ -29,158 +32,139 @@ fn compute_byte_offsets_from_bytes(asm: &CodeAssembler, code_bytes: &[u8], base_
 }
 
 impl VmPayload {
-    /// 构建最终的虚拟机内存布局
-    /// new_section_va: 该数据将被放置在 PE 中的绝对虚拟地址 (ImageBase + RVA)
-    /// bytecode: 编译器生成的加密字节码
-    /// return_va: VM Exit 跳转目标虚拟地址 (被保护代码之后的下一条指令地址)
     pub fn build(
         arch: &ArchConfig,
         bytecode: &[u8],
+        islands: &[IslandPatch],
         new_section_va: u64,
         return_va: u64,
+        image_base: u64,
     ) -> Result<Self, IcedError> {
-        // ==========================================
-        // 第一步：生成所有代码组件（获取大小）
-        // ==========================================
+        // 占位地址: 足够大以强制 imm64 编码，与实际地址编码长度一致
+        let dummy_va = 0x7FFF_FFFF_FFFF_FFFFu64;
+        let dummy_rva = 0x7FFF_FFFFu64;
 
+        // 固定布局大小
+        const SAVE_AREA_SIZE: usize = 184;
+        const TABLE_SIZE: usize = 256 * 8; // 2048
+
+        // ========== 第一趟：用占位地址生成，测算代码大小 ==========
         let mut asm = CodeAssembler::new(64)?;
 
-        let temp_table_va = new_section_va;
-        let temp_bytecode_va = new_section_va;
-        VmGates::gen_vmentry(&mut asm, arch, temp_table_va, temp_bytecode_va, 0)?;
+        VmGates::gen_vmentry(&mut asm, arch, dummy_va, dummy_va, dummy_va, dummy_rva)?;
 
-        let mut handler_gen = HandlerGenerator::new(&mut asm, arch);
-        let mut handler_offsets: std::collections::HashMap<VmOpcode, (usize, usize)> =
-            std::collections::HashMap::new();
+        let mut handler_gen = HandlerGenerator {
+            asm: &mut asm,
+            arch,
+            save_area_va: dummy_va,
+            reentry_va: dummy_va,
+            return_va: dummy_va,
+        };
 
-        handler_offsets.insert(VmOpcode::VAdd, handler_gen.gen_vadd_with_label()?);
-        handler_offsets.insert(VmOpcode::VSub, handler_gen.gen_vsub_with_label()?);
-        handler_offsets.insert(VmOpcode::VXor, handler_gen.gen_vxor_with_label()?);
-        handler_offsets.insert(VmOpcode::VNand, handler_gen.gen_vnand_with_label()?);
-        handler_offsets.insert(VmOpcode::VNor, handler_gen.gen_vnor_with_label()?);
-        handler_offsets.insert(VmOpcode::VMul, handler_gen.gen_vmul_with_label()?);
-        handler_offsets.insert(VmOpcode::VDiv, handler_gen.gen_vdiv_with_label()?);
-        handler_offsets.insert(VmOpcode::VIdiv, handler_gen.gen_vidiv_with_label()?);
-        handler_offsets.insert(VmOpcode::VPushImm32(0), handler_gen.gen_vpush_imm32_with_label()?);
-        handler_offsets.insert(VmOpcode::VPushImm64(0), handler_gen.gen_vpush_imm64_with_label()?);
-        handler_offsets.insert(VmOpcode::VPushReg(0), handler_gen.gen_vpush_reg_with_label()?);
-        handler_offsets.insert(VmOpcode::VPopReg(0), handler_gen.gen_vpop_reg_with_label()?);
-        // First pass — generate handlers with temp addresses
-        handler_offsets.insert(VmOpcode::VJmp(0), handler_gen.gen_vjmp_with_label()?);
-        for cond in 0..=15u8 {
-            handler_offsets.insert(VmOpcode::VJcc(cond, 0), handler_gen.gen_vjcc_with_label(cond)?);
+        let registry = HandlerRegistry::register_all();
+
+        for entry in &registry.entries {
+            HandlerRegistry::generate(&mut handler_gen, &entry.opcode)?;
         }
-        // VCall 使用临时地址，第二步会用实际地址
-        handler_offsets.insert(VmOpcode::VCall(0), handler_gen.gen_vcall_with_label(0, 0, 0)?);
-        handler_offsets.insert(VmOpcode::VReadMem(0), handler_gen.gen_vreadmem_with_label(8)?);
-        handler_offsets.insert(VmOpcode::VWriteMem(0), handler_gen.gen_vwritemem_with_label(8)?);
-        handler_offsets.insert(VmOpcode::VNop, handler_gen.gen_vnop_with_label()?);
-        handler_offsets.insert(VmOpcode::VExit, handler_gen.gen_vexit_with_label(return_va, 0)?);
 
-        // 生成重入桩 (使用临时地址)
-        let reentry_idx = VmGates::gen_vm_reentry(&mut asm, arch, 0, 0)?;
+        // 重入桩
+        let reentry_idx = VmGates::gen_vm_reentry(&mut asm, arch, dummy_va, dummy_va)?;
 
         let code_bytes = asm.assemble(new_section_va)?;
         let code_size = code_bytes.len();
 
-        // 布局: [code] [save_area(40)] [handler_table(2048)] [bytecode]
-        let save_area_offset = code_size;
-        let save_area_size = 176usize; // VIP(8)+VSP(8)+VKEY(4)+pad(4)+NativeRSP(8)+func_addr(8) + reg_save_area(17*8=136)
-        let table_offset = save_area_offset + save_area_size;
-        let table_size = 256 * 8;
-        let bytecode_offset = table_offset + table_size;
+        // 计算实际地址
+        let save_area_va = new_section_va + code_size as u64;
+        let table_va = save_area_va + SAVE_AREA_SIZE as u64;
+        let bytecode_va = table_va + TABLE_SIZE as u64;
+        let bytecode_rva = bytecode_va - image_base;
 
-        // ==========================================
-        // 第二步：使用实际偏移量重新生成
-        // ==========================================
+        // 查找重入桩的实际地址
+        let temp_offsets = compute_byte_offsets(&code_bytes, new_section_va);
+        let reentry_va = new_section_va + temp_offsets[reentry_idx.0] as u64;
 
-        let save_area_va = new_section_va + save_area_offset as u64;
-        let table_va = new_section_va + table_offset as u64;
-        let bytecode_va = new_section_va + bytecode_offset as u64;
-
-        // 计算重入桩的实际地址
-        let temp_byte_offsets = compute_byte_offsets_from_bytes(&asm, &code_bytes, new_section_va);
-        let reentry_byte_off = temp_byte_offsets[reentry_idx.0];
-        let reentry_va = new_section_va + reentry_byte_off as u64;
-        eprintln!("[VM] Re-entry stub VA: 0x{:X}", reentry_va);
-        eprintln!("[VM] Save area VA: 0x{:X}", save_area_va);
-        eprintln!("[VM] Handler table VA: 0x{:X}", table_va);
-
+        // ========== 第二趟：用实际地址重新生成 ==========
         let mut final_asm = CodeAssembler::new(64)?;
 
-        // 1. 重新生成 VM_Entry
-        let (final_entry_idx, _) =
-            VmGates::gen_vmentry(&mut final_asm, arch, table_va, bytecode_va, save_area_va)?;
+        VmGates::gen_vmentry(&mut final_asm, arch, table_va, bytecode_va, save_area_va, bytecode_rva)?;
 
-        // 2. 重新生成所有 Handlers (VCall 使用实际地址，save_area_va 提供给寄存器保存区访问)
-        let mut final_handler_gen = HandlerGenerator::with_save_area(&mut final_asm, arch, save_area_va);
-        let mut final_handler_offsets: std::collections::HashMap<VmOpcode, (usize, usize)> =
+        let mut final_gen = HandlerGenerator {
+            asm: &mut final_asm,
+            arch,
+            save_area_va,
+            reentry_va,
+            return_va,
+        };
+
+        let mut final_handler_offsets: std::collections::HashMap<u8, (usize, usize)> =
             std::collections::HashMap::new();
 
-        final_handler_offsets.insert(VmOpcode::VAdd, final_handler_gen.gen_vadd_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VSub, final_handler_gen.gen_vsub_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VXor, final_handler_gen.gen_vxor_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VNand, final_handler_gen.gen_vnand_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VNor, final_handler_gen.gen_vnor_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VMul, final_handler_gen.gen_vmul_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VDiv, final_handler_gen.gen_vdiv_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VIdiv, final_handler_gen.gen_vidiv_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VPushImm32(0), final_handler_gen.gen_vpush_imm32_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VPushImm64(0), final_handler_gen.gen_vpush_imm64_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VPushReg(0), final_handler_gen.gen_vpush_reg_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VPopReg(0), final_handler_gen.gen_vpop_reg_with_label()?);
-        // Final pass — generate with actual addresses
-        final_handler_offsets.insert(VmOpcode::VJmp(0), final_handler_gen.gen_vjmp_with_label()?);
-        for cond in 0..=15u8 {
-            final_handler_offsets.insert(VmOpcode::VJcc(cond, 0), final_handler_gen.gen_vjcc_with_label(cond)?);
+        for entry in &registry.entries {
+            let op_byte = arch.mapping.opcode_to_byte(&entry.opcode);
+            let (start, end) = HandlerRegistry::generate(&mut final_gen, &entry.opcode)?;
+            final_handler_offsets.insert(op_byte, (start, end));
         }
-        final_handler_offsets.insert(VmOpcode::VCall(0), final_handler_gen.gen_vcall_with_label(0, reentry_va, save_area_va)?);
-        final_handler_offsets.insert(VmOpcode::VReadMem(0), final_handler_gen.gen_vreadmem_with_label(8)?);
-        final_handler_offsets.insert(VmOpcode::VWriteMem(0), final_handler_gen.gen_vwritemem_with_label(8)?);
-        final_handler_offsets.insert(VmOpcode::VNop, final_handler_gen.gen_vnop_with_label()?);
-        final_handler_offsets.insert(VmOpcode::VExit, final_handler_gen.gen_vexit_with_label(return_va, save_area_va)?);
 
-        // 3. 重新生成重入桩
-        let (final_reentry_idx, _) = VmGates::gen_vm_reentry(&mut final_asm, arch, save_area_va, table_va)?;
+        VmGates::gen_vm_reentry(&mut final_asm, arch, save_area_va, table_va)?;
 
-        // 4. 汇编并计算偏移
+        // 汇编
         let final_code_bytes = final_asm.assemble(new_section_va)?;
-        let byte_offsets = compute_byte_offsets_from_bytes(&final_asm, &final_code_bytes, new_section_va);
+        let byte_offsets = compute_byte_offsets(&final_code_bytes, new_section_va);
 
-        let entry_byte_offset = byte_offsets[final_entry_idx];
+        // VM_Entry 是第一条指令，字节偏移为 0
+        let entry_byte_offset = 0usize;
 
-        let handler_byte_offsets: std::collections::HashMap<VmOpcode, usize> =
-            final_handler_offsets
-                .iter()
-                .map(|(op, (start_idx, _end_idx))| (*op, byte_offsets[*start_idx]))
-                .collect();
+        // 计算 handler 字节偏移
+        let handler_byte_offsets: std::collections::HashMap<u8, u64> = final_handler_offsets
+            .iter()
+            .map(|(op_byte, (start_idx, _))| (*op_byte, byte_offsets[*start_idx] as u64))
+            .collect();
 
-        let exit_byte_offset = final_handler_offsets
-            .get(&VmOpcode::VExit)
-            .map(|(start_idx, _)| byte_offsets[*start_idx])
-            .unwrap_or(0);
+        // VExit handler 作为默认（未知 opcode 安全退出）
+        let exit_byte_off = *handler_byte_offsets.get(&1).unwrap_or(&0);
 
-        // 5. 生成 Handler Table
-        let mut handler_table_bytes = Vec::with_capacity(256 * 8);
+        // 构建 Handler Table: 所有 256 个槽
+        let mut handler_table_bytes = Vec::with_capacity(TABLE_SIZE);
         for i in 0..=255u8 {
-            let handler_va = if let Some(op) = arch.reverse_map.get(&i) {
-                if let Some(&byte_off) = handler_byte_offsets.get(op) {
-                    new_section_va + byte_off as u64
-                } else {
-                    new_section_va + exit_byte_offset as u64
-                }
+            let handler_va = if let Some(&byte_off) = handler_byte_offsets.get(&i) {
+                new_section_va + byte_off
             } else {
-                new_section_va + exit_byte_offset as u64
+                // 未知 opcode → VExit (安全回退)
+                new_section_va + exit_byte_off
             };
             handler_table_bytes.extend_from_slice(&handler_va.to_le_bytes());
         }
 
-        // 6. 合并: code + save_area(zeros) + handler_table + bytecode
+        // 合并: code + save_area(zeros) + handler_table + bytecode + islands
         let mut final_binary = final_code_bytes;
-        // Save area (176 bytes: 40 header + 136 register buffer, zeroed — written at runtime)
-        final_binary.extend_from_slice(&[0u8; 176]);
+        final_binary.extend_from_slice(&[0u8; SAVE_AREA_SIZE]);
         final_binary.extend_from_slice(&handler_table_bytes);
-        final_binary.extend_from_slice(bytecode);
+
+        // 修补 bytecode 中的孤岛地址
+        let mut final_bytecode = bytecode.to_vec();
+        let island_base_va = bytecode_va + final_bytecode.len() as u64;
+        let mut current_island_va = island_base_va;
+
+        for island in islands {
+            final_bytecode[island.bytecode_offset..island.bytecode_offset + 8]
+                .copy_from_slice(&current_island_va.to_le_bytes());
+            current_island_va += island.native_bytes.len() as u64 + 5; // +5 for JMP rel32
+        }
+
+        final_binary.extend_from_slice(&final_bytecode);
+
+        let mut current_island_offset = 0u64;
+        for island in islands {
+            final_binary.extend_from_slice(&island.native_bytes);
+
+            // 用无痕的 JMP 替代 RET，原路跳回虚拟机
+            final_binary.push(0xE9); // JMP rel32
+            let jmp_src = island_base_va + current_island_offset + island.native_bytes.len() as u64;
+            let rel32 = (reentry_va as i64 - (jmp_src as i64 + 5)) as i32;
+            final_binary.extend_from_slice(&rel32.to_le_bytes());
+
+            current_island_offset += island.native_bytes.len() as u64 + 5;
+        }
 
         Ok(VmPayload {
             binary_data: final_binary,

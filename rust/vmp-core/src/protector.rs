@@ -4,7 +4,7 @@
 //! 仅加密 VM 标记保护的区域，OEP 保持不变。
 
 use crate::error::{Result, VmpError};
-use crate::intel::{disassemble_to_ir, DisassemblyMode};
+use crate::intel::{disassemble, disassemble_to_ir, DisassemblyMode};
 use crate::pe::file::PeFile;
 use crate::pe::vmp_marker_finder::{VmpMarkerFinder, VmpMarkerType};
 use crate::pe::rebuilder::{PeRebuilder, NewSection};
@@ -13,6 +13,7 @@ use crate::pipeline::lowering::LoweringPass;
 use crate::vm::arch::ArchConfig;
 use crate::vm::compiler::BytecodeCompiler;
 use crate::vm::opcode::VmOpcode;
+use crate::vm::ir::VmInstruction;
 use crate::vm::assembler::VmPayload;
 use std::path::Path;
 
@@ -87,13 +88,13 @@ impl VmpProtector {
                 || p.begin.marker_type == VmpMarkerType::Ultra
         });
 
-        let (code_bytes, code_start, code_end) = match virt_pair {
+        let (code_bytes, code_start, code_end, begin_call_rva, end_call_rva) = match virt_pair {
             Some(pair) => {
                 let code_bytes = finder.read_protected_code(&pe_file, pair)?;
                 if code_bytes.is_empty() {
                     return Err(VmpError::vm_error("Empty protected code block".to_string()));
                 }
-                (code_bytes, pair.code_start, pair.code_end)
+                (code_bytes, pair.code_start, pair.code_end, pair.begin.call_rva, pair.end.call_rva)
             }
             None => {
                 return Err(VmpError::vm_error(
@@ -106,29 +107,49 @@ impl VmpProtector {
         eprintln!("[DEBUG protect] image_base=0x{:X}, code_start=0x{:X}, code_end=0x{:X}, code_bytes.len()=0x{:X}", image_base, code_start, code_end, code_bytes.len());
         let ir_instructions = disassemble_to_ir(&code_bytes, self.config.mode, code_start)
             .map_err(|e| VmpError::vm_error(format!("Disassembly failed: {:?}", e)))?;
+        let raw_instructions = disassemble(&code_bytes, self.config.mode, code_start)
+            .map_err(|e| VmpError::vm_error(format!("Disassembly failed: {:?}", e)))?;
 
-        let mut nodes: Vec<InstNode> = ir_instructions
-            .into_iter()
-            .map(|ir| InstNode {
-                rva: ir.rva,
-                native_inst: None,
-                x86_ir: Some(ir),
+        // Build RVA → native_inst map for correct pairing (IR converter emits Comment
+        // pseudo-instructions that share RVAs with real IR opcodes)
+        let native_by_rva: std::collections::HashMap<u64, iced_x86::Instruction> = raw_instructions
+            .iter()
+            .map(|inst| (inst.ip(), inst.iced().clone()))
+            .collect();
+
+        let mut nodes: Vec<InstNode> = Vec::new();
+        for ir_inst in &ir_instructions {
+            // Skip Comment pseudo-instructions — they are annotations, not executable IR
+            if matches!(&ir_inst.opcode, crate::intel::ir::IrOpcode::Comment { .. }) {
+                continue;
+            }
+            let native_inst = native_by_rva.get(&ir_inst.rva).cloned();
+            nodes.push(InstNode {
+                rva: ir_inst.rva,
+                native_inst,
+                x86_ir: Some(ir_inst.clone()),
                 liveness: Default::default(),
                 vm_ir: Vec::new(),
                 is_junk: false,
-            })
-            .collect();
+            });
+        }
 
+        // 3. 计算返回地址 (VM 退出后的目标)
+        let end_call_size = finder.get_call_instruction_size(&pe_file, end_call_rva).unwrap_or(5);
+        let return_va = image_base + code_end + end_call_size;
+
+        // 4. 执行降级操作，将 x86 指令映射为 VM IR 或 Island
         LoweringPass::run_with_range_and_base(&mut nodes, code_start, code_end, image_base);
 
-        let mut all_vm_ir = Vec::new();
+        let mut all_vm_ir: Vec<VmInstruction> = Vec::new();
         for node in &nodes {
-            if !node.vm_ir.is_empty() {
-                eprintln!("[VM] RVA 0x{:X}: {:?}", node.rva, node.vm_ir);
-            }
             all_vm_ir.extend_from_slice(&node.vm_ir);
         }
-        all_vm_ir.push(VmOpcode::VExit);
+
+        // 最终退出序列：手动把 return_va 推入虚拟栈，然后触发 VExit
+        // VExit 从虚拟栈弹出返回地址并跳转过去
+        all_vm_ir.push(VmInstruction::new(VmOpcode::VPushImm64(return_va)));
+        all_vm_ir.push(VmInstruction::new(VmOpcode::VExit));
 
         // Debug: print all VM IR opcodes
         eprintln!("[VM] Total VM IR count: {}", all_vm_ir.len());
@@ -136,12 +157,12 @@ impl VmpProtector {
             eprintln!("[VM]   [{:3}] {:?}", i, ir);
         }
 
-        // 3. 编译字节码
-        let arch_config = ArchConfig::new_random();
-        let compiler = BytecodeCompiler::new(&arch_config);
-        let bytecode = compiler.compile_block(&all_vm_ir);
+        // 5. 编译字节码
+        let arch_config = ArchConfig::new_default();
+        let compiler = BytecodeCompiler::new();
+        let (bytecode, islands) = compiler.compile_block(&all_vm_ir);
 
-        // 4. 构建 VM 载荷
+        // 6. 构建 VM 载荷
         let section_alignment = 0x1000u64;
         let new_section_rva = if let Some(pe) = pe_file.pe() {
             if let Some(last_sec) = pe.sections.last() {
@@ -155,12 +176,11 @@ impl VmpProtector {
         };
 
         let new_section_va = image_base + new_section_rva;
-        let return_va = image_base + code_end;
 
-        let vm_payload = VmPayload::build(&arch_config, &bytecode, new_section_va, return_va)
+        let vm_payload = VmPayload::build(&arch_config, &bytecode, &islands, new_section_va, return_va, image_base)
             .map_err(|e| VmpError::vm_error(format!("VM payload build failed: {:?}", e)))?;
 
-        // 5. 重建 PE（不修改入口点）
+        // 7. 重建 PE（不修改入口点）
         let mut rebuilder = PeRebuilder::new(pe_file);
         let vmp_section = NewSection::new(".vmp0", vm_payload.binary_data.clone())
             .as_code()
@@ -169,15 +189,20 @@ impl VmpProtector {
 
         let mut new_pe_bytes = rebuilder.rebuild()?;
 
-        // 6. 修补被保护区域起始位置为 jmp VM_Entry
+        // 8. 修补 BEGIN 标记的 CALL：call [IAT] → jmp VM_Entry
+        //    原始: FF 15 xx xx xx xx (6字节 IAT call)
+        //    替换: E9 xx xx xx xx 90 (5字节 direct jmp + 1字节 NOP)
+        //    使用 JMP 而非 CALL：避免在原生栈上压入返回地址，
+        //    确保 Native Fallback 中执行的原生代码看到的 RSP 与保护前完全一致。
         let new_pe = PeFile::new(new_pe_bytes.clone())?;
         let vm_entry_rva = new_section_rva + vm_payload.entry_offset as u64;
-        let code_start_offset = new_pe
-            .rva_to_offset(code_start)
-            .ok_or_else(|| VmpError::vm_error("Cannot locate code_start in rebuilt PE"))?
+
+        let begin_call_offset = new_pe
+            .rva_to_offset(begin_call_rva)
+            .ok_or_else(|| VmpError::vm_error("Cannot locate begin CALL in rebuilt PE"))?
             as usize;
 
-        let patch_va = image_base + code_start;
+        let patch_va = image_base + begin_call_rva;
         let target_va = image_base + vm_entry_rva;
         let rel_offset = (target_va as i64) - (patch_va as i64) - 5;
 
@@ -185,23 +210,15 @@ impl VmpProtector {
             return Err(VmpError::vm_error("Jump offset exceeds 32-bit range".to_string()));
         }
 
-        new_pe_bytes[code_start_offset] = 0xE9;
-        new_pe_bytes[code_start_offset + 1..code_start_offset + 5]
+        new_pe_bytes[begin_call_offset] = 0xE9;
+        new_pe_bytes[begin_call_offset + 1..begin_call_offset + 5]
             .copy_from_slice(&(rel_offset as i32).to_le_bytes());
-
-        let patch_end = code_start_offset + 5;
-        let code_end_offset = new_pe
-            .rva_to_offset(code_end)
-            .ok_or_else(|| VmpError::vm_error("Cannot locate code_end in rebuilt PE"))?
-            as usize;
-        let clear_end = code_end_offset.min(new_pe_bytes.len());
-        if patch_end < clear_end {
-            for byte in &mut new_pe_bytes[patch_end..clear_end] {
-                *byte = 0x90;
-            }
+        if begin_call_offset + 5 < new_pe_bytes.len() {
+            new_pe_bytes[begin_call_offset + 5] = 0x90; // NOP the 6th byte
         }
+        eprintln!("[VM] Patched CALL at 0x{:X}: jmp VM_Entry 0x{:X}", begin_call_rva, target_va);
 
-        // 7. 修补 .pdata：零化覆盖被保护代码范围的 RUNTIME_FUNCTION 条目
+        // 9. 修补 .pdata：零化覆盖被保护代码范围的 RUNTIME_FUNCTION 条目
         // 否则 Windows 栈展开会使用失效的 unwind 信息导致崩溃
         {
             let new_pe2 = PeFile::new(new_pe_bytes.clone())?;
@@ -240,7 +257,7 @@ impl VmpProtector {
             }
         }
 
-        // 8. 写入文件
+        // 10. 写入文件
         std::fs::write(output_path, new_pe_bytes)?;
 
         Ok(ProtectResult {

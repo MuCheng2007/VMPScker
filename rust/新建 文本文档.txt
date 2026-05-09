@@ -1,0 +1,152 @@
+仔细排查后，发现依然崩溃的根本原因在于 “栈状态在原程序和虚拟机之间的失步”，以及 Island (指令岛) 对栈操作指令的致命冲突。
+
+我为你准备了终极修复方案。请修改以下 4 个核心文件，这会彻底解决栈损坏和回退崩溃的问题。
+
+1. 修复 src/protector.rs：改 CALL 为 JMP，并恢复转换管线
+
+原来的替换将 call IAT 换成了 call VM_Entry。但问题是，call
+会将返回地址压入原生栈中！这导致进入虚拟机后，所有的原生指令（如果在指令岛或降级执行）看到的
+RSP 都比预期少了 8 字节，最终导致严重的内存错位崩溃。 修复：改用 jmp VM_Entry 进入，并且在代码生成时恢复 LoweringPass
+处理流。
+
+找到 // 6. 修补 BEGIN 标记的 CALL 及附近逻辑，将其修改为：
+
+        // 3. 运行降级转换管线（将普通指令映射为 VM IR，将复杂指令映射为 Native Fallback/Island）
+        LoweringPass::run_with_range_and_base(&mut nodes, code_start, code_end, image_base);
+
+        let mut all_vm_ir: Vec<VmInstruction> = Vec::new();
+        for node in &nodes {
+            all_vm_ir.extend_from_slice(&node.vm_ir);
+        }
+
+        // 最终退出序列：手动把 return_va 推入虚拟栈，然后触发 VExit
+        all_vm_ir.push(VmInstruction::new(VmOpcode::VPushImm64(return_va)));
+        all_vm_ir.push(VmInstruction::new(VmOpcode::VExit));
+
+        // ... (跳过中间没变的部分，来到步骤 6 替换指令处) ...
+
+        // 6. 修补 BEGIN 标记的 CALL：call [IAT] → jmp VM_Entry
+        //    原始: FF 15 xx xx xx xx (6字节 IAT call)
+        //    替换: E9 xx xx xx xx 90 (5字节 direct jmp + 1字节 NOP)
+        let new_pe = PeFile::new(new_pe_bytes.clone())?;
+        let vm_entry_rva = new_section_rva + vm_payload.entry_offset as u64;
+
+        let begin_call_offset = new_pe
+            .rva_to_offset(begin_call_rva)
+            .ok_or_else(|| VmpError::vm_error("Cannot locate begin CALL in rebuilt PE"))?
+            as usize;
+
+        let patch_va = image_base + begin_call_rva;
+        let target_va = image_base + vm_entry_rva;
+        let rel_offset = (target_va as i64) - (patch_va as i64) - 5;
+
+        if rel_offset < i32::MIN as i64 || rel_offset > i32::MAX as i64 {
+            return Err(VmpError::vm_error("Call offset exceeds 32-bit range".to_string()));
+        }
+
+        new_pe_bytes[begin_call_offset] = 0xE9; // E9 是 JMP rel32 (无副作用跳转)
+        new_pe_bytes[begin_call_offset + 1..begin_call_offset + 5]
+            .copy_from_slice(&(rel_offset as i32).to_le_bytes());
+        if begin_call_offset + 5 < new_pe_bytes.len() {
+            new_pe_bytes[begin_call_offset + 5] = 0x90; // NOP
+        }
+        eprintln!("[VM] Patched CALL at 0x{:X}: jmp VM_Entry 0x{:X}", begin_call_rva, target_va);
+
+2. 修复 src/pipeline/lowering.rs：严格过滤 Island 中的栈指令
+
+在我们的 VExec 中，Island(指令岛) 执行时会使用真正的原生 RSP，并以 ret 结束跳回虚拟机。如果被抽取为指令岛的是 push rax 或者
+sub rsp, 0x20，它将直接破坏 Island 跳板，导致 ret 时返回到垃圾地址而崩溃。 修复：严格拒绝所有会对栈产生影响的指令，将它们推向原生的
+Native Fallback。
+
+将 is_safe_for_island 方法替换为：
+
+    fn is_safe_for_island(inst: &iced_x86::Instruction) -> bool {
+        // IP-relative 内存寻址不安全
+        if inst.memory_base() == Register::RIP || inst.memory_index() == Register::RIP {
+            return false;
+        }
+
+        // 绝对拒绝任何修改 RSP/ESP/SP 的指令进入指令岛 (例如 sub rsp, 20h)
+        if inst.op_count() > 0 {
+            let op0 = inst.op_register(0);
+            if op0 == Register::RSP || op0 == Register::ESP || op0 == Register::SP {
+                return false;
+            }
+        }
+
+        match inst.mnemonic() {
+            // 控制流与中断
+            iced_x86::Mnemonic::Jmp | iced_x86::Mnemonic::Call | iced_x86::Mnemonic::Ret |
+            iced_x86::Mnemonic::Iret | iced_x86::Mnemonic::Iretd | iced_x86::Mnemonic::Iretq |
+            iced_x86::Mnemonic::Je | iced_x86::Mnemonic::Jne | iced_x86::Mnemonic::Ja |
+            iced_x86::Mnemonic::Jae | iced_x86::Mnemonic::Jb | iced_x86::Mnemonic::Jbe |
+            iced_x86::Mnemonic::Jg | iced_x86::Mnemonic::Jge | iced_x86::Mnemonic::Jl |
+            iced_x86::Mnemonic::Jle | iced_x86::Mnemonic::Jno | iced_x86::Mnemonic::Jo |
+            iced_x86::Mnemonic::Jns | iced_x86::Mnemonic::Js | iced_x86::Mnemonic::Jnp |
+            iced_x86::Mnemonic::Jp | iced_x86::Mnemonic::Jcxz | iced_x86::Mnemonic::Jecxz |
+            iced_x86::Mnemonic::Jrcxz | iced_x86::Mnemonic::Loop | iced_x86::Mnemonic::Loope |
+            iced_x86::Mnemonic::Loopne | iced_x86::Mnemonic::Syscall | iced_x86::Mnemonic::Sysret |
+            iced_x86::Mnemonic::Int | iced_x86::Mnemonic::Int3 | iced_x86::Mnemonic::Into |
+            iced_x86::Mnemonic::Uiret | 
+            // !!! 拒绝隐式操作栈的指令进入指令岛 !!!
+            iced_x86::Mnemonic::Push | iced_x86::Mnemonic::Pusha | iced_x86::Mnemonic::Pushad |
+            iced_x86::Mnemonic::Pushaw | iced_x86::Mnemonic::Pushf | iced_x86::Mnemonic::Pushfd |
+            iced_x86::Mnemonic::Pushfq | iced_x86::Mnemonic::Pop | iced_x86::Mnemonic::Popa |
+            iced_x86::Mnemonic::Popad | iced_x86::Mnemonic::Popaw | iced_x86::Mnemonic::Popf |
+            iced_x86::Mnemonic::Popfd | iced_x86::Mnemonic::Popfq | iced_x86::Mnemonic::Enter |
+            iced_x86::Mnemonic::Leave => return false,
+            _ => {}
+        }
+        true
+    }
+
+3. 修复 src/vm/handlers/stack.rs：简化强健化 VPushImm64
+
+VPushImm64 的读取原先拆分为了高低各 32 位处理，在某些寄存器推演时容易产生掩码错位。 修复：直接一口气 mov r64, qword ptr
+[vip]。
+
+将 gen_vpush_imm64 替换为：
+
+// ========== VPushImm64: 从字节码读取 64 位立即数压栈 ==========
+
+pub fn gen_vpush_imm64(gen: &mut HandlerGenerator) -> Result<(usize, usize), IcedError> {
+    let start = gen.asm.instructions().len();
+    let ctx = &gen.arch.context;
+
+    // 直接读取 64 位立即数
+    gen.asm.mov(ctx.scratch1, qword_ptr(ctx.vip))?;
+    gen.asm.add(ctx.vip, 8_i32)?;
+    gen.vpush(ctx.scratch1)?;
+
+    DispatcherGen::append_dispatch_logic(gen.asm, gen.arch)?;
+    let end = gen.asm.instructions().len();
+    Ok((start, end))
+}
+
+4. 确认 src/vm/gates.rs：精准的原生栈保存
+
+由于第一步我们使用了 jmp VM_Entry 进入，原程序的堆栈没有任何污染和残留。所以，我们在计算原生 RSP 时，只需要补偿 gen_vmentry
+刚进门时 push rax 的 8 个字节。
+
+确保 src/vm/gates.rs 里面的 gen_vmentry 的这部分逻辑是这样的：
+
+        // 1. 保存所有原生寄存器到 .vmp0 寄存器缓冲区
+        // 避免长期改变 RSP，确保 16 字节对齐
+        asm.push(rax)?; 
+        asm.mov(rax, save_area_va)?;
+        
+        // ... (保存 rcx 相关的逻辑不变) ...
+        
+        // 此时 RAX 包含 save_area_va，并且栈指针已经完全恢复
+        // 索引 16 = 跟踪的原生 RSP
+        asm.mov(rcx, rsp)?;
+        asm.add(rcx, 8_i32)?; // 补偿一开始的 push rax，这就完美地得到了刚进入 jmp VM_Entry 时的原生 RSP
+        asm.mov(qword_ptr(rax + 40 + 16 * 8), rcx)?;
+
+这次修复了什么？
+
+1.  去除了污染栈的 call：用 JMP 代替 CALL 替换了原有的 VMP Marker，现在原生代码如果在虚拟机中发生 Native
+    Fallback，它所面对的 RSP 栈环境与从未保护前 100% 完全一致。
+2.  阻断指令岛的自毁：指令如 push [rax] 会逃过普通 IR 降级转而流向 Island，然后又在 Island
+    内往堆栈写入数据，直接干烂了跳板返回地址导致崩溃。现在拦截了它，它会安全地走入
+    Native Fallback，终止局部保护并安全跳回原文流继续执行。

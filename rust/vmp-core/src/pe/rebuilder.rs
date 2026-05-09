@@ -537,9 +537,18 @@ impl PeRebuilder {
             .copy_from_slice(&subsystem.to_le_bytes());
 
         // DllCharacteristics
-        // Note: DYNAMIC_BASE (ASLR) disabled because VM handler table uses absolute addresses
-        // that would need relocation entries for the new .vmp0 section
-        let dll_characteristics: u16 = 0x8100; // NX_COMPAT | TERMINAL_SERVER_AWARE
+        // DllCharacteristics
+        // 必须剥离 DYNAMIC_BASE (ASLR) 特性，因为我们生成的 VM 代码包含了大量的硬编码绝对物理地址
+        // 如果 Windows 随机重定位镜像，会导致严重 Segfault
+        let dll_characteristics: u16 = if let Some(ref pe) = self.original.pe() {
+            if let Some(opt) = pe.header.optional_header {
+                opt.windows_fields.dll_characteristics & !0x0040 // 剥离 IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+            } else {
+                0x8120
+            }
+        } else {
+            0x8120
+        };
         output[size_of_image_offset + 14..size_of_image_offset + 16]
             .copy_from_slice(&dll_characteristics.to_le_bytes());
 

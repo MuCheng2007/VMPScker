@@ -1,0 +1,166 @@
+//! 载荷装配器 (Payload Assembler)
+//! 将生成的机器码和字节码合并，构建最终 VM 内存布局
+//!
+//! 布局: [code] [save_area(184)] [handler_table(2048)] [bytecode]
+//! 双趟汇编：第一趟用占位地址测算大小，第二趟用实际地址生成最终代码。
+//! 占位地址与实际地址编码长度相同，避免布局漂移。
+
+use crate::vm::arch::{ArchConfig, OpcodeMapping};
+use crate::vm::handlers::{HandlerGenerator, HandlerRegistry};
+use crate::vm::gates::VmGates;
+use crate::vm::compiler::IslandPatch;
+use iced_x86::code_asm::*;
+use iced_x86::{Decoder, DecoderOptions, Instruction, IcedError};
+
+pub struct VmPayload {
+    pub binary_data: Vec<u8>,
+    pub entry_offset: usize,
+}
+
+/// 用 Decoder 从已汇编的字节流中解析每条指令的字节偏移
+fn compute_byte_offsets(code_bytes: &[u8], base_rip: u64) -> Vec<usize> {
+    let mut decoder = Decoder::with_ip(64, code_bytes, base_rip, DecoderOptions::NONE);
+    let mut offsets = Vec::new();
+    let mut inst = Instruction::default();
+
+    while decoder.can_decode() {
+        offsets.push((decoder.ip() - base_rip) as usize);
+        decoder.decode_out(&mut inst);
+    }
+
+    offsets
+}
+
+impl VmPayload {
+    pub fn build(
+        arch: &ArchConfig,
+        bytecode: &[u8],
+        islands: &[IslandPatch],
+        new_section_va: u64,
+        return_va: u64,
+        image_base: u64,
+    ) -> Result<Self, IcedError> {
+        // 占位地址: 足够大以强制 imm64 编码，与实际地址编码长度一致
+        let dummy_va = 0x7FFF_FFFF_FFFF_FFFFu64;
+        let dummy_rva = 0x7FFF_FFFFu64;
+
+        // 固定布局大小
+        const SAVE_AREA_SIZE: usize = 184;
+        const TABLE_SIZE: usize = 256 * 8; // 2048
+
+        // ========== 第一趟：用占位地址生成，测算代码大小 ==========
+        let mut asm = CodeAssembler::new(64)?;
+
+        VmGates::gen_vmentry(&mut asm, arch, dummy_va, dummy_va, dummy_va, dummy_rva)?;
+
+        let mut handler_gen = HandlerGenerator {
+            asm: &mut asm,
+            arch,
+            save_area_va: dummy_va,
+            reentry_va: dummy_va,
+            return_va: dummy_va,
+        };
+
+        let registry = HandlerRegistry::register_all();
+
+        for entry in &registry.entries {
+            HandlerRegistry::generate(&mut handler_gen, &entry.opcode)?;
+        }
+
+        // 重入桩
+        let reentry_idx = VmGates::gen_vm_reentry(&mut asm, arch, dummy_va, dummy_va)?;
+
+        let code_bytes = asm.assemble(new_section_va)?;
+        let code_size = code_bytes.len();
+
+        // 计算实际地址
+        let save_area_va = new_section_va + code_size as u64;
+        let table_va = save_area_va + SAVE_AREA_SIZE as u64;
+        let bytecode_va = table_va + TABLE_SIZE as u64;
+        let bytecode_rva = bytecode_va - image_base;
+
+        // 查找重入桩的实际地址
+        let temp_offsets = compute_byte_offsets(&code_bytes, new_section_va);
+        let reentry_va = new_section_va + temp_offsets[reentry_idx.0] as u64;
+
+        // ========== 第二趟：用实际地址重新生成 ==========
+        let mut final_asm = CodeAssembler::new(64)?;
+
+        VmGates::gen_vmentry(&mut final_asm, arch, table_va, bytecode_va, save_area_va, bytecode_rva)?;
+
+        let mut final_gen = HandlerGenerator {
+            asm: &mut final_asm,
+            arch,
+            save_area_va,
+            reentry_va,
+            return_va,
+        };
+
+        let mut final_handler_offsets: std::collections::HashMap<u8, (usize, usize)> =
+            std::collections::HashMap::new();
+
+        for entry in &registry.entries {
+            let op_byte = arch.mapping.opcode_to_byte(&entry.opcode);
+            let (start, end) = HandlerRegistry::generate(&mut final_gen, &entry.opcode)?;
+            final_handler_offsets.insert(op_byte, (start, end));
+        }
+
+        VmGates::gen_vm_reentry(&mut final_asm, arch, save_area_va, table_va)?;
+
+        // 汇编
+        let final_code_bytes = final_asm.assemble(new_section_va)?;
+        let byte_offsets = compute_byte_offsets(&final_code_bytes, new_section_va);
+
+        // VM_Entry 是第一条指令，字节偏移为 0
+        let entry_byte_offset = 0usize;
+
+        // 计算 handler 字节偏移
+        let handler_byte_offsets: std::collections::HashMap<u8, u64> = final_handler_offsets
+            .iter()
+            .map(|(op_byte, (start_idx, _))| (*op_byte, byte_offsets[*start_idx] as u64))
+            .collect();
+
+        // VExit handler 作为默认（未知 opcode 安全退出）
+        let exit_byte_off = *handler_byte_offsets.get(&1).unwrap_or(&0);
+
+        // 构建 Handler Table: 所有 256 个槽
+        let mut handler_table_bytes = Vec::with_capacity(TABLE_SIZE);
+        for i in 0..=255u8 {
+            let handler_va = if let Some(&byte_off) = handler_byte_offsets.get(&i) {
+                new_section_va + byte_off
+            } else {
+                // 未知 opcode → VExit (安全回退)
+                new_section_va + exit_byte_off
+            };
+            handler_table_bytes.extend_from_slice(&handler_va.to_le_bytes());
+        }
+
+        // 合并: code + save_area(zeros) + handler_table + bytecode + islands
+        let mut final_binary = final_code_bytes;
+        final_binary.extend_from_slice(&[0u8; SAVE_AREA_SIZE]);
+        final_binary.extend_from_slice(&handler_table_bytes);
+
+        // 修补 bytecode 中的孤岛地址
+        let mut final_bytecode = bytecode.to_vec();
+        let island_base_va = bytecode_va + final_bytecode.len() as u64;
+        let mut current_island_va = island_base_va;
+
+        for island in islands {
+            final_bytecode[island.bytecode_offset..island.bytecode_offset + 8]
+                .copy_from_slice(&current_island_va.to_le_bytes());
+            current_island_va += island.native_bytes.len() as u64 + 1; // +1 for RET
+        }
+
+        final_binary.extend_from_slice(&final_bytecode);
+
+        for island in islands {
+            final_binary.extend_from_slice(&island.native_bytes);
+            final_binary.push(0xC3); // RET 0xC3
+        }
+
+        Ok(VmPayload {
+            binary_data: final_binary,
+            entry_offset: entry_byte_offset,
+        })
+    }
+}
